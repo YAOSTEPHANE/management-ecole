@@ -143,7 +143,7 @@ const EducatorOverview = ({ searchQuery = '' }: EducatorOverviewProps) => {
     <div className="space-y-6">
       <div className="rounded-2xl bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-600 p-[1px] shadow-lg shadow-violet-500/15">
         <div className="rounded-[15px] bg-white/97 backdrop-blur-xl px-5 py-4 sm:px-6 sm:py-5">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
             Vie scolaire & conduite
           </p>
           <p className="font-display text-lg sm:text-xl font-bold text-slate-900 mt-1">

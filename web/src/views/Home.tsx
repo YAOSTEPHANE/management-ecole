@@ -145,14 +145,14 @@ export default function Home() {
     >
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[#e8eaef]/80 bg-white/80 shadow-sm shadow-slate-900/5 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex min-h-14 h-14 sm:h-16 max-w-6xl items-center justify-between px-3 sm:px-6">
           <Link href="/" className="group flex items-center gap-3">
             <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#2563eb] to-[#4f46e5] text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white">
               <FiBook className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" aria-hidden />
             </div>
             <div className="leading-tight">
               <span className="block text-lg font-bold tracking-tight text-[#1a1d29]">Gestion Scolaire</span>
-              <span className="hidden text-[11px] font-medium uppercase tracking-wider text-[#5c617a] sm:block">
+              <span className="hidden text-[10px] font-medium uppercase tracking-wider text-[#5c617a] sm:block">
                 Pilotage & pédagogie
               </span>
             </div>
@@ -333,7 +333,7 @@ export default function Home() {
                   ].map((s) => (
                     <div key={s.l} className="text-center sm:text-left">
                       <p className="text-2xl font-black tabular-nums text-white sm:text-3xl">{s.n}</p>
-                      <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs">
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs">
                         {s.l}
                       </p>
                     </div>
@@ -352,7 +352,7 @@ export default function Home() {
                           <span className="h-3 w-3 rounded-full bg-amber-400/80" />
                           <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
                         </div>
-                        <span className="rounded-md bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        <span className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
                           Aperçu
                         </span>
                       </div>

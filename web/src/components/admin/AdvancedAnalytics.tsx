@@ -880,7 +880,7 @@ const AdvancedAnalytics = () => {
                 <PolarGrid stroke="#cbd5e1" strokeDasharray="4 8" />
                 <PolarAngleAxis
                   dataKey="subject"
-                  tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }}
                 />
                 <PolarRadiusAxis
                   angle={90}

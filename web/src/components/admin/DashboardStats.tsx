@@ -18,8 +18,6 @@ import {
 } from 'recharts';
 import {
   PremiumTooltip,
-  PieGradients,
-  BarGradientsMulti,
   CHART_GRID_SOFT,
   CHART_AXIS_TICK,
   CHART_MARGIN_COMPACT,
@@ -27,8 +25,6 @@ import {
   RechartsViewport,
   PremiumPieActiveShape,
   PremiumChartMeshBackground,
-  ChartDropShadowFilter,
-  LineStrokeGradient,
   PREMIUM_SOLID,
 } from '../charts';
 import {
@@ -118,26 +114,26 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="space-y-4">
+        <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Card key={i} className="p-5">
-              <div className="h-4 w-20 bg-gray-200 rounded mb-3 animate-pulse" />
-              <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
+            <Card key={i} className="p-3">
+              <div className="h-3 w-16 bg-gray-200 rounded mb-2 animate-pulse" />
+              <div className="h-6 w-10 bg-gray-200 rounded animate-pulse" />
             </Card>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6">
-              <div className="h-64 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4">
+            <Card className="p-4">
+              <div className="h-52 bg-gray-100 rounded-lg animate-pulse" />
             </Card>
-            <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+            <div className="h-52 bg-gray-100 rounded-lg animate-pulse" />
           </div>
-          <div className="space-y-6">
-            <div className="h-48 bg-gray-100 rounded-xl animate-pulse" />
-            <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="space-y-4">
+            <div className="h-40 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-52 bg-gray-100 rounded-lg animate-pulse" />
           </div>
         </div>
       </div>
@@ -191,36 +187,36 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
     dataUpdatedAt > 0 ? format(new Date(dataUpdatedAt), "HH:mm:ss", { locale: fr }) : null;
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-600 p-[1px] shadow-lg shadow-indigo-500/15">
-        <Card variant="premium" className="!p-0 border-0 shadow-none bg-white/98 rounded-[15px] overflow-hidden" hover={false}>
-          <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="space-y-5">
+      <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-600 p-px shadow-sm">
+        <Card variant="premium" className="!p-0 border-0 shadow-none bg-white/98 rounded-[11px] overflow-hidden" hover={false}>
+          <div className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-3">
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
+              <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">
                 Pilotage établissement
               </p>
-              <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-1">
+              <h2 className="font-display text-base sm:text-lg font-bold text-slate-900 mt-0.5">
                 Vue d’ensemble opérationnelle
               </h2>
-              <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
+              <p className="text-[10px] sm:text-xs text-slate-600 mt-1 max-w-2xl leading-snug">
                 Résumé au {format(new Date(), "d MMMM yyyy", { locale: fr })}
                 {totalStudents > 0 && (
                   <>
                     {' — '}
                     <strong className="text-slate-800">{totalStudents}</strong> élève{totalStudents > 1 ? 's' : ''},{' '}
-                    <strong className="text-slate-800">{totalStaff}</strong> membres du personnel pédagogique.
+                    <strong className="text-slate-800">{totalStaff}</strong> personnel.
                   </>
                 )}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-xs font-semibold">
-                <FiTrendingUp className="w-4 h-4 shrink-0" aria-hidden />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-[9px] font-semibold">
+                <FiTrendingUp className="w-3.5 h-3.5 shrink-0" aria-hidden />
                 Données consolidées
               </div>
               {lastSync && (
-                <div className="text-xs text-slate-500 tabular-nums">
-                  {isFetching ? 'Actualisation…' : `Dernière synchro ${lastSync}`}
+                <div className="text-[9px] text-slate-500 tabular-nums">
+                  {isFetching ? 'Actualisation…' : `Synchro ${lastSync}`}
                 </div>
               )}
             </div>
@@ -230,33 +226,33 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
 
       {/* Indicateurs clés */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.12em] mb-4">
+        <h3 className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
           Indicateurs clés
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2">
           {indicators.map((ind, index) => {
             const Icon = ind.icon;
             return (
               <Card
                 key={index}
                 variant="premium"
-                className="p-5 ring-1 ring-slate-900/5 hover:shadow-lg hover:shadow-slate-900/5 transition-shadow"
+                className="p-2 sm:p-2.5 ring-1 ring-slate-900/5 hover:shadow-sm transition-shadow rounded-lg"
                 hover={false}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-1.5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    <p className="text-[8px] font-semibold text-slate-500 uppercase tracking-wide leading-tight">
                       {ind.title}
                     </p>
-                    <p className="text-2xl font-black text-slate-900 mt-1.5 tabular-nums tracking-tight">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 mt-0.5 tabular-nums tracking-tight leading-none">
                       {ind.value}
                     </p>
                     {ind.subtitle && (
-                      <p className="text-xs text-slate-500 mt-1">{ind.subtitle}</p>
+                      <p className="text-[8px] text-slate-500 mt-0.5 leading-tight">{ind.subtitle}</p>
                     )}
                   </div>
-                  <div className={`p-2.5 rounded-xl ${ind.bg} shrink-0 ring-1 ring-black/5`}>
-                    <Icon className={`w-6 h-6 ${ind.color}`} aria-hidden />
+                  <div className={`p-1 rounded-md ${ind.bg} shrink-0 ring-1 ring-black/5`}>
+                    <Icon className={`w-3.5 h-3.5 ${ind.color}`} aria-hidden />
                   </div>
                 </div>
               </Card>
@@ -265,39 +261,60 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
         </div>
       </div>
 
-      {/* Graphiques + colonne latérale */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div>
+        <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+          Actions rapides
+        </h3>
+        <QuickActions
+          onAddStudent={onAddStudent}
+          onCreateClass={onCreateClass}
+          onAddTeacher={onAddTeacher}
+          onAddEducator={onAddEducator}
+          onGenerateReport={onGenerateReport}
+          onExportData={onExportData}
+          onSettings={onSettings}
+        />
+      </div>
+
+      <div>
+        <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+          Notifications
+        </h3>
+        <NotificationsWidget />
+      </div>
+
+      {/* Graphiques + activité */}
+      <div className="space-y-4">
           <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.12em] mb-4">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Répartition des effectifs
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <Card
                 variant="premium"
                 hover={false}
-                className="relative overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/40 shadow-[0_24px_48px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5"
+                className="relative overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/40 shadow-sm ring-1 ring-slate-900/5"
               >
                 <PremiumChartMeshBackground />
-                <div className="relative p-5 sm:p-6">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30">
-                        <FiPieChart className="h-5 w-5" aria-hidden />
+                <div className="relative p-3 sm:p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm">
+                        <FiPieChart className="h-4 w-4" aria-hidden />
                       </div>
                       <div>
-                        <span className="font-display text-base font-bold text-slate-900">Donut effectifs</span>
-                        <p className="text-xs text-slate-500">Part par classe — survol pour détail</p>
+                        <span className="font-display text-sm font-bold text-slate-900">Donut effectifs</span>
+                        <p className="text-[9px] text-slate-500">Part par classe</p>
                       </div>
                     </div>
                     {enrollmentTotal > 0 && (
-                      <span className="hidden sm:inline-flex rounded-full bg-slate-900/5 px-3 py-1 text-[11px] font-bold tabular-nums text-slate-600">
-                        Σ {enrollmentTotal} élèves
+                      <span className="hidden sm:inline-flex rounded-full bg-slate-900/5 px-2 py-0.5 text-[9px] font-bold tabular-nums text-slate-600">
+                        Σ {enrollmentTotal}
                       </span>
                     )}
                   </div>
                   {studentsError ? (
-                    <div className="flex h-[280px] flex-col items-center justify-center gap-2 px-4 text-center text-sm text-amber-700">
+                    <div className="flex h-[220px] flex-col items-center justify-center gap-2 px-3 text-center text-xs text-amber-700">
                       <p className="font-medium">Impossible de charger les élèves</p>
                       <p className="text-xs text-amber-600/90">
                         Vérifiez que le serveur API tourne et que vous êtes connecté (NEXT_PUBLIC_API_URL).
@@ -305,18 +322,16 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                     </div>
                   ) : chartData.length > 0 ? (
                     <>
-                      <RechartsViewport height={280} className="relative z-[1]">
+                      <RechartsViewport height={220} className="relative z-[1]">
                         <PieChart>
-                          <ChartDropShadowFilter id="dash-pie-shadow" />
-                          <PieGradients count={chartData.length} />
                           <Pie
                             data={chartData}
                             dataKey="value"
                             nameKey="name"
                             cx="50%"
                             cy="50%"
-                            innerRadius={64}
-                            outerRadius={96}
+                            innerRadius={52}
+                            outerRadius={78}
                             paddingAngle={4}
                             cornerRadius={8}
                             stroke="#ffffff"
@@ -327,10 +342,14 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                             activeShape={PremiumPieActiveShape}
                             onMouseEnter={(_, i) => setPieActiveIndex(i)}
                             onMouseLeave={() => setPieActiveIndex(undefined)}
-                            style={{ filter: "url(#dash-pie-shadow)" }}
                           >
                             {chartData.map((_, i) => (
-                              <Cell key={i} fill={`url(#premium-pie-${i})`} stroke="#fff" strokeWidth={2} />
+                              <Cell
+                                key={i}
+                                fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]}
+                                stroke="#fff"
+                                strokeWidth={2}
+                              />
                             ))}
                           </Pie>
                           <Tooltip
@@ -347,14 +366,14 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                           />
                         </PieChart>
                       </RechartsViewport>
-                      <div className="relative z-[1] mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200/80 pt-4">
+                      <div className="relative z-[1] mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-200/80 pt-2">
                         {chartData.map((d, i) => (
                           <span
                             key={d.fullName}
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"
+                            className="inline-flex items-center gap-1.5 text-[9px] font-semibold text-slate-600"
                           >
                             <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm ring-2 ring-white"
+                              className="h-2 w-2 shrink-0 rounded-full shadow-sm ring-1 ring-white"
                               style={{
                                 background: PREMIUM_SOLID[i % PREMIUM_SOLID.length],
                               }}
@@ -366,7 +385,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                       </div>
                     </>
                   ) : (
-                    <div className="relative z-[1] flex h-[280px] items-center justify-center text-sm font-medium text-slate-400">
+                    <div className="relative z-[1] flex h-[220px] items-center justify-center text-xs font-medium text-slate-400">
                       Aucune donnée
                     </div>
                   )}
@@ -376,28 +395,26 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
               <Card
                 variant="premium"
                 hover={false}
-                className="relative overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-indigo-50/25 to-violet-50/35 shadow-[0_24px_48px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5"
+                className="relative overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-indigo-50/25 to-violet-50/35 shadow-sm ring-1 ring-slate-900/5"
               >
                 <PremiumChartMeshBackground />
-                <div className="relative p-5 sm:p-6">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25">
-                      <FiActivity className="h-5 w-5" aria-hidden />
+                <div className="relative p-3 sm:p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm">
+                      <FiActivity className="h-4 w-4" aria-hidden />
                     </div>
                     <div>
-                      <h3 className="font-display text-base font-bold text-slate-900">Histogramme</h3>
-                      <p className="text-xs text-slate-500">Volume par groupe — dégradé par barre</p>
+                      <h3 className="font-display text-sm font-bold text-slate-900">Histogramme</h3>
+                      <p className="text-[9px] text-slate-500">Volume par groupe</p>
                     </div>
                   </div>
                   {studentsError ? (
-                    <div className="flex h-[280px] items-center justify-center px-4 text-center text-sm text-amber-700">
+                    <div className="flex h-[220px] items-center justify-center px-3 text-center text-xs text-amber-700">
                       Données élèves indisponibles
                     </div>
                   ) : chartData.length > 0 ? (
-                    <RechartsViewport height={280} className="relative z-[1]">
+                    <RechartsViewport height={220} className="relative z-[1]">
                       <BarChart data={chartData} margin={CHART_MARGIN_COMPACT}>
-                        <ChartDropShadowFilter id="dash-bar-shadow" />
-                        <BarGradientsMulti count={chartData.length} idPrefix="dash-bar-multi" />
                         <CartesianGrid {...CHART_GRID_SOFT} />
                         <XAxis
                           dataKey="name"
@@ -432,20 +449,20 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                               value: `Moy. ${avgStudentsPerClass}`,
                               position: "insideTopRight",
                               fill: "#64748b",
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: 600,
                             }}
                           />
                         )}
-                        <Bar dataKey="value" radius={[14, 14, 4, 4]} maxBarSize={48} style={{ filter: "url(#dash-bar-shadow)" }}>
+                        <Bar dataKey="value" radius={[10, 10, 3, 3]} maxBarSize={40}>
                           {chartData.map((_, i) => (
-                            <Cell key={i} fill={`url(#dash-bar-multi-${i})`} />
+                            <Cell key={i} fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]} />
                           ))}
                         </Bar>
                       </BarChart>
                     </RechartsViewport>
                   ) : (
-                    <div className="relative z-[1] flex h-[280px] items-center justify-center text-sm font-medium text-slate-400">
+                    <div className="relative z-[1] flex h-[220px] items-center justify-center text-xs font-medium text-slate-400">
                       Aucune donnée
                     </div>
                   )}
@@ -457,28 +474,25 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
               <Card
                 variant="premium"
                 hover={false}
-                className="relative mt-6 overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-sky-50/20 to-indigo-50/30 shadow-[0_24px_48px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5"
+                className="relative mt-4 overflow-hidden !p-0 border border-white/80 bg-gradient-to-br from-white via-sky-50/20 to-indigo-50/30 shadow-sm ring-1 ring-slate-900/5"
               >
                 <PremiumChartMeshBackground />
-                <div className="relative p-5 sm:p-6">
-                  <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
-                        <FiLayers className="h-5 w-5" aria-hidden />
+                <div className="relative p-3 sm:p-4">
+                  <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-sm">
+                        <FiLayers className="h-4 w-4" aria-hidden />
                       </div>
                       <div>
-                        <h3 className="font-display text-base font-bold text-slate-900">Profil cumulatif</h3>
-                        <p className="text-xs text-slate-500">
-                          Classes triées par effectif — barres (élèves) et courbe (% cumulé)
+                        <h3 className="font-display text-sm font-bold text-slate-900">Profil cumulatif</h3>
+                        <p className="text-[9px] text-slate-500">
+                          Effectifs et % cumulé
                         </p>
                       </div>
                     </div>
                   </div>
-                  <RechartsViewport height={300} className="relative z-[1]">
+                  <RechartsViewport height={240} className="relative z-[1]">
                     <ComposedChart data={composedProfileData} margin={CHART_MARGIN_COMPOSED}>
-                      <ChartDropShadowFilter id="dash-composed-shadow" />
-                      <BarGradientsMulti count={composedProfileData.length} idPrefix="dash-composed-bar" />
-                      <LineStrokeGradient id="dash-cumulative-line" from="#0ea5e9" to="#4f46e5" />
                       <CartesianGrid {...CHART_GRID_SOFT} />
                       <XAxis
                         dataKey="name"
@@ -518,17 +532,16 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                         dataKey="value"
                         radius={[14, 14, 4, 4]}
                         maxBarSize={44}
-                        style={{ filter: "url(#dash-composed-shadow)" }}
                       >
                         {composedProfileData.map((_, i) => (
-                          <Cell key={i} fill={`url(#dash-composed-bar-${i})`} />
+                          <Cell key={i} fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]} />
                         ))}
                       </Bar>
                       <Line
                         yAxisId="right"
                         type="monotone"
                         dataKey="cumulativePct"
-                        stroke="url(#dash-cumulative-line)"
+                        stroke="#4f46e5"
                         strokeWidth={3.5}
                         dot={{ r: 5, fill: "#4f46e5", stroke: "#fff", strokeWidth: 2 }}
                         activeDot={{ r: 7, strokeWidth: 2, stroke: "#fff" }}
@@ -541,35 +554,11 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.12em] mb-4">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Activité récente
             </h3>
             <RecentActivity />
           </div>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.12em] mb-4">
-              Actions rapides
-            </h3>
-            <QuickActions
-              onAddStudent={onAddStudent}
-              onCreateClass={onCreateClass}
-              onAddTeacher={onAddTeacher}
-              onAddEducator={onAddEducator}
-              onGenerateReport={onGenerateReport}
-              onExportData={onExportData}
-              onSettings={onSettings}
-            />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.12em] mb-4">
-              Notifications
-            </h3>
-            <NotificationsWidget />
-          </div>
-        </div>
       </div>
     </div>
   );

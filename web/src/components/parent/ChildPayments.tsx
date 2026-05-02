@@ -493,8 +493,8 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={paymentChartData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: any) => formatFCFA(value)} />
                   <Line type="monotone" dataKey="amount" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>

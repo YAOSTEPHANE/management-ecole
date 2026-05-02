@@ -32,6 +32,7 @@ import HRManagementModule from '../../components/admin/hr/HRManagementModule';
 import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
 import MaterialManagementModule from '../../components/admin/material/MaterialManagementModule';
 import ReportsStatisticsModule from '../../components/admin/reports/ReportsStatisticsModule';
+import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import AddStudentModal from '../../components/admin/AddStudentModal';
@@ -70,17 +71,10 @@ import {
   FiPieChart,
   FiCommand,
   FiArrowRight,
+  FiMenu,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
-
-type TabItem = {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  description: string;
-};
 
 const VALID_TAB_IDS = [
   'dashboard',
@@ -115,6 +109,14 @@ const VALID_TAB_IDS = [
   'settings',
 ] as const;
 
+type TabItem = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  description: string;
+};
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -148,6 +150,7 @@ const AdminDashboard = () => {
   const [isGenerateReportModalOpen, setIsGenerateReportModalOpen] = useState(false);
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const tabs: TabItem[] = [
     { id: 'dashboard', label: 'Tableau de bord', icon: FiLayout, color: 'from-blue-500 to-blue-600', description: 'Vue d’ensemble et indicateurs' },
@@ -212,78 +215,45 @@ const AdminDashboard = () => {
 
   return (
     <Layout user={user} onLogout={logout} role="ADMIN">
-      <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-indigo-50/50">
-        {/* Sidebar */}
-        <aside className="w-72 bg-white/75 backdrop-blur-xl border-r border-white sticky top-16 h-[calc(100vh-4rem)] flex flex-col z-30 shrink-0 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.35)]">
-          <div className="p-4 flex flex-col flex-1 min-h-0">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.14em] px-3 py-2 shrink-0">
-              Menu
-            </p>
-            <nav className="space-y-1.5 flex-1 overflow-y-auto min-h-0 pr-1">
-              {mainTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => changeTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      isActive
-                        ? `bg-gradient-to-r ${tab.color} text-white shadow-lg shadow-indigo-500/20`
-                        : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'opacity-100' : 'opacity-80'}`} />
-                    <span className="truncate">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="pt-3 mt-auto border-t border-slate-200/70 shrink-0">
-              <nav className="space-y-1.5">
-                {bottomTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => changeTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        isActive
-                          ? `bg-gradient-to-r ${tab.color} text-white shadow-lg shadow-slate-500/20`
-                          : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
-                      }`}
-                    >
-                      <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'opacity-100' : 'opacity-80'}`} />
-                      <span className="truncate">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </div>
-        </aside>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/50">
+        <AdminSidebar
+          mainTabs={mainTabs}
+          bottomTabs={bottomTabs}
+          activeTab={activeTab}
+          onTabChange={changeTab}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen((o) => !o)}
+        />
 
-        {/* Contenu principal */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:pl-64 flex flex-col min-w-0">
           {/* Header */}
-          <header className="sticky top-16 z-20 bg-white/80 backdrop-blur-xl border-b border-white shadow-[0_20px_30px_-25px_rgba(15,23,42,0.5)]">
-            <div className="px-6 py-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-                    {getGreeting()}, {user?.firstName}
-                  </h1>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Centre de pilotage — pilotage stratégique, opérationnel et conformité
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1 tabular-nums">
-                    {format(new Date(), "EEEE d MMMM yyyy • HH:mm", { locale: fr })}
-                  </p>
+          <header className="sticky top-16 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shadow-slate-900/5">
+            <div className="px-2.5 sm:px-5 py-1.5 sm:py-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen((o) => !o)}
+                    className="lg:hidden p-1.5 rounded-md hover:bg-slate-100 transition-colors text-slate-700 shrink-0 min-h-[34px] min-w-[34px] flex items-center justify-center"
+                    aria-label="Ouvrir le menu de navigation"
+                  >
+                    <FiMenu className="w-4 h-4" />
+                  </button>
+                  <div className="min-w-0">
+                    <h1 className="font-display text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight break-words leading-tight">
+                      {getGreeting()}, {user?.firstName}
+                    </h1>
+                    <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0 line-clamp-1">
+                      Pilotage — stratégique, opérationnel et conformité
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] text-slate-400 mt-0 tabular-nums">
+                      {format(new Date(), "EEE d MMM yyyy • HH:mm", { locale: fr })}
+                    </p>
+                  </div>
                 </div>
-                <div className="relative w-full sm:w-72">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <FiSearch className="w-5 h-5" />
+                <div className="relative w-full sm:w-56 shrink-0">
+                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-slate-400">
+                    <FiSearch className="w-3.5 h-3.5" />
                   </div>
                   <input
                     type="text"
@@ -294,42 +264,42 @@ const AdminDashboard = () => {
                         router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
                       }
                     }}
-                    placeholder="Rechercher dans la plateforme (Entrée)"
-                    className="w-full pl-10 pr-3 py-2.5 bg-white/80 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                    placeholder="Rechercher… (Entrée)"
+                    className="w-full pl-8 pr-2 py-1 sm:py-1.5 bg-white/90 border border-slate-200 rounded-md text-[10px] sm:text-xs focus:ring-1 focus:ring-indigo-500/25 focus:border-indigo-400"
                   />
                 </div>
               </div>
             </div>
           </header>
 
-          <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
-            <div className="max-w-[1200px] mx-auto space-y-6">
-              <div className={`rounded-2xl bg-gradient-to-r ${activeTabMeta.color} p-[1px] shadow-lg shadow-indigo-500/10`}>
-                <div className="rounded-[15px] bg-white/95 backdrop-blur-xl px-5 py-4">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 w-10 h-10 rounded-xl bg-gradient-to-r ${activeTabMeta.color} text-white flex items-center justify-center shadow-md`}>
-                        <ActiveTabIcon className="w-5 h-5" />
+          <main className="flex-1 px-2.5 sm:px-5 py-3 sm:py-4 overflow-y-auto overflow-x-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="max-w-[1200px] mx-auto space-y-3 sm:space-y-4">
+              <div className={`rounded-xl bg-gradient-to-r ${activeTabMeta.color} p-px shadow-sm`}>
+                <div className="rounded-[11px] bg-white/95 backdrop-blur-xl px-3 py-2 sm:px-4 sm:py-2.5">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <div className={`mt-0.5 w-8 h-8 shrink-0 rounded-lg bg-gradient-to-r ${activeTabMeta.color} text-white flex items-center justify-center shadow-sm`}>
+                        <ActiveTabIcon className="w-4 h-4" />
                       </div>
-                      <div>
-                        <h2 className="text-lg font-bold text-slate-900">{activeTabMeta.label}</h2>
-                        <p className="text-sm text-slate-500 mt-0.5">{activeTabMeta.description}</p>
+                      <div className="min-w-0">
+                        <h2 className="text-sm sm:text-base font-bold text-slate-900">{activeTabMeta.label}</h2>
+                        <p className="text-[9px] sm:text-xs text-slate-500 mt-0 line-clamp-2">{activeTabMeta.description}</p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-                        <FiCommand className="w-3.5 h-3.5" />
-                        Centre admin
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-100 text-slate-700">
+                        <FiCommand className="w-3 h-3" />
+                        Admin
                       </span>
                       {quickActions.slice(0, 2).map((qa) => (
                         <button
                           key={qa.label}
                           type="button"
                           onClick={qa.action}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
                         >
                           {qa.label}
-                          <FiArrowRight className="w-3.5 h-3.5" />
+                          <FiArrowRight className="w-3 h-3" />
                         </button>
                       ))}
                     </div>
@@ -376,14 +346,14 @@ const AdminDashboard = () => {
               {activeTab === 'tuition-fees' && <TuitionFeesManagement />}
               {activeTab === 'payments' && <PaymentsManagement />}
               {activeTab === 'nfc-scanner' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Scanner NFC - Élèves</h3>
+                      <h3 className="text-sm font-bold text-gray-900 mb-2">Scanner NFC - Élèves</h3>
                       <NFCStudentScanner />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Scanner NFC - Enseignants</h3>
+                      <h3 className="text-sm font-bold text-gray-900 mb-2">Scanner NFC - Enseignants</h3>
                       <NFCTeacherScanner />
                     </div>
                   </div>

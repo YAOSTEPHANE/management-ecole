@@ -8,6 +8,22 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /** ~87,5 % de l’échelle Tailwind par défaut — police plus compacte dans tous les modules */
+      fontSize: {
+        xs: ["0.65625rem", { lineHeight: "0.875rem" }],
+        sm: ["0.765625rem", { lineHeight: "1.09375rem" }],
+        base: ["0.875rem", { lineHeight: "1.3125rem" }],
+        lg: ["0.984375rem", { lineHeight: "1.53125rem" }],
+        xl: ["1.09375rem", { lineHeight: "1.53125rem" }],
+        "2xl": ["1.3125rem", { lineHeight: "1.75rem" }],
+        "3xl": ["1.640625rem", { lineHeight: "1.96875rem" }],
+        "4xl": ["1.96875rem", { lineHeight: "2.1875rem" }],
+        "5xl": ["2.625rem", { lineHeight: "1" }],
+        "6xl": ["3.28125rem", { lineHeight: "1" }],
+        "7xl": ["3.9375rem", { lineHeight: "1" }],
+        "8xl": ["5.25rem", { lineHeight: "1" }],
+        "9xl": ["7rem", { lineHeight: "1" }],
+      },
       fontFamily: {
         sans: ["var(--font-sans)", "Plus Jakarta Sans", "system-ui", "sans-serif"],
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],

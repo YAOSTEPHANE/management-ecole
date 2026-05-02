@@ -75,26 +75,26 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
           aria-hidden
         />
         <nav className="glass-nav">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10">
-            <div className="flex h-16 items-center justify-between gap-4">
+          <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-10">
+            <div className="flex min-h-16 h-16 items-center justify-between gap-2 sm:gap-3">
               <Link
                 href={getRolePath()}
-                className="flex items-center gap-3 min-w-0 group"
+                className="flex items-center gap-2 sm:gap-2.5 min-w-0 group"
               >
                 <div
-                  className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent.logo} text-white shadow-lg shadow-black/10 ring-2 ring-white/30 transition duration-300 group-hover:scale-[1.03] group-hover:shadow-xl`}
+                  className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.logo} text-white shadow-md shadow-black/10 ring-2 ring-white/30 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-lg`}
                 >
-                  <span className="font-display text-lg font-bold tracking-tight">É</span>
+                  <span className="font-display text-sm font-bold tracking-tight">É</span>
                   <span
-                    className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/25"
+                    className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/25"
                     aria-hidden
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
+                  <p className="font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
                     Gestion scolaire
                   </p>
-                  <p className="text-[11px] sm:text-xs font-medium text-slate-500 truncate">
+                  <p className="text-[9px] sm:text-[10px] font-medium text-slate-500 truncate">
                     Espace sécurisé
                   </p>
                 </div>
@@ -102,23 +102,23 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
 
               <div className="flex items-center gap-3 sm:gap-4">
                 <span
-                  className={`hidden sm:inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${accent.badge}`}
+                  className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${accent.badge}`}
                 >
                   {accent.label}
                 </span>
 
                 <div className="hidden md:block text-right min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
+                  <p className="text-xs font-semibold text-slate-900 truncate">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-slate-500 truncate max-w-[200px]">{user?.email}</p>
+                  <p className="text-[9px] text-slate-500 truncate max-w-[200px]">{user?.email}</p>
                 </div>
 
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-sm transition hover:bg-white hover:shadow-md hover:border-slate-300/90"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/70 px-1.5 py-1 pr-2 shadow-sm backdrop-blur-sm transition hover:bg-white hover:shadow-md hover:border-slate-300/90 min-h-[40px] sm:min-h-0"
                     aria-expanded={showUserMenu}
                     aria-haspopup="menu"
                   >
@@ -144,7 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                           {user?.firstName} {user?.lastName}
                         </p>
                         <p className="text-xs text-slate-500 break-all">{user?.email}</p>
-                        <p className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide sm:hidden ${accent.badge}`}>
+                        <p className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:hidden ${accent.badge}`}>
                           {accent.label}
                         </p>
                       </div>

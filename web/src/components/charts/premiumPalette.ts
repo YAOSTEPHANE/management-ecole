@@ -29,7 +29,7 @@ export const CHART_GRID_SOFT = {
 
 export const CHART_AXIS_TICK = {
   fill: '#64748b',
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 500,
 };
 

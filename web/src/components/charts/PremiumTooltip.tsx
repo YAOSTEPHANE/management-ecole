@@ -37,7 +37,7 @@ export function PremiumTooltip({
     <div className="relative min-w-[190px] max-w-[300px] rounded-2xl p-[1px] shadow-[0_28px_56px_-12px_rgba(15,23,42,0.35)] backdrop-blur-xl bg-gradient-to-br from-indigo-200/80 via-white/40 to-fuchsia-200/60">
       <div className="rounded-[15px] bg-white/[0.97] px-4 py-3.5 ring-1 ring-white/80">
       {label != null && label !== "" && (
-        <p className="mb-2.5 border-b border-slate-100/90 pb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+        <p className="mb-2.5 border-b border-slate-100/90 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
           {String(label)}
         </p>
       )}

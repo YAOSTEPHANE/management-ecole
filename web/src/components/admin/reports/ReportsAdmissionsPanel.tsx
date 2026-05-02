@@ -58,8 +58,8 @@ const ReportsAdmissionsPanel: React.FC<Props> = ({ summary, isLoading }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={yearData} margin={CHART_MARGIN_COMPACT}>
                 <CartesianGrid {...CHART_GRID} />
-                <XAxis dataKey="annee" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <XAxis dataKey="annee" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                 <Tooltip />
                 <Bar dataKey="dossiers" fill="#0d9488" radius={[4, 4, 0, 0]} />
               </BarChart>

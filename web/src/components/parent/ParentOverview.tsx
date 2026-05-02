@@ -105,7 +105,7 @@ const ParentOverview = () => {
     <div className="space-y-6">
       <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 p-[1px] shadow-lg shadow-orange-500/15">
         <div className="rounded-[15px] bg-white/97 backdrop-blur-xl px-5 py-4 sm:px-6 sm:py-5">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
             Espace familles
           </p>
           <p className="font-display text-lg sm:text-xl font-bold text-slate-900 mt-1">

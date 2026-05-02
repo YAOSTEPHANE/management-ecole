@@ -80,7 +80,7 @@ const ReportsAcademicPanel: React.FC<Props> = ({ summary, isLoading }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical" margin={{ ...CHART_MARGIN_COMPACT, left: 12 }}>
                 <CartesianGrid {...CHART_GRID} />
-                <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 11 }} />
+                <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
                 <Tooltip
                   formatter={(value: number) => [`${value} / 20`, 'Moyenne']}

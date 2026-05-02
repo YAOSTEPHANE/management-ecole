@@ -122,7 +122,7 @@ const Login = () => {
           <div className="absolute -inset-3 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 rounded-[2rem] blur-3xl opacity-25 animate-shimmer" />
           
           {/* Carte principale */}
-          <div className="relative premium-card-surface rounded-[1.75rem] p-8 lg:p-10 border border-white/80 shadow-premium">
+          <div className="relative premium-card-surface rounded-[1.5rem] sm:rounded-[1.75rem] p-5 sm:p-8 lg:p-10 border border-white/80 shadow-premium">
             {/* Logo */}
             <div className="text-center mb-8">
               <div className="relative inline-block mb-4">
@@ -137,10 +137,10 @@ const Login = () => {
 
             {/* Form Header */}
             <div className="mb-8 text-center">
-              <h2 className="font-display text-4xl font-black mb-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent tracking-tight">
+              <h2 className="font-display text-3xl sm:text-4xl font-black mb-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent tracking-tight">
                 Bienvenue
               </h2>
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-600 text-base sm:text-lg">
                 {step === 'email' 
                   ? 'Connectez-vous pour accéder à votre espace'
                   : `Bonjour, ${email}`}
@@ -254,7 +254,7 @@ const Login = () => {
                 </div>
 
                 {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <label className="flex items-center group cursor-pointer">
                     <input
                       type="checkbox"

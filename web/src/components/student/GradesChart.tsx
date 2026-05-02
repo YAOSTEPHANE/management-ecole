@@ -102,7 +102,7 @@ const GradesChart: React.FC<GradesChartProps> = ({ grades }) => {
               Moyennes par matière et par date — repères 10/20 et 16/20
             </p>
           </div>
-          <span className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-md shadow-indigo-500/25">
+          <span className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-md shadow-indigo-500/25">
             Suivi pédagogique
           </span>
         </div>
@@ -139,14 +139,14 @@ const GradesChart: React.FC<GradesChartProps> = ({ grades }) => {
                 stroke="#f59e0b"
                 strokeDasharray="6 6"
                 strokeOpacity={0.85}
-                label={{ value: '10', position: 'insideTopLeft', fill: '#d97706', fontSize: 11, fontWeight: 700 }}
+                label={{ value: '10', position: 'insideTopLeft', fill: '#d97706', fontSize: 10, fontWeight: 700 }}
               />
               <ReferenceLine
                 y={16}
                 stroke="#10b981"
                 strokeDasharray="6 6"
                 strokeOpacity={0.85}
-                label={{ value: '16', position: 'insideTopLeft', fill: '#059669', fontSize: 11, fontWeight: 700 }}
+                label={{ value: '16', position: 'insideTopLeft', fill: '#059669', fontSize: 10, fontWeight: 700 }}
               />
               <Tooltip content={(p) => <PremiumTooltip {...p} valueSuffix="/20" />} />
               <Legend

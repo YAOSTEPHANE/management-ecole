@@ -60,8 +60,8 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={CHART_MARGIN_COMPACT}>
               <CartesianGrid {...CHART_GRID} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}k`} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}k`} />
               <Tooltip
                 formatter={(value: number) => [`${fmtMoney(value * 1000)} FCFA`, 'Montant']}
                 labelFormatter={(label) => `Période ${label}`}

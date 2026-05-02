@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Syne } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -21,6 +21,12 @@ export const metadata: Metadata = {
     "Plateforme de gestion scolaire : administration, pédagogie, familles et paiements.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={`${jakarta.variable} ${syne.variable}`}>
-      <body className="premium-body min-h-full font-sans antialiased text-slate-900">
+      <body className="premium-body min-h-full font-sans antialiased text-base text-slate-900">
         <Providers>{children}</Providers>
       </body>
     </html>
