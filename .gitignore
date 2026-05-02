@@ -1,0 +1,18 @@
+# Dépendances (ne jamais versionner)
+node_modules/
+
+# Environnement & secrets
+.env
+.env.*
+!.env.example
+
+# Builds / caches
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Outils
+.vercel
+.DS_Store
+*.log
