@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "experimentalServices": {
+    "web": {
+      "root": "web",
+      "entrypoint": ".",
+      "routePrefix": "/",
+      "framework": "nextjs"
+    }
+  }
+}
