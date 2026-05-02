@@ -1,18 +1,22 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "services",
+  "installCommand": "npm install",
   "experimentalServices": {
     "web": {
       "root": "web",
       "entrypoint": ".",
       "routePrefix": "/",
-      "framework": "nextjs"
+      "framework": "nextjs",
+      "installCommand": "npm install",
+      "buildCommand": "npm run build"
     },
     "api": {
       "root": "server",
       "entrypoint": "src/index.ts",
       "routePrefix": "/api",
-      "framework": "express"
+      "framework": "express",
+      "installCommand": "npm install",
+      "buildCommand": "npm run build"
     }
   }
 }
