@@ -1,0 +1,1285 @@
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import prisma from '../utils/prisma';
+import { academicYearFromDate } from '../utils/academicYear.util';
+import { deleteUploadedFileByPublicUrl } from '../utils/deleteUpload.util';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
+
+const router = express.Router();
+
+router.use(authenticate);
+router.use(authorize('STUDENT'));
+
+router.use(async (req: AuthRequest, res, next) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { userId: req.user!.id },
+      select: { enrollmentStatus: true },
+    });
+    if (!student) {
+      return res.status(403).json({ error: 'Profil élève introuvable' });
+    }
+    if (student.enrollmentStatus === 'SUSPENDED') {
+      return res.status(403).json({
+        error:
+          'Votre inscription est suspendue. Contactez l’administration pour plus d’informations.',
+        code: 'ENROLLMENT_SUSPENDED',
+      });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+const profileInclude = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      avatar: true,
+    },
+  },
+  class: {
+    include: {
+      teacher: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  parents: {
+    include: {
+      parent: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+// Obtenir le profil de l'élève
+router.get('/profile', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+      include: profileInclude,
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Profil élève non trouvé' });
+    }
+
+    res.json(student);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mettre à jour les données élève (coordonnées, urgence, infos médicales — pas le dossier administratif)
+router.put(
+  '/profile',
+  [
+    body('address').optional().isString().isLength({ max: 500 }).withMessage('Adresse trop longue'),
+    body('emergencyContact').optional().isString().isLength({ max: 200 }).withMessage('Contact urgence trop long'),
+    body('emergencyPhone').optional().isString().isLength({ max: 40 }).withMessage('Téléphone invalide'),
+    body('medicalInfo').optional().isString().isLength({ max: 2000 }).withMessage('Texte trop long'),
+  ],
+  async (req: AuthRequest, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const student = await prisma.student.findFirst({
+        where: { userId: req.user!.id },
+      });
+
+      if (!student) {
+        return res.status(404).json({ error: 'Profil élève non trouvé' });
+      }
+
+      const { address, emergencyContact, emergencyPhone, medicalInfo } = req.body;
+
+      const data: {
+        address?: string | null;
+        emergencyContact?: string | null;
+        emergencyPhone?: string | null;
+        medicalInfo?: string | null;
+      } = {};
+
+      if (address !== undefined) {
+        data.address = address === null || String(address).trim() === '' ? null : String(address).trim();
+      }
+      if (emergencyContact !== undefined) {
+        data.emergencyContact =
+          emergencyContact === null || String(emergencyContact).trim() === ''
+            ? null
+            : String(emergencyContact).trim();
+      }
+      if (emergencyPhone !== undefined) {
+        data.emergencyPhone =
+          emergencyPhone === null || String(emergencyPhone).trim() === ''
+            ? null
+            : String(emergencyPhone).trim();
+      }
+      if (medicalInfo !== undefined) {
+        data.medicalInfo =
+          medicalInfo === null || String(medicalInfo).trim() === '' ? null : String(medicalInfo).trim();
+      }
+
+      if (Object.keys(data).length === 0) {
+        const current = await prisma.student.findFirst({
+          where: { id: student.id },
+          include: profileInclude,
+        });
+        if (!current) {
+          return res.status(404).json({ error: 'Profil élève non trouvé' });
+        }
+        return res.json(current);
+      }
+
+      const updated = await prisma.student.update({
+        where: { id: student.id },
+        data,
+        include: profileInclude,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error('PUT /student/profile:', error);
+      res.status(500).json({ error: error.message || 'Erreur serveur' });
+    }
+  }
+);
+
+// Obtenir les notes
+router.get('/grades', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const grades = await prisma.grade.findMany({
+      where: {
+        studentId: student.id,
+      },
+      include: {
+        course: {
+          include: {
+            class: true,
+          },
+        },
+        teacher: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    // Calculer les moyennes par cours
+    const courseAverages: Record<string, { total: number; count: number; average: number }> = {};
+
+    grades.forEach((grade) => {
+      const courseId = grade.courseId;
+      if (!courseAverages[courseId]) {
+        courseAverages[courseId] = { total: 0, count: 0, average: 0 };
+      }
+      courseAverages[courseId].total += (grade.score / grade.maxScore) * 20 * grade.coefficient;
+      courseAverages[courseId].count += grade.coefficient;
+    });
+
+    Object.keys(courseAverages).forEach((courseId) => {
+      const course = courseAverages[courseId];
+      course.average = course.count > 0 ? course.total / course.count : 0;
+    });
+
+    res.json({
+      grades,
+      courseAverages,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir l'emploi du temps
+router.get('/schedule', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+      include: {
+        class: true,
+      },
+    });
+
+    if (!student || !student.classId) {
+      return res.status(404).json({ error: 'Classe non trouvée' });
+    }
+
+    const schedule = await prisma.schedule.findMany({
+      where: {
+        classId: student.classId,
+      },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { dayOfWeek: 'asc' },
+        { startTime: 'asc' },
+      ],
+    });
+
+    res.json(schedule);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir les absences
+router.get('/absences', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const absences = await prisma.absence.findMany({
+      where: {
+        studentId: student.id,
+      },
+      include: {
+        course: true,
+        teacher: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    res.json(absences);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Justifier une absence avec un document
+router.put('/absences/:id/justify', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { documentUrl, reason } = req.body;
+
+    if (!documentUrl) {
+      return res.status(400).json({ error: 'URL du document justificatif requise' });
+    }
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    // Vérifier que l'absence appartient à l'élève
+    const absence = await prisma.absence.findFirst({
+      where: {
+        id,
+        studentId: student.id,
+      },
+    });
+
+    if (!absence) {
+      return res.status(404).json({ error: 'Absence non trouvée ou non autorisée' });
+    }
+
+    // Récupérer les documents justificatifs existants
+    const existingDocuments = absence.justificationDocuments || [];
+    
+    // Mettre à jour l'absence avec le justificatif
+    const updatedAbsence = await prisma.absence.update({
+      where: { id },
+      data: {
+        justificationDocuments: [...existingDocuments, documentUrl],
+        ...(reason && { reason }),
+        justificationSubmittedAt: new Date(),
+        // L'absence est marquée comme justifiée seulement si un admin/enseignant l'approuve
+        // Ici, on laisse excused à false par défaut, l'admin/enseignant pourra l'approuver
+      },
+      include: {
+        course: true,
+        teacher: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.json(updatedAbsence);
+  } catch (error: any) {
+    console.error('Erreur lors de la justification de l\'absence:', error);
+    res.status(500).json({ 
+      error: error.message || 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Obtenir les devoirs
+router.get('/assignments', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const assignments = await prisma.studentAssignment.findMany({
+      where: {
+        studentId: student.id,
+      },
+      include: {
+        assignment: {
+          include: {
+            course: {
+              include: {
+                class: true,
+              },
+            },
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        assignment: {
+          dueDate: 'desc',
+        },
+      },
+    });
+
+    res.json(assignments);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Soumettre un devoir
+router.post('/assignments/:assignmentId/submit', async (req: AuthRequest, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { fileUrl } = req.body;
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const studentAssignment = await prisma.studentAssignment.findUnique({
+      where: {
+        studentId_assignmentId: {
+          studentId: student.id,
+          assignmentId,
+        },
+      },
+    });
+
+    if (!studentAssignment) {
+      return res.status(404).json({ error: 'Devoir non trouvé' });
+    }
+
+    const updated = await prisma.studentAssignment.update({
+      where: {
+        id: studentAssignment.id,
+      },
+      data: {
+        submitted: true,
+        submittedAt: new Date(),
+        fileUrl,
+      },
+      include: {
+        assignment: {
+          include: {
+            course: true,
+          },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir les messages (reçus + envoyés vers l'école)
+router.get('/messages', async (req: AuthRequest, res) => {
+  try {
+    const { unread } = req.query;
+
+    const receivedWhere: { receiverId: string; read?: boolean } = {
+      receiverId: req.user!.id,
+    };
+    if (unread === 'true') {
+      receivedWhere.read = false;
+    }
+
+    const [received, sent] = await Promise.all([
+      prisma.message.findMany({
+        where: receivedWhere,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.message.findMany({
+        where: { senderId: req.user!.id },
+        include: {
+          receiver: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    ]);
+
+    res.json({ received, sent });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Envoyer un message à l'administration
+router.post('/messages', async (req: AuthRequest, res) => {
+  try {
+    const { subject, content, category } = req.body;
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'Le contenu du message est requis' });
+    }
+
+    const admin = await prisma.user.findFirst({
+      where: { role: 'ADMIN', isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!admin) {
+      return res.status(503).json({
+        error: 'Aucun administrateur n’est disponible pour recevoir le message pour le moment.',
+      });
+    }
+
+    const validCategories = [
+      'GENERAL',
+      'ACADEMIC',
+      'ABSENCE',
+      'PAYMENT',
+      'CONDUCT',
+      'URGENT',
+      'ANNOUNCEMENT',
+    ] as const;
+    const cat =
+      category && validCategories.includes(category) ? category : 'GENERAL';
+
+    const message = await prisma.message.create({
+      data: {
+        senderId: req.user!.id,
+        receiverId: admin.id,
+        subject: subject && String(subject).trim() ? String(subject).trim() : null,
+        content: content.trim(),
+        category: cat,
+        channels: ['PLATFORM'],
+      },
+      include: {
+        receiver: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        sender: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    res.status(201).json(message);
+  } catch (error: any) {
+    console.error('POST /student/messages:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Marquer un message comme lu
+router.put('/messages/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const existing = await prisma.message.findFirst({
+      where: {
+        id: req.params.id,
+        receiverId: req.user!.id,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Message introuvable' });
+    }
+
+    const message = await prisma.message.update({
+      where: { id: existing.id },
+      data: { read: true, readAt: new Date() },
+    });
+
+    res.json(message);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir les annonces
+router.get('/announcements', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+      include: {
+        class: true,
+      },
+    });
+
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        published: true,
+        OR: [
+          { targetRole: 'STUDENT' },
+          { targetRole: null },
+          ...(student?.classId ? [{ targetClassId: student.classId }] : []),
+        ],
+        AND: [
+          {
+            OR: [
+              { expiresAt: null },
+              { expiresAt: { gte: new Date() } },
+            ],
+          },
+        ],
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        targetClass: {
+          select: {
+            id: true,
+            name: true,
+            level: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(announcements);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir les bulletins de l'élève
+router.get('/report-cards', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const { period, academicYear } = req.query;
+
+    const reportCards = await prisma.reportCard.findMany({
+      where: {
+        studentId: student.id,
+        ...(period && { period: period as string }),
+        ...(academicYear && { academicYear: academicYear as string }),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(reportCards);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtenir la conduite de l'élève
+router.get('/conduct', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const { period, academicYear } = req.query;
+
+    const conducts = await prisma.conduct.findMany({
+      where: {
+        studentId: student.id,
+        ...(period && { period: period as string }),
+        ...(academicYear && { academicYear: academicYear as string }),
+      },
+      include: {
+        evaluatedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(conducts);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Historique scolaire agrégé (par année : bulletins, conduite, synthèse notes, absences)
+router.get('/academic-history', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      include: {
+        class: {
+          select: {
+            id: true,
+            name: true,
+            level: true,
+            academicYear: true,
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const [reportCards, conducts, gradesList, absences] = await Promise.all([
+      prisma.reportCard.findMany({
+        where: { studentId: student.id },
+        orderBy: [{ academicYear: 'desc' }, { createdAt: 'desc' }],
+      }),
+      prisma.conduct.findMany({
+        where: { studentId: student.id },
+        include: {
+          evaluatedBy: {
+            select: {
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: [{ academicYear: 'desc' }, { createdAt: 'desc' }],
+      }),
+      prisma.grade.findMany({
+        where: { studentId: student.id },
+        include: {
+          course: {
+            select: {
+              name: true,
+              code: true,
+              class: {
+                select: {
+                  academicYear: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.absence.findMany({
+        where: { studentId: student.id },
+        select: {
+          date: true,
+          status: true,
+          excused: true,
+        },
+      }),
+    ]);
+
+    type GradeRow = (typeof gradesList)[number];
+    const gradesByYear: Record<string, GradeRow[]> = {};
+
+    gradesList.forEach((g) => {
+      const classYear = g.course?.class?.academicYear;
+      const year = classYear || academicYearFromDate(new Date(g.date));
+      if (!gradesByYear[year]) gradesByYear[year] = [];
+      gradesByYear[year].push(g);
+    });
+
+    const absenceCountByYear: Record<string, number> = {};
+    absences.forEach((a) => {
+      const y = academicYearFromDate(new Date(a.date));
+      absenceCountByYear[y] = (absenceCountByYear[y] || 0) + 1;
+    });
+
+    const gradeSummaryByYear: Record<
+      string,
+      { evaluationCount: number; weightedAverage20: number | null }
+    > = {};
+
+    Object.entries(gradesByYear).forEach(([year, list]) => {
+      let total = 0;
+      let coef = 0;
+      list.forEach((g) => {
+        const note20 = (g.score / g.maxScore) * 20;
+        total += note20 * g.coefficient;
+        coef += g.coefficient;
+      });
+      gradeSummaryByYear[year] = {
+        evaluationCount: list.length,
+        weightedAverage20: coef > 0 ? Math.round((total / coef) * 100) / 100 : null,
+      };
+    });
+
+    const yearSet = new Set<string>();
+    reportCards.forEach((r) => yearSet.add(r.academicYear));
+    conducts.forEach((c) => yearSet.add(c.academicYear));
+    Object.keys(gradesByYear).forEach((y) => yearSet.add(y));
+    Object.keys(absenceCountByYear).forEach((y) => yearSet.add(y));
+    if (student.class?.academicYear) {
+      yearSet.add(student.class.academicYear);
+    }
+    const enrollmentYear = academicYearFromDate(new Date(student.enrollmentDate));
+    yearSet.add(enrollmentYear);
+
+    const yearsSorted = Array.from(yearSet).sort((a, b) => {
+      const sa = parseInt(a.split('-')[0], 10);
+      const sb = parseInt(b.split('-')[0], 10);
+      return sb - sa;
+    });
+
+    const byYear = yearsSorted.map((academicYear) => ({
+      academicYear,
+      reportCards: reportCards.filter((r) => r.academicYear === academicYear),
+      conducts: conducts.filter((c) => c.academicYear === academicYear),
+      gradesSummary: gradeSummaryByYear[academicYear] ?? {
+        evaluationCount: 0,
+        weightedAverage20: null,
+      },
+      absenceCount: absenceCountByYear[academicYear] ?? 0,
+    }));
+
+    res.json({
+      enrollmentDate: student.enrollmentDate,
+      currentClass: student.class,
+      byYear,
+      totals: {
+        reportCards: reportCards.length,
+        conducts: conducts.length,
+        grades: gradesList.length,
+        absences: absences.length,
+      },
+    });
+  } catch (error: any) {
+    console.error('GET /student/academic-history:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Documents d'identité (consultation et suppression par l'élève)
+router.get('/identity-documents', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const documents = await prisma.identityDocument.findMany({
+      where: { studentId: student.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        uploadedBy: {
+          select: { firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+
+    res.json(documents);
+  } catch (error: any) {
+    console.error('GET /student/identity-documents:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/identity-documents/:id', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const doc = await prisma.identityDocument.findFirst({
+      where: { id: req.params.id, studentId: student.id },
+    });
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable' });
+    }
+
+    await prisma.identityDocument.delete({ where: { id: doc.id } });
+    deleteUploadedFileByPublicUrl(doc.fileUrl);
+
+    res.json({ message: 'Document supprimé' });
+  } catch (error: any) {
+    console.error('DELETE /student/identity-documents:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// ========== GESTION DES PAIEMENTS ==========
+
+// Obtenir les frais de scolarité de l'élève
+router.get('/tuition-fees', async (req: AuthRequest, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const tuitionFees = await prisma.tuitionFee.findMany({
+      where: {
+        studentId: student.id,
+      },
+      include: {
+        payments: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+    });
+
+    // Calculer le montant payé et restant pour chaque frais
+    const feesWithPaymentInfo = tuitionFees.map((fee) => {
+      const completedPayments = fee.payments.filter((p: any) => p.status === 'COMPLETED');
+      const totalPaid = completedPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+      const remainingAmount = fee.amount - totalPaid;
+      
+      return {
+        ...fee,
+        totalPaid,
+        remainingAmount: Math.max(0, remainingAmount),
+        paymentProgress: fee.amount > 0 ? (totalPaid / fee.amount) * 100 : 0,
+      };
+    });
+
+    res.json(feesWithPaymentInfo || []);
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération des frais de scolarité:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message || 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Créer un paiement (initier le processus de paiement)
+router.post('/payments', async (req: AuthRequest, res) => {
+  try {
+    const { tuitionFeeId, paymentMethod, amount, phoneNumber, operator, transactionCode } = req.body;
+
+    if (!tuitionFeeId || !paymentMethod || !amount) {
+      return res.status(400).json({ error: 'tuitionFeeId, paymentMethod et amount sont requis' });
+    }
+
+    // Validation spécifique pour Mobile Money
+    if (paymentMethod === 'MOBILE_MONEY') {
+      if (!phoneNumber) {
+        return res.status(400).json({ error: 'Le numéro de téléphone est requis pour Mobile Money' });
+      }
+      // Valider le format du numéro (ex: +237 6XX XXX XXX ou 6XX XXX XXX)
+      const phoneRegex = /^(\+237\s?)?[67]\d{8}$/;
+      const cleanPhone = phoneNumber.replace(/\s/g, '');
+      if (!phoneRegex.test(cleanPhone)) {
+        return res.status(400).json({ error: 'Format de numéro de téléphone invalide. Utilisez le format: +237 6XX XXX XXX ou 6XX XXX XXX' });
+      }
+    }
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    // Vérifier que le frais appartient à l'élève
+    const tuitionFee = await prisma.tuitionFee.findFirst({
+      where: {
+        id: tuitionFeeId,
+        studentId: student.id,
+      },
+    });
+
+    if (!tuitionFee) {
+      return res.status(404).json({ error: 'Frais de scolarité non trouvé ou non autorisé' });
+    }
+
+    // Calculer le montant total payé pour ce frais
+    const completedPayments = await prisma.payment.findMany({
+      where: {
+        tuitionFeeId,
+        status: 'COMPLETED',
+      },
+    });
+    const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+    const remainingAmount = tuitionFee.amount - totalPaid;
+
+    if (remainingAmount <= 0) {
+      return res.status(400).json({ error: 'Ce frais a déjà été entièrement payé' });
+    }
+
+    // Valider que le montant du paiement ne dépasse pas le montant restant
+    const paymentAmount = parseFloat(amount);
+    if (paymentAmount <= 0) {
+      return res.status(400).json({ error: 'Le montant doit être supérieur à 0' });
+    }
+    if (paymentAmount > remainingAmount) {
+      return res.status(400).json({ 
+        error: `Le montant ne peut pas dépasser le montant restant (${remainingAmount.toFixed(0)} FCFA)` 
+      });
+    }
+
+    // Générer une référence de paiement unique
+    const paymentReference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Préparer les notes pour Mobile Money
+    let paymentNotes = '';
+    if (paymentMethod === 'MOBILE_MONEY') {
+      paymentNotes = `Mobile Money - Téléphone: ${phoneNumber}${operator ? `, Opérateur: ${operator}` : ''}${transactionCode ? `, Code: ${transactionCode}` : ''}`;
+    }
+
+    // Créer le paiement
+    const payment = await prisma.payment.create({
+      data: {
+        tuitionFeeId,
+        studentId: student.id,
+        payerId: req.user!.id,
+        payerRole: 'STUDENT',
+        amount: paymentAmount,
+        paymentMethod,
+        status: 'PENDING',
+        paymentReference,
+        notes: paymentNotes || undefined,
+      },
+      include: {
+        tuitionFee: true,
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Ici, vous pouvez intégrer avec un processeur de paiement réel (Stripe, PayPal, etc.)
+    // Pour l'instant, on simule un paiement réussi après 2 secondes
+    // En production, vous devriez utiliser un webhook ou une confirmation asynchrone
+
+    res.status(201).json({
+      payment,
+      paymentUrl: `/payment/process/${payment.id}`, // URL pour traiter le paiement
+      message: 'Paiement initié avec succès',
+    });
+  } catch (error: any) {
+    console.error('Erreur lors de la création du paiement:', error);
+    res.status(500).json({ 
+      error: error.message || 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Confirmer un paiement (simulation - à remplacer par un webhook réel)
+router.post('/payments/:id/confirm', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { transactionId } = req.body;
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user!.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const payment = await prisma.payment.findFirst({
+      where: {
+        id,
+        studentId: student.id,
+        payerId: req.user!.id,
+      },
+      include: {
+        tuitionFee: true,
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Paiement non trouvé ou non autorisé' });
+    }
+
+    if (payment.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Ce paiement ne peut plus être modifié' });
+    }
+
+    // Mettre à jour le paiement comme complété
+    const updatedPayment = await prisma.payment.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        transactionId: transactionId || `TXN-${Date.now()}`,
+        paidAt: new Date(),
+      },
+    });
+
+    // Mettre à jour le frais de scolarité comme payé
+    await prisma.tuitionFee.update({
+      where: { id: payment.tuitionFeeId },
+      data: {
+        isPaid: true,
+        paidAt: new Date(),
+      },
+    });
+
+    res.json({
+      payment: updatedPayment,
+      message: 'Paiement confirmé avec succès',
+    });
+  } catch (error: any) {
+    console.error('Erreur lors de la confirmation du paiement:', error);
+    res.status(500).json({ 
+      error: error.message || 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Obtenir l'historique des paiements
+router.get('/payments', async (req: AuthRequest, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
+
+    const student = await prisma.student.findFirst({
+      where: {
+        userId: req.user.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        studentId: student.id,
+        payerId: req.user.id,
+      },
+      include: {
+        tuitionFee: {
+          include: {
+            student: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(payments || []);
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération des paiements:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message || 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+export default router;
+
+
+
+

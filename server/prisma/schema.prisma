@@ -1,0 +1,910 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// seed {
+//   provider = "tsx"
+//   path     = "./seed.ts"
+// }
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+  EDUCATOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AbsenceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum EvaluationType {
+  EXAM
+  QUIZ
+  HOMEWORK
+  PROJECT
+  ORAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CASH
+}
+
+enum AdmissionStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  WAITLIST
+  ENROLLED
+}
+
+enum IdentityDocumentType {
+  NATIONAL_ID
+  BIRTH_CERTIFICATE
+  PASSPORT
+  RESIDENCE_PERMIT
+  PHOTO_ID
+  OTHER
+}
+
+// Statut d'inscription scolaire (indépendant du compte utilisateur)
+enum EnrollmentStatus {
+  ACTIVE
+  SUSPENDED
+  GRADUATED
+}
+
+enum TeacherLeaveType {
+  ANNUAL
+  SICK
+  PERSONAL
+  TRAINING
+  OTHER
+}
+
+enum TeacherLeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum CalendarEventType {
+  HOLIDAY       // Jour férié
+  VACATION      // Vacances scolaires
+  EXAM_PERIOD   // Période d'examens
+  MEETING       // Réunion / événement
+  OTHER
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String
+  role      Role
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teacherProfile Teacher?
+  studentProfile Student?
+  parentProfile  Parent?
+  educatorProfile Educator?
+  sentMessages   Message[]     @relation("SentMessages")
+  receivedMessages Message[]   @relation("ReceivedMessages")
+  announcements  Announcement[]
+  notifications  Notification[]
+  loginLogs      LoginLog[]
+  evaluatedConducts Conduct[]
+  securityEvents SecurityEvent[]
+  payments       Payment[]
+  uploadedIdentityDocuments IdentityDocument[] @relation("IdentityDocUploader")
+  libraryBorrowedLoans     LibraryLoan[]      @relation("LibraryBorrower")
+  libraryCreatedLoans       LibraryLoan[]      @relation("LibraryLoanCreator")
+  libraryReservations     LibraryReservation[] @relation("LibraryReserver")
+  libraryPenalties        LibraryPenalty[]     @relation("LibraryPenaltyUser")
+  materialMaintReported   MaterialMaintenance[] @relation("MatMaintReporter")
+  materialMaintAssigned     MaterialMaintenance[] @relation("MatMaintAssignee")
+
+  @@map("users")
+}
+
+enum LibraryLoanStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum LibraryReservationStatus {
+  PENDING
+  READY
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+model LibraryBook {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  isbn             String?
+  title            String
+  author           String
+  publisher        String?
+  publicationYear  Int?
+  category         String?
+  description      String?
+  copiesTotal      Int      @default(1)
+  copiesAvailable  Int      @default(1)
+  shelfLocation    String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  loans         LibraryLoan[]
+  reservations  LibraryReservation[]
+
+  @@index([title])
+  @@index([isbn])
+  @@map("library_books")
+}
+
+model LibraryLoan {
+  id          String            @id @default(auto()) @map("_id") @db.ObjectId
+  bookId      String            @db.ObjectId
+  borrowerId  String            @db.ObjectId
+  status      LibraryLoanStatus @default(ACTIVE)
+  loanedAt    DateTime          @default(now())
+  dueDate     DateTime
+  returnedAt  DateTime?
+  notes       String?
+  createdById String?           @db.ObjectId
+
+  book       LibraryBook @relation(fields: [bookId], references: [id])
+  borrower   User        @relation("LibraryBorrower", fields: [borrowerId], references: [id])
+  createdBy  User?       @relation("LibraryLoanCreator", fields: [createdById], references: [id])
+  penalties  LibraryPenalty[]
+
+  @@index([bookId])
+  @@index([borrowerId])
+  @@index([status])
+  @@map("library_loans")
+}
+
+model LibraryReservation {
+  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
+  bookId      String                   @db.ObjectId
+  userId      String                   @db.ObjectId
+  status      LibraryReservationStatus @default(PENDING)
+  reservedAt  DateTime                 @default(now())
+  expiresAt   DateTime?
+  fulfilledAt DateTime?
+
+  book LibraryBook @relation(fields: [bookId], references: [id])
+  user User        @relation("LibraryReserver", fields: [userId], references: [id])
+
+  @@index([bookId])
+  @@index([userId])
+  @@index([status])
+  @@map("library_reservations")
+}
+
+model LibraryPenalty {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  loanId    String?  @db.ObjectId
+  userId    String   @db.ObjectId
+  amount    Float
+  reason    String
+  paid      Boolean  @default(false)
+  paidAt    DateTime?
+  waived    Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  loan LibraryLoan? @relation(fields: [loanId], references: [id])
+  user User         @relation("LibraryPenaltyUser", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("library_penalties")
+}
+
+// ——— Gestion matérielle (équipements, salles, maintenance, allocations) ———
+
+enum MaterialEquipmentCondition {
+  GOOD
+  FAIR
+  NEEDS_REPAIR
+  OUT_OF_SERVICE
+}
+
+enum MaterialMaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum MaterialAllocationTarget {
+  USER
+  CLASS
+  ROOM
+}
+
+enum MaterialAllocationStatus {
+  ACTIVE
+  RETURNED
+  CANCELLED
+}
+
+model MaterialRoom {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  code        String?
+  building    String?
+  floor       String?
+  capacity    Int?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  equipmentStored MaterialEquipment[]
+  maintenance     MaterialMaintenance[]
+
+  @@index([name])
+  @@map("material_rooms")
+}
+
+model MaterialEquipment {
+  id            String                     @id @default(auto()) @map("_id") @db.ObjectId
+  roomId        String?                    @db.ObjectId
+  name          String
+  category      String
+  serialNumber  String?
+  quantity      Int                        @default(1)
+  condition     MaterialEquipmentCondition @default(GOOD)
+  notes         String?
+  purchasedAt   DateTime?
+  isActive      Boolean                    @default(true)
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  room          MaterialRoom?        @relation(fields: [roomId], references: [id])
+  maintenance   MaterialMaintenance[]
+  allocations   MaterialAllocation[]
+
+  @@index([category])
+  @@index([name])
+  @@map("material_equipment")
+}
+
+model MaterialMaintenance {
+  id            String                   @id @default(auto()) @map("_id") @db.ObjectId
+  equipmentId   String?                  @db.ObjectId
+  roomId        String?                  @db.ObjectId
+  title         String
+  description   String?
+  status        MaterialMaintenanceStatus @default(OPEN)
+  priority      String                   @default("normal")
+  costEstimate  Float?
+  costActual    Float?
+  openedAt      DateTime                 @default(now())
+  closedAt      DateTime?
+  reportedById  String?                  @db.ObjectId
+  assigneeId    String?                  @db.ObjectId
+
+  equipment     MaterialEquipment? @relation(fields: [equipmentId], references: [id])
+  room          MaterialRoom?      @relation(fields: [roomId], references: [id])
+  reportedBy    User?              @relation("MatMaintReporter", fields: [reportedById], references: [id])
+  assignee      User?              @relation("MatMaintAssignee", fields: [assigneeId], references: [id])
+
+  @@index([status])
+  @@map("material_maintenance")
+}
+
+model MaterialAllocation {
+  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
+  equipmentId String                   @db.ObjectId
+  targetType  MaterialAllocationTarget
+  targetId    String
+  quantity    Int                      @default(1)
+  startDate   DateTime                 @default(now())
+  endDate     DateTime?
+  status      MaterialAllocationStatus @default(ACTIVE)
+  purpose     String?
+  notes       String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  equipment   MaterialEquipment @relation(fields: [equipmentId], references: [id])
+
+  @@index([equipmentId])
+  @@index([status])
+  @@map("material_allocations")
+}
+
+model Teacher {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique @db.ObjectId
+  employeeId    String   @unique
+  nfcId         String?
+  specialization String
+  hireDate      DateTime
+  contractType  String
+  salary        Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+  classes       Class[]
+  courses       Course[]
+  absences      Absence[]
+  grades        Grade[]
+  assignments   Assignment[]
+  leaves        TeacherLeave[]
+  performanceReviews TeacherPerformanceReview[]
+
+  @@index([nfcId])
+  @@map("teachers")
+}
+
+model TeacherLeave {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId    String             @db.ObjectId
+  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  type         TeacherLeaveType
+  status       TeacherLeaveStatus @default(PENDING)
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+  adminComment String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@map("teacher_leaves")
+}
+
+model TeacherPerformanceReview {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId    String   @db.ObjectId
+  teacher      Teacher  @relation(fields: [teacherId], references: [id])
+  periodLabel  String
+  academicYear String
+  overallScore Float?
+  objectives   String?
+  achievements String?
+  improvements String?
+  reviewerName String?
+  createdAt    DateTime @default(now())
+
+  @@map("teacher_performance_reviews")
+}
+
+model Student {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  studentId       String   @unique
+  nfcId           String?
+  dateOfBirth     DateTime
+  gender          Gender
+  address         String?
+  emergencyContact String?
+  emergencyPhone  String?
+  medicalInfo     String?
+  enrollmentDate     DateTime         @default(now())
+  enrollmentStatus   EnrollmentStatus @default(ACTIVE)
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+  classId         String?  @db.ObjectId
+  class           Class?   @relation(fields: [classId], references: [id])
+  absences        Absence[]
+  grades          Grade[]
+  parents         StudentParent[]
+  assignments     StudentAssignment[]
+  conducts        Conduct[]
+  tuitionFees     TuitionFee[]
+  payments        Payment[]
+  identityDocuments IdentityDocument[]
+
+  @@index([nfcId])
+  @@map("students")
+}
+
+model Parent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  profession String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  students  StudentParent[]
+
+  @@map("parents")
+}
+
+model Educator {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique @db.ObjectId
+  employeeId    String   @unique
+  nfcId         String?
+  specialization String  // Domaine d'intervention (soutien scolaire, orientation, etc.)
+  hireDate      DateTime
+  contractType  String
+  salary        Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([nfcId])
+  @@map("educators")
+}
+
+model StudentParent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId String   @db.ObjectId
+  parentId  String   @db.ObjectId
+  relation  String   // "father", "mother", "guardian", etc.
+  createdAt DateTime @default(now())
+
+  student   Student  @relation(fields: [studentId], references: [id])
+  parent    Parent   @relation(fields: [parentId], references: [id])
+
+  @@unique([studentId, parentId])
+  @@map("student_parents")
+}
+
+model Class {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  level       String    // "6ème", "5ème", "Terminale", etc.
+  room        String?
+  capacity    Int       @default(30)
+  academicYear String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  teacherId   String?   @db.ObjectId
+  teacher     Teacher?  @relation(fields: [teacherId], references: [id])
+  students    Student[]
+  courses     Course[]
+  schedule    Schedule[]
+  announcements Announcement[]
+  admissions  Admission[]
+
+  @@map("classes")
+}
+
+model Course {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  code        String   @unique
+  description String?
+  weeklyHours Float?   // Volume horaire hebdomadaire (programme)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classId     String   @db.ObjectId
+  class       Class    @relation(fields: [classId], references: [id])
+  teacherId   String   @db.ObjectId
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  grades      Grade[]
+  assignments Assignment[]
+  schedule    Schedule[]
+  absences    Absence[]
+
+  @@map("courses")
+}
+
+model Grade {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  studentId       String         @db.ObjectId
+  courseId        String         @db.ObjectId
+  teacherId       String         @db.ObjectId
+  evaluationType  EvaluationType
+  title           String
+  score           Float
+  maxScore        Float          @default(20)
+  coefficient     Float          @default(1)
+  date            DateTime       @default(now())
+  comments        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  student         Student        @relation(fields: [studentId], references: [id])
+  course          Course         @relation(fields: [courseId], references: [id])
+  teacher         Teacher        @relation(fields: [teacherId], references: [id])
+
+  @@map("grades")
+}
+
+model Absence {
+  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
+  studentId             String        @db.ObjectId
+  courseId              String        @db.ObjectId
+  teacherId             String        @db.ObjectId
+  date                  DateTime      @default(now())
+  status                AbsenceStatus @default(ABSENT)
+  reason                String?
+  excused               Boolean       @default(false)
+  justificationDocuments String[]     // URLs des documents justificatifs
+  justificationSubmittedAt DateTime?  // Date de soumission de la justification
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  student               Student       @relation(fields: [studentId], references: [id])
+  course                Course        @relation(fields: [courseId], references: [id])
+  teacher               Teacher       @relation(fields: [teacherId], references: [id])
+
+  @@map("absences")
+}
+
+model Assignment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  courseId    String   @db.ObjectId
+  teacherId   String   @db.ObjectId
+  title       String
+  description String?
+  dueDate     DateTime
+  attachments String[] // URLs des fichiers
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course   @relation(fields: [courseId], references: [id])
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  students    StudentAssignment[]
+
+  @@map("assignments")
+}
+
+model StudentAssignment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId   String   @db.ObjectId
+  assignmentId String  @db.ObjectId
+  submitted   Boolean  @default(false)
+  submittedAt DateTime?
+  fileUrl     String?
+  grade       Float?
+  feedback    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student     Student  @relation(fields: [studentId], references: [id])
+  assignment  Assignment @relation(fields: [assignmentId], references: [id])
+
+  @@unique([studentId, assignmentId])
+  @@map("student_assignments")
+}
+
+model Schedule {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  classId     String   @db.ObjectId
+  courseId    String   @db.ObjectId
+  dayOfWeek   Int      // 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi
+  startTime   String   // Format "HH:MM"
+  endTime     String   // Format "HH:MM"
+  room        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class       Class    @relation(fields: [classId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id])
+
+  @@map("schedules")
+}
+
+model SchoolCalendarEvent {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  type         CalendarEventType @default(OTHER)
+  startDate    DateTime
+  endDate      DateTime
+  academicYear String
+  allDay       Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@map("school_calendar_events")
+}
+
+model ReportCard {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId   String   @db.ObjectId
+  period      String   // "Trimestre 1", "Semestre 1", etc.
+  academicYear String
+  average     Float
+  rank        Int?
+  comments    String?
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, period, academicYear])
+  @@map("report_cards")
+}
+
+model Conduct {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId     String   @db.ObjectId
+  period        String   // "Trimestre 1", "Semestre 1", etc.
+  academicYear  String
+  punctuality   Float    @default(0) // Ponctualité (0-20)
+  respect       Float    @default(0) // Respect (0-20)
+  participation Float    @default(0) // Participation (0-20)
+  behavior      Float    @default(0) // Comportement général (0-20)
+  average       Float    // Moyenne de conduite
+  comments      String?  // Commentaires
+  evaluatedById String   @db.ObjectId // ID de l'admin, du professeur principal ou de l'éducateur qui a évalué
+  evaluatedByRole String // "ADMIN", "TEACHER" ou "EDUCATOR"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       Student  @relation(fields: [studentId], references: [id])
+  evaluatedBy   User     @relation(fields: [evaluatedById], references: [id])
+
+  @@unique([studentId, period, academicYear])
+  @@map("conducts")
+}
+
+enum MessageChannel {
+  PLATFORM  // Message sur la plateforme
+  EMAIL     // Message par email
+  SMS       // Message par SMS
+}
+
+enum MessageCategory {
+  GENERAL       // Message général
+  ACADEMIC      // Message académique (notes, devoirs)
+  ABSENCE       // Message concernant les absences
+  PAYMENT       // Message concernant les paiements
+  CONDUCT       // Message concernant la conduite
+  URGENT        // Message urgent
+  ANNOUNCEMENT  // Annonce
+}
+
+model Message {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  senderId    String         @db.ObjectId
+  receiverId String          @db.ObjectId
+  subject     String?
+  content     String
+  category    MessageCategory @default(GENERAL)
+  channels    MessageChannel[] // Canaux d'envoi (peut être multiple)
+  read        Boolean        @default(false)
+  readAt      DateTime?
+  sentViaSMS  Boolean        @default(false) // Indique si le SMS a été envoyé
+  sentViaEmail Boolean       @default(false) // Indique si l'email a été envoyé
+  smsStatus   String?        // Statut de l'envoi SMS ("pending", "sent", "failed")
+  emailStatus String?        // Statut de l'envoi Email ("pending", "sent", "failed")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  sender      User           @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User           @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+model Announcement {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId    String   @db.ObjectId
+  title       String
+  content     String
+  targetRole  Role?    // null = tous les rôles
+  targetClassId String?  @db.ObjectId // null = toutes les classes
+  priority    String   @default("normal") // "low", "normal", "high", "urgent"
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation(fields: [authorId], references: [id])
+  targetClass Class?   @relation(fields: [targetClassId], references: [id])
+
+  @@map("announcements")
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  type        String   // "message", "announcement", "grade", "absence", "assignment"
+  title       String
+  content     String
+  link        String?
+  read        Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model LoginLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  email       String
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean  @default(true)
+  reason      String?  // "success", "invalid_password", "user_not_found", etc.
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("login_logs")
+}
+
+model SecurityEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?  @db.ObjectId
+  type        String   // "password_change", "role_change", "account_locked", "data_export", etc.
+  description String
+  ipAddress   String?
+  userAgent   String?
+  severity    String   @default("info") // "info", "warning", "error", "critical"
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@map("security_events")
+}
+
+model TuitionFee {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId     String   @db.ObjectId
+  academicYear  String
+  period        String   // "Trimestre 1", "Semestre 1", "Année complète", etc.
+  amount        Float    // Montant en FCFA
+  dueDate       DateTime // Date d'échéance
+  description   String?  // Description des frais
+  isPaid        Boolean  @default(false)
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       Student  @relation(fields: [studentId], references: [id])
+  payments      Payment[]
+
+  @@map("tuition_fees")
+}
+
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  tuitionFeeId    String        @db.ObjectId
+  studentId       String        @db.ObjectId
+  payerId         String        @db.ObjectId // ID de l'utilisateur qui paie (élève ou parent)
+  payerRole       Role          // Rôle de la personne qui paie
+  amount          Float         // Montant payé en FCFA
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?       // ID de transaction du processeur de paiement
+  paymentReference String?      // Référence de paiement unique
+  receiptUrl      String?       // URL du reçu de paiement
+  notes           String?       // Notes additionnelles
+  paidAt          DateTime?     // Date de paiement effectif
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tuitionFee      TuitionFee    @relation(fields: [tuitionFeeId], references: [id])
+  student         Student       @relation(fields: [studentId], references: [id])
+  payer           User          @relation(fields: [payerId], references: [id])
+
+  @@map("payments")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// Demande d'inscription / pré-admission (dossier candidat)
+model Admission {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  reference        String          @unique
+  status           AdmissionStatus @default(PENDING)
+
+  firstName        String
+  lastName         String
+  email            String
+  phone            String?
+  dateOfBirth      DateTime
+  gender           Gender
+
+  desiredLevel     String
+  academicYear     String
+  previousSchool   String?
+
+  parentName       String?
+  parentPhone      String?
+  parentEmail      String?
+  address          String?
+
+  motivation       String?
+  adminNotes       String?
+
+  proposedClassId  String?   @db.ObjectId
+  proposedClass    Class?    @relation(fields: [proposedClassId], references: [id])
+
+  enrolledStudentId String?  @db.ObjectId
+
+  reviewedById     String?   @db.ObjectId
+  reviewedAt       DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+  @@index([academicYear])
+  @@index([email])
+  @@index([enrolledStudentId])
+  @@map("admissions")
+}
+
+model IdentityDocument {
+  id           String               @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String               @db.ObjectId
+  type         IdentityDocumentType
+  label        String?
+  fileUrl      String
+  originalName String
+  mimeType     String?
+  fileSize     Int?
+  notes        String?
+  uploadedById String               @db.ObjectId
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation("IdentityDocUploader", fields: [uploadedById], references: [id])
+
+  @@index([studentId])
+  @@map("identity_documents")
+}
+
