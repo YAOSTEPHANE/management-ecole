@@ -1,11 +1,15 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { getUploadsRootDir } from '../utils/uploads-path';
 
-// Créer le dossier uploads s'il n'existe pas
-const uploadsDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+const uploadsDir = getUploadsRootDir();
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.error('uploads: impossible de créer le répertoire racine', err);
 }
 
 // Configuration du stockage

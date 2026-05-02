@@ -11,6 +11,7 @@ import educatorRoutes from './routes/educator.routes';
 import uploadRoutes from './routes/upload.routes';
 import nfcRoutes from './routes/nfc.routes';
 import admissionPublicRoutes from './routes/admission.public.routes';
+import { getUploadsRootDir } from './utils/uploads-path';
 
 dotenv.config();
 
@@ -47,8 +48,8 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servir les fichiers statiques (images uploadées)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Servir les fichiers statiques (images uploadées) — même racine que multer (voir uploads-path)
+app.use('/uploads', express.static(getUploadsRootDir()));
 
 // Vercel (experimentalServices + routePrefix /api) transmet les chemins sans préfixe /api.
 const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
