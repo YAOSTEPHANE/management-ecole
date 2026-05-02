@@ -6,6 +6,12 @@
       "entrypoint": ".",
       "routePrefix": "/",
       "framework": "nextjs"
+    },
+    "api": {
+      "root": "server",
+      "entrypoint": "src/index.ts",
+      "routePrefix": "/api",
+      "framework": "express"
     }
   }
 }
