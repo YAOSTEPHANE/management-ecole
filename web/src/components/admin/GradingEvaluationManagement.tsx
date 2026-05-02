@@ -1,0 +1,173 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../../services/api';
+import Card from '../ui/Card';
+import CompleteManagement from './CompleteManagement';
+import GradeAveragesPanel from './GradeAveragesPanel';
+import GenerateReportCardModal from './GenerateReportCardModal';
+import GenerateReportModal from './GenerateReportModal';
+import Button from '../ui/Button';
+import {
+  FiGrid,
+  FiEdit3,
+  FiBarChart2,
+  FiFileText,
+  FiAward,
+  FiBookOpen,
+} from 'react-icons/fi';
+
+type GradingTab = 'overview' | 'notation' | 'averages' | 'reports';
+
+const GradingEvaluationManagement: React.FC = () => {
+  const [tab, setTab] = useState<GradingTab>('overview');
+  const [reportCardOpen, setReportCardOpen] = useState(false);
+  const [institutionalReportOpen, setInstitutionalReportOpen] = useState(false);
+
+  const { data: grades } = useQuery({
+    queryKey: ['admin-grades-overview'],
+    queryFn: () => adminApi.getAllGrades(),
+  });
+
+  const { data: classes } = useQuery({
+    queryKey: ['classes'],
+    queryFn: adminApi.getClasses,
+  });
+
+  const gradeCount = grades?.length ?? 0;
+  const classCount = classes?.length ?? 0;
+
+  const subTabs: { id: GradingTab; label: string; icon: typeof FiGrid }[] = [
+    { id: 'overview', label: 'Vue d’ensemble', icon: FiGrid },
+    { id: 'notation', label: 'Notes & bulletins', icon: FiEdit3 },
+    { id: 'averages', label: 'Moyennes', icon: FiBarChart2 },
+    { id: 'reports', label: 'Relevés & rapports', icon: FiFileText },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Notation et évaluation</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Saisie des notes par matière, calcul des moyennes, bulletins, relevés PDF et rapports
+          d’établissement.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+        {subTabs.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-violet-50 text-violet-900 ring-1 ring-violet-200'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase">Notes enregistrées</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{gradeCount}</p>
+              <p className="text-xs text-gray-500 mt-1">Évaluations saisies (toutes classes)</p>
+            </Card>
+            <Card className="p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase">Classes</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{classCount}</p>
+              <p className="text-xs text-gray-500 mt-1">Pour filtrer la saisie et les moyennes</p>
+            </Card>
+            <Card className="p-4 border border-violet-100 bg-violet-50/50">
+              <p className="text-xs font-medium text-violet-800 uppercase flex items-center gap-1">
+                <FiAward className="w-3.5 h-3.5" /> Parcours type
+              </p>
+              <ol className="text-sm text-gray-700 mt-2 space-y-1 list-decimal list-inside">
+                <li>Saisir les notes (onglet Notes & bulletins)</li>
+                <li>Contrôler les moyennes (onglet Moyennes)</li>
+                <li>Générer bulletins PDF (onglet Relevés & rapports)</li>
+              </ol>
+            </Card>
+          </div>
+
+          <Card className="p-5 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <FiBookOpen className="w-5 h-5 text-violet-600" />
+              Rappels
+            </h3>
+            <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
+              <li>
+                Les <strong>moyennes par matière</strong> sur un trimestre figurent sur le{' '}
+                <strong>bulletin PDF</strong> (période et année scolaire à choisir).
+              </li>
+              <li>
+                L’onglet <strong>Moyennes</strong> affiche la moyenne générale pondérée sur{' '}
+                <em>toutes</em> les notes saisies (hors filtre de période).
+              </li>
+              <li>
+                Les <strong>rapports institutionnels</strong> (effectifs, synthèses) complètent les
+                bulletins individuels.
+              </li>
+            </ul>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'notation' && <CompleteManagement gradingModule />}
+
+      {tab === 'averages' && <GradeAveragesPanel />}
+
+      {tab === 'reports' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Bulletins & relevés PDF</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Génération par classe : moyennes par matière sur la période choisie, appréciations et
+                rang. Le document PDF sert de <strong>bulletin</strong> et de{' '}
+                <strong>relevé de notes</strong> officiel pour les familles.
+              </p>
+              <Button onClick={() => setReportCardOpen(true)} className="w-full sm:w-auto">
+                <FiFileText className="w-4 h-4 mr-2 inline" />
+                Ouvrir la génération de bulletins PDF
+              </Button>
+            </Card>
+            <Card className="p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Rapports académiques</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Exports synthétiques : listes d’élèves, classes, enseignants, notes ou absences selon
+                les filtres disponibles dans l’assistant.
+              </p>
+              <Button
+                variant="secondary"
+                onClick={() => setInstitutionalReportOpen(true)}
+                className="w-full sm:w-auto"
+              >
+                <FiBookOpen className="w-4 h-4 mr-2 inline" />
+                Assistant rapports d’établissement
+              </Button>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      <GenerateReportCardModal isOpen={reportCardOpen} onClose={() => setReportCardOpen(false)} />
+      <GenerateReportModal
+        isOpen={institutionalReportOpen}
+        onClose={() => setInstitutionalReportOpen(false)}
+      />
+    </div>
+  );
+};
+
+export default GradingEvaluationManagement;

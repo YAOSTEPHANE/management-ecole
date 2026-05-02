@@ -1,0 +1,125 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../../services/api';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
+import SearchBar from '../ui/SearchBar';
+import toast from 'react-hot-toast';
+import { FiDownload, FiFileText } from 'react-icons/fi';
+import { format } from 'date-fns';
+import fr from 'date-fns/locale/fr';
+import { formatFCFA } from '../../utils/currency';
+import { downloadPaymentReceiptPdf } from '../../lib/paymentReceiptPdf';
+
+const PaymentReceiptsPanel: React.FC = () => {
+  const [search, setSearch] = useState('');
+
+  const { data: payments, isLoading } = useQuery({
+    queryKey: ['admin-payments-flat'],
+    queryFn: () => adminApi.getPayments(),
+  });
+
+  const completed = useMemo(() => {
+    if (!payments || !Array.isArray(payments)) return [];
+    return payments.filter((p: any) => p.status === 'COMPLETED');
+  }, [payments]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return completed;
+    return completed.filter((p: any) => {
+      const s = `${p.student?.user?.firstName || ''} ${p.student?.user?.lastName || ''}`.toLowerCase();
+      const payer = `${p.payer?.firstName || ''} ${p.payer?.lastName || ''}`.toLowerCase();
+      const ref = String(p.paymentReference || p.id || '').toLowerCase();
+      return s.includes(q) || payer.includes(q) || ref.includes(q);
+    });
+  }, [completed, search]);
+
+  const handlePdf = (p: any) => {
+    try {
+      downloadPaymentReceiptPdf(p);
+      toast.success('Reçu PDF téléchargé');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur PDF');
+    }
+  };
+
+  if (isLoading) {
+    return <Card className="p-10 text-center text-gray-500">Chargement des paiements…</Card>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Génération de reçus</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Reçus PDF pour les paiements confirmés (référence, montant, payeur, élève, période).
+        </p>
+      </div>
+
+      <Card className="p-4 border border-gray-200">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher par élève, payeur ou référence…"
+        />
+      </Card>
+
+      {filtered.length === 0 ? (
+        <Card className="p-10 text-center text-gray-500">
+          <FiFileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          Aucun paiement confirmé à afficher.
+        </Card>
+      ) : (
+        <Card className="border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-left text-gray-600">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Élève</th>
+                  <th className="px-4 py-3 font-medium">Payeur</th>
+                  <th className="px-4 py-3 font-medium">Montant</th>
+                  <th className="px-4 py-3 font-medium">Période</th>
+                  <th className="px-4 py-3 font-medium text-right">Reçu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((p: any) => (
+                  <tr key={p.id} className="hover:bg-gray-50/80">
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                      {format(new Date(p.paidAt || p.createdAt), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.student?.user?.firstName} {p.student?.user?.lastName}
+                      <span className="block text-xs text-gray-500">{p.student?.class?.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {p.payer?.firstName} {p.payer?.lastName}
+                      <Badge variant="secondary" className="ml-1 text-xs">
+                        {p.payer?.role}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 font-medium">{formatFCFA(p.amount)}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">
+                      {p.tuitionFee?.period} · {p.tuitionFee?.academicYear}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button size="sm" variant="secondary" onClick={() => handlePdf(p)}>
+                        <FiDownload className="w-4 h-4 mr-1 inline" />
+                        PDF
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default PaymentReceiptsPanel;

@@ -1,0 +1,328 @@
+/* Recharts : éviter largeur 0 dans grilles / flex (Next.js + ResponsiveContainer) */
+.recharts-responsive-container {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens — shell premium (toute l’app) */
+:root {
+  --home-bg: #fafbfc;
+  --home-text: #1a1d29;
+  --home-text-muted: #5c617a;
+  --home-border: #e8eaef;
+  --home-hero-from: #0f172a;
+  --home-hero-via: #1e293b;
+  --home-hero-to: #0f172a;
+  --home-primary: #2563eb;
+  --home-primary-dark: #4f46e5;
+  --premium-ring: rgba(99, 102, 241, 0.35);
+  --premium-nav-border: rgba(255, 255, 255, 0.72);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.22);
+    color: #0f172a;
+  }
+}
+
+@layer components {
+  /* Fond global subtil (mailles + léger dégradé) */
+  .premium-body {
+    background-color: #f8fafc;
+    background-image:
+      radial-gradient(at 42% 18%, rgba(99, 102, 241, 0.11) 0px, transparent 52%),
+      radial-gradient(at 88% 6%, rgba(168, 85, 247, 0.09) 0px, transparent 48%),
+      radial-gradient(at 4% 72%, rgba(14, 165, 233, 0.07) 0px, transparent 45%),
+      linear-gradient(165deg, #f8fafc 0%, #f1f5f9 55%, #fafafa 100%);
+    background-attachment: fixed;
+  }
+
+  .glass-nav {
+    @apply border-b backdrop-blur-2xl;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.86) 0%,
+      rgba(248, 250, 252, 0.78) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+      0 8px 32px -8px rgba(15, 23, 42, 0.08);
+  }
+
+  .premium-card-surface {
+    @apply rounded-2xl border border-white/60 bg-white/85 backdrop-blur-xl shadow-premium;
+  }
+
+  .text-gradient-display {
+    @apply bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-700 px-6 py-3 rounded-lg font-semibold border-2 border-gray-300 hover:border-gray-400 transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+  }
+  
+  .badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold;
+  }
+  
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
+
+  .perspective-3d {
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
+
+  .transform-gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+  }
+
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  /* Effet 3D amélioré avec perspective et profondeur */
+  .text-3d-enhanced {
+    perspective: 1000px;
+    transform-style: preserve-3d;
+    display: inline-block;
+    position: relative;
+    animation: text3dFloat 4s ease-in-out infinite;
+  }
+
+  @keyframes text3dFloat {
+    0%, 100% {
+      transform: translateZ(0px) rotateX(0deg) rotateY(0deg);
+    }
+    25% {
+      transform: translateZ(15px) rotateX(2deg) rotateY(-1deg);
+    }
+    50% {
+      transform: translateZ(25px) rotateX(0deg) rotateY(0deg);
+    }
+    75% {
+      transform: translateZ(15px) rotateX(-2deg) rotateY(1deg);
+    }
+  }
+
+  /* Contour lumineux bleu */
+  .text-glow-blue {
+    animation: glowBlue 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glowBlue {
+    from {
+      text-shadow: 
+        0 0 10px rgba(96, 165, 250, 0.8),
+        0 0 20px rgba(96, 165, 250, 0.6),
+        0 0 30px rgba(96, 165, 250, 0.4),
+        0 0 40px rgba(96, 165, 250, 0.3),
+        0 0 50px rgba(96, 165, 250, 0.2),
+        0 0 60px rgba(96, 165, 250, 0.1);
+    }
+    to {
+      text-shadow: 
+        0 0 15px rgba(96, 165, 250, 1),
+        0 0 25px rgba(96, 165, 250, 0.8),
+        0 0 35px rgba(96, 165, 250, 0.6),
+        0 0 45px rgba(96, 165, 250, 0.4),
+        0 0 55px rgba(96, 165, 250, 0.3),
+        0 0 65px rgba(96, 165, 250, 0.2),
+        0 0 80px rgba(96, 165, 250, 0.1);
+    }
+  }
+
+  /* Contour lumineux violet */
+  .text-glow-purple {
+    animation: glowPurple 2s ease-in-out infinite alternate;
+    animation-delay: 0.5s;
+  }
+
+  @keyframes glowPurple {
+    from {
+      text-shadow: 
+        0 0 10px rgba(167, 139, 250, 0.8),
+        0 0 20px rgba(167, 139, 250, 0.6),
+        0 0 30px rgba(167, 139, 250, 0.4),
+        0 0 40px rgba(167, 139, 250, 0.3),
+        0 0 50px rgba(167, 139, 250, 0.2),
+        0 0 60px rgba(167, 139, 250, 0.1);
+    }
+    to {
+      text-shadow: 
+        0 0 15px rgba(167, 139, 250, 1),
+        0 0 25px rgba(167, 139, 250, 0.8),
+        0 0 35px rgba(167, 139, 250, 0.6),
+        0 0 45px rgba(167, 139, 250, 0.4),
+        0 0 55px rgba(167, 139, 250, 0.3),
+        0 0 65px rgba(167, 139, 250, 0.2),
+        0 0 80px rgba(167, 139, 250, 0.1);
+    }
+  }
+
+}
+
+/* React Calendar Styles */
+.custom-calendar .react-calendar {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+}
+
+.custom-calendar .react-calendar__tile {
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.custom-calendar .react-calendar__tile:hover {
+  background-color: #e0e7ff;
+  transform: scale(1.05);
+}
+
+.custom-calendar .react-calendar__tile--active {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: white;
+}
+
+.custom-calendar .react-calendar__tile--now {
+  background: #f3f4f6;
+  font-weight: bold;
+}
+
+.custom-calendar .react-calendar__navigation button {
+  min-width: 44px;
+  background: none;
+  font-size: 16px;
+  margin-top: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.custom-calendar .react-calendar__navigation button:hover {
+  background-color: #f3f4f6;
+}
+
+.custom-calendar .react-calendar__navigation button:enabled:hover,
+.custom-calendar .react-calendar__navigation button:enabled:focus {
+  background-color: #e0e7ff;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

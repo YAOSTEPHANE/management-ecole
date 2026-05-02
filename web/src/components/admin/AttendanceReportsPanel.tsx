@@ -1,0 +1,210 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../../services/api';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
+import FilterDropdown from '../ui/FilterDropdown';
+import { FiBarChart, FiDownload } from 'react-icons/fi';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import fr from 'date-fns/locale/fr';
+import toast from 'react-hot-toast';
+
+const AttendanceReportsPanel: React.FC = () => {
+  const [classId, setClassId] = useState<string>('all');
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  });
+  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const { data: classes } = useQuery({
+    queryKey: ['classes'],
+    queryFn: adminApi.getClasses,
+  });
+
+  const { data: absences, isLoading } = useQuery({
+    queryKey: ['admin-absences-report', classId],
+    queryFn: () =>
+      adminApi.getAllAbsences({
+        ...(classId !== 'all' && { classId }),
+      }),
+  });
+
+  const filtered = useMemo(() => {
+    if (!absences?.length) return [];
+    const start = startOfDay(parseISO(fromDate));
+    const end = endOfDay(parseISO(toDate));
+    return absences.filter((a: any) => {
+      const d = parseISO(a.date);
+      return isWithinInterval(d, { start, end });
+    });
+  }, [absences, fromDate, toDate]);
+
+  const stats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let excused = 0;
+    for (const a of filtered) {
+      if (a.status === 'PRESENT') present++;
+      else if (a.status === 'LATE') late++;
+      else if (a.status === 'ABSENT') {
+        if (a.excused) excused++;
+        else absent++;
+      }
+    }
+    const total = filtered.length;
+    const rate =
+      total > 0 ? Math.round(((present + late) / total) * 1000) / 10 : 0;
+    return { present, absent, late, excused, total, rate };
+  }, [filtered]);
+
+  const exportCsv = () => {
+    const headers = ['Élève', 'Classe', 'Matière', 'Date', 'Statut', 'Justifié'];
+    const rows = filtered.map((a: any) => [
+      `${a.student?.user?.firstName ?? ''} ${a.student?.user?.lastName ?? ''}`.trim(),
+      a.student?.class?.name ?? '',
+      a.course?.name ?? '',
+      a.date ? format(parseISO(a.date), 'yyyy-MM-dd') : '',
+      a.status ?? '',
+      a.excused ? 'oui' : 'non',
+    ]);
+    const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assiduite_${fromDate}_${toDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Export CSV téléchargé');
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4 border border-gray-200">
+        <div className="flex flex-col lg:flex-row lg:items-end gap-4 flex-wrap">
+          <FilterDropdown
+            label="Classe"
+            value={classId}
+            onChange={setClassId}
+            options={[
+              { value: 'all', label: 'Toutes les classes' },
+              ...(classes || []).map((c: any) => ({
+                value: c.id,
+                label: c.name,
+              })),
+            ]}
+          />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Du</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              aria-label="Date de début de la période"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Au</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              aria-label="Date de fin de la période"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            />
+          </div>
+          <Button type="button" variant="outline" onClick={exportCsv} className="shrink-0">
+            <FiDownload className="w-4 h-4 mr-2" />
+            Exporter CSV (période)
+          </Button>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 border border-teal-100 bg-teal-50/40">
+          <p className="text-xs font-medium text-gray-500 uppercase">Enregistrements</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+          <p className="text-xs text-gray-500 mt-1">Sur la période sélectionnée</p>
+        </Card>
+        <Card className="p-4 border border-green-100 bg-green-50/40">
+          <p className="text-xs font-medium text-gray-500 uppercase">Présences + retards</p>
+          <p className="text-2xl font-bold text-green-700 mt-1">
+            {stats.present + stats.late}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Présent : {stats.present} · Retard : {stats.late}</p>
+        </Card>
+        <Card className="p-4 border border-red-100 bg-red-50/40">
+          <p className="text-xs font-medium text-gray-500 uppercase">Absences non justifiées</p>
+          <p className="text-2xl font-bold text-red-700 mt-1">{stats.absent}</p>
+          <p className="text-xs text-gray-500 mt-1">Justifiées : {stats.excused}</p>
+        </Card>
+        <Card className="p-4 border border-cyan-100 bg-cyan-50/40">
+          <p className="text-xs font-medium text-gray-500 uppercase flex items-center gap-1">
+            <FiBarChart className="w-3.5 h-3.5" /> Taux présence
+          </p>
+          <p className="text-2xl font-bold text-cyan-800 mt-1">{stats.rate}%</p>
+          <p className="text-xs text-gray-500 mt-1">(présents + retards) / total lignes</p>
+        </Card>
+      </div>
+
+      <Card className="p-5 border border-gray-200">
+        <h3 className="font-semibold text-gray-900 mb-3">Détail ({filtered.length} lignes)</h3>
+        {isLoading ? (
+          <p className="text-sm text-gray-500">Chargement…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune donnée pour cette période et ces filtres.</p>
+        ) : (
+          <div className="overflow-x-auto max-h-96">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-gray-600">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Élève</th>
+                  <th className="py-2 pr-3">Classe</th>
+                  <th className="py-2 pr-3">Matière</th>
+                  <th className="py-2 pr-3">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.slice(0, 200).map((a: any) => (
+                  <tr key={a.id} className="border-b border-gray-100">
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      {a.date
+                        ? format(parseISO(a.date), 'dd MMM yyyy', { locale: fr })
+                        : '—'}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {a.student?.user?.firstName} {a.student?.user?.lastName}
+                    </td>
+                    <td className="py-2 pr-3">{a.student?.class?.name ?? '—'}</td>
+                    <td className="py-2 pr-3">{a.course?.name ?? '—'}</td>
+                    <td className="py-2 pr-3">
+                      {a.status === 'PRESENT'
+                        ? 'Présent'
+                        : a.status === 'LATE'
+                          ? 'Retard'
+                          : a.excused
+                            ? 'Absent (just.)'
+                            : 'Absent'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length > 200 && (
+              <p className="text-xs text-gray-500 mt-2">
+                Affichage des 200 premières lignes. Utilisez l’export CSV pour la liste complète.
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+export default AttendanceReportsPanel;

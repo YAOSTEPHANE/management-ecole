@@ -1,0 +1,306 @@
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../../services/api';
+import Modal from '../ui/Modal';
+import Card from '../ui/Card';
+import Badge from '../ui/Badge';
+import Avatar from '../ui/Avatar';
+import {
+  FiX,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiCalendar,
+  FiMapPin,
+  FiBook,
+  FiUsers,
+  FiClipboard,
+  FiAlertCircle,
+  FiEdit,
+} from 'react-icons/fi';
+import { format } from 'date-fns';
+import fr from 'date-fns/locale/fr';
+import {
+  ENROLLMENT_STATUS_LABELS,
+  enrollmentBadgeVariant,
+  type EnrollmentStatusValue,
+} from '../../lib/enrollmentStatus';
+
+interface StudentDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  studentId: string;
+  onEdit?: () => void;
+}
+
+const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  studentId,
+  onEdit,
+}) => {
+  const { data: student, isLoading } = useQuery({
+    queryKey: ['student', studentId],
+    queryFn: () => adminApi.getStudent(studentId),
+    enabled: isOpen && !!studentId,
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Détails de l'élève</h2>
+          <div className="flex items-center space-x-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                title="Modifier"
+              >
+                <FiEdit className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+            <p className="mt-4 text-gray-600">Chargement des détails...</p>
+          </div>
+        ) : !student ? (
+          <div className="text-center py-12">
+            <FiAlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Élève non trouvé</h3>
+            <p className="text-gray-600">L'élève demandé n'existe pas ou a été supprimé.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Informations personnelles */}
+            <Card>
+              <div className="flex items-start space-x-6">
+                <Avatar
+                  src={student.user?.avatar}
+                  name={`${student.user?.firstName} ${student.user?.lastName}`}
+                  size="xl"
+                />
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {student.user?.firstName} {student.user?.lastName}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="flex items-center space-x-3">
+                      <FiUser className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">ID Élève</p>
+                        <p className="font-medium text-gray-900">{student.studentId}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <FiMail className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-gray-900">{student.user?.email}</p>
+                      </div>
+                    </div>
+                    {student.user?.phone && (
+                      <div className="flex items-center space-x-3">
+                        <FiPhone className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-500">Téléphone</p>
+                          <p className="font-medium text-gray-900">{student.user.phone}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-3">
+                      <FiCalendar className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">Date de naissance</p>
+                        <p className="font-medium text-gray-900">
+                          {student.dateOfBirth
+                            ? format(new Date(student.dateOfBirth), 'dd MMMM yyyy', { locale: fr })
+                            : 'Non renseignée'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant={enrollmentBadgeVariant(
+                          (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                        )}
+                      >
+                        {ENROLLMENT_STATUS_LABELS[
+                          (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                        ]}
+                      </Badge>
+                      <Badge variant={student.isActive ? 'success' : 'danger'}>
+                        Fiche {student.isActive ? 'active' : 'inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Informations académiques */}
+            <Card>
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <FiBook className="w-5 h-5 mr-2 text-blue-600" />
+                Informations Académiques
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Classe</p>
+                  {student.class ? (
+                    <Badge variant="info" className="text-base">
+                      {student.class.name} - {student.class.level}
+                    </Badge>
+                  ) : (
+                    <p className="text-gray-600">Non assigné</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Statut d&apos;inscription</p>
+                  <Badge
+                    variant={enrollmentBadgeVariant(
+                      (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                    )}
+                  >
+                    {ENROLLMENT_STATUS_LABELS[
+                      (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                    ]}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Genre</p>
+                  <p className="font-medium text-gray-900">
+                    {student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : 'Autre'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Contact d'urgence */}
+            {(student.emergencyContact || student.emergencyPhone) && (
+              <Card>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <FiAlertCircle className="w-5 h-5 mr-2 text-orange-600" />
+                  Contact d'Urgence
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {student.emergencyContact && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Contact</p>
+                      <p className="font-medium text-gray-900">{student.emergencyContact}</p>
+                    </div>
+                  )}
+                  {student.emergencyPhone && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Téléphone</p>
+                      <p className="font-medium text-gray-900">{student.emergencyPhone}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Adresse */}
+            {student.address && (
+              <Card>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <FiMapPin className="w-5 h-5 mr-2 text-green-600" />
+                  Adresse
+                </h3>
+                <p className="text-gray-700">{student.address}</p>
+              </Card>
+            )}
+
+            {/* Informations médicales */}
+            {student.medicalInfo && (
+              <Card>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <FiAlertCircle className="w-5 h-5 mr-2 text-red-600" />
+                  Informations Médicales
+                </h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{student.medicalInfo}</p>
+              </Card>
+            )}
+
+            {/* Parents */}
+            {student.parents && student.parents.length > 0 && (
+              <Card>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <FiUsers className="w-5 h-5 mr-2 text-purple-600" />
+                  Parents ({student.parents.length})
+                </h3>
+                <div className="space-y-3">
+                  {student.parents.map((parentRelation: any) => (
+                    <div
+                      key={parentRelation.parent.id}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <p className="font-medium text-gray-900">
+                        {parentRelation.parent.user.firstName} {parentRelation.parent.user.lastName}
+                      </p>
+                      <p className="text-sm text-gray-600">{parentRelation.parent.user.email}</p>
+                      {parentRelation.parent.user.phone && (
+                        <p className="text-sm text-gray-600">{parentRelation.parent.user.phone}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Statistiques */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <div className="text-center">
+                  <FiClipboard className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {student.grades?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-600">Notes</p>
+                </div>
+              </Card>
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                <div className="text-center">
+                  <FiCalendar className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {student.absences?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-600">Absences</p>
+                </div>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <div className="text-center">
+                  <FiBook className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {student.class ? 1 : 0}
+                  </p>
+                  <p className="text-sm text-gray-600">Classe</p>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+};
+
+export default StudentDetailsModal;
+
+
+
+
+
+
