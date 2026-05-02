@@ -50,21 +50,29 @@ app.use(express.urlencoded({ extended: true }));
 // Servir les fichiers statiques (images uploadées)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/teacher', teacherRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api/parent', parentRoutes);
-app.use('/api/educator', educatorRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/nfc', nfcRoutes);
-app.use('/api/public/admissions', admissionPublicRoutes);
+// Vercel (experimentalServices + routePrefix /api) transmet les chemins sans préfixe /api.
+const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'School Manager API is running' });
-});
+// Routes
+app.use(`${apiPrefix}/auth`, authRoutes);
+app.use(`${apiPrefix}/admin`, adminRoutes);
+app.use(`${apiPrefix}/teacher`, teacherRoutes);
+app.use(`${apiPrefix}/student`, studentRoutes);
+app.use(`${apiPrefix}/parent`, parentRoutes);
+app.use(`${apiPrefix}/educator`, educatorRoutes);
+app.use(`${apiPrefix}/upload`, uploadRoutes);
+app.use(`${apiPrefix}/nfc`, nfcRoutes);
+app.use(`${apiPrefix}/public/admissions`, admissionPublicRoutes);
+
+// Health check : toujours les deux chemins (gateway peut envoyer /health ou /api/health ; VERCEL pas toujours défini au runtime)
+const healthJson = { status: 'OK', message: 'School Manager API is running' };
+app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));
+if (apiPrefix === '/api') {
+  app.get('/health', (req, res) => res.json(healthJson));
+}
+if (apiPrefix === '') {
+  app.get('/api/health', (req, res) => res.json(healthJson));
+}
 
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
