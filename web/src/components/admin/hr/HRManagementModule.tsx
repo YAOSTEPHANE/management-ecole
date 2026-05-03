@@ -15,6 +15,7 @@ import {
   FiAward,
   FiCalendar,
 } from 'react-icons/fi';
+import { ADM } from '../adminModuleLayout';
 
 type HRTab =
   | 'overview'
@@ -62,15 +63,15 @@ const HRManagementModule: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Ressources humaines</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={ADM.h2}>Ressources humaines</h2>
+        <p className={ADM.intro}>
           Contrats, masse salariale indicative, politique sociale, évaluations et validation des congés.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -79,13 +80,9 @@ const HRManagementModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-rose-50 text-rose-900 ring-1 ring-rose-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-rose-50 text-rose-900 ring-1 ring-rose-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -93,21 +90,25 @@ const HRManagementModule: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="p-5 border border-gray-200">
-            <p className="text-xs font-medium text-gray-500 uppercase">Personnel suivi</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{stats.staff}</p>
-            <p className="text-xs text-gray-500 mt-1">Enseignants + éducateurs</p>
+        <div className={ADM.grid3}>
+          <Card className={`${ADM.statCard} border border-gray-200`}>
+            <p className={ADM.statLabel}>Personnel suivi</p>
+            <p className={ADM.statVal}>{stats.staff}</p>
+            <p className={ADM.statHint}>Enseignants + éducateurs</p>
           </Card>
-          <Card className="p-5 border border-amber-100 bg-amber-50/40">
-            <p className="text-xs font-medium text-amber-800 uppercase">Congés en attente</p>
-            <p className="text-3xl font-bold text-amber-900 mt-1">{stats.pending}</p>
-            <p className="text-xs text-gray-600 mt-1">À traiter dans Congés & permissions</p>
+          <Card className={`${ADM.statCard} border border-amber-100 bg-amber-50/40`}>
+            <p className="text-[10px] font-medium text-amber-800 uppercase tracking-wide leading-tight">
+              Congés en attente
+            </p>
+            <p className={`${ADM.statValTone} text-amber-900`}>{stats.pending}</p>
+            <p className={ADM.statHint}>À traiter dans Congés & permissions</p>
           </Card>
-          <Card className="p-5 border border-violet-100 bg-violet-50/40">
-            <p className="text-xs font-medium text-violet-800 uppercase">Fiches d’évaluation</p>
-            <p className="text-3xl font-bold text-violet-900 mt-1">{stats.reviews}</p>
-            <p className="text-xs text-gray-600 mt-1">Enregistrées (historique)</p>
+          <Card className={`${ADM.statCard} border border-violet-100 bg-violet-50/40`}>
+            <p className="text-[10px] font-medium text-violet-800 uppercase tracking-wide leading-tight">
+              Fiches d’évaluation
+            </p>
+            <p className={`${ADM.statValTone} text-violet-900`}>{stats.reviews}</p>
+            <p className={ADM.statHint}>Enregistrées (historique)</p>
           </Card>
         </div>
       )}

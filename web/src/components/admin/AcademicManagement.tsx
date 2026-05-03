@@ -15,6 +15,7 @@ import {
   FiClock,
   FiGrid,
 } from 'react-icons/fi';
+import { ADM } from './adminModuleLayout';
 
 type AcademicTab =
   | 'overview'
@@ -66,16 +67,16 @@ const AcademicManagement: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 text-sm">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Gestion académique</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={ADM.h2}>Gestion académique</h2>
+        <p className={ADM.intro}>
           Structure pédagogique : classes, affectation des élèves, matières, emplois du temps et
           calendrier de l’établissement.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -84,13 +85,9 @@ const AcademicManagement: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -99,34 +96,50 @@ const AcademicManagement: React.FC = () => {
 
       {tab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Classes</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{classes?.length ?? '—'}</p>
-              <p className="text-xs text-gray-500 mt-1">Groupes et niveaux</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Classes
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">
+                {classes?.length ?? '—'}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">Groupes et niveaux</p>
             </Card>
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Élèves affectés</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{assigned}</p>
-              <p className="text-xs text-amber-600 mt-1">
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Élèves affectés
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">{assigned}</p>
+              <p className="text-[11px] text-amber-600 mt-1 leading-snug">
                 {unassigned > 0 ? `${unassigned} sans classe` : 'Tous affectés'}
               </p>
             </Card>
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Matières</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{courses?.length ?? '—'}</p>
-              <p className="text-xs text-gray-500 mt-1">Cours par classe</p>
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Matières
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">
+                {courses?.length ?? '—'}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">Cours par classe</p>
             </Card>
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Créneaux EDT</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{schedules?.length ?? '—'}</p>
-              <p className="text-xs text-gray-500 mt-1">Calendrier : {calendarEvents?.length ?? 0} évén.</p>
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Créneaux EDT
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">
+                {schedules?.length ?? '—'}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Calendrier : {calendarEvents?.length ?? 0} évén.
+              </p>
             </Card>
           </div>
 
-          <Card className="p-5 border border-indigo-100 bg-indigo-50/40">
-            <h3 className="font-semibold text-gray-900 mb-2">Par où commencer ?</h3>
-            <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1.5">
+          <Card className="p-4 border border-indigo-100 bg-indigo-50/40">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Par où commencer ?</h3>
+            <ol className="list-decimal list-inside text-xs text-gray-700 space-y-1.5 leading-relaxed">
               <li>
                 Créez les <strong>classes</strong> (nom, niveau, année scolaire, capacité).
               </li>
@@ -148,11 +161,11 @@ const AcademicManagement: React.FC = () => {
         </div>
       )}
 
-      {tab === 'classes' && <ClassesList />}
-      {tab === 'enrollment' && <StudentsList showClassFilter />}
-      {tab === 'courses' && <CoursesProgramManagement />}
-      {tab === 'schedule' && <ScheduleManagement />}
-      {tab === 'school-calendar' && <SchoolCalendarManagement />}
+      {tab === 'classes' && <ClassesList compact />}
+      {tab === 'enrollment' && <StudentsList showClassFilter compact />}
+      {tab === 'courses' && <CoursesProgramManagement compact />}
+      {tab === 'schedule' && <ScheduleManagement compact />}
+      {tab === 'school-calendar' && <SchoolCalendarManagement compact />}
     </div>
   );
 };

@@ -129,16 +129,16 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
   const isLoading = isLoadingUser || updateUserMutation.isPending;
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Utilisateur" size="lg">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Utilisateur" size="lg" compact>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Prénom <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiUser className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiUser className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <input
                 type="text"
@@ -146,27 +146,27 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
                 value={formData.firstName}
                 onChange={handleChange}
                 disabled={isLoading}
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.firstName ? 'border-red-500' : 'border-gray-200'
-                } ${isLoading ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                  errors.firstName ? 'border-red-500' : 'border-stone-200'
+                } ${isLoading ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
                 placeholder="Prénom"
               />
             </div>
             {errors.firstName && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+              <p className="mt-1 text-xs text-red-500 flex items-center">
+                <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.firstName}
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Nom <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiUser className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiUser className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <input
                 type="text"
@@ -174,15 +174,15 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
                 value={formData.lastName}
                 onChange={handleChange}
                 disabled={isLoading}
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.lastName ? 'border-red-500' : 'border-gray-200'
-                } ${isLoading ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                  errors.lastName ? 'border-red-500' : 'border-stone-200'
+                } ${isLoading ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
                 placeholder="Nom"
               />
             </div>
             {errors.lastName && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+              <p className="mt-1 text-xs text-red-500 flex items-center">
+                <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.lastName}
               </p>
             )}
@@ -190,12 +190,12 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Adresse email <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiMail className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiMail className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <input
               type="email"
@@ -203,27 +203,27 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
               value={formData.email}
               onChange={handleChange}
               disabled={isLoading}
-              className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.email ? 'border-red-500' : 'border-gray-200'
-              } ${isLoading ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.email ? 'border-red-500' : 'border-stone-200'
+              } ${isLoading ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
               placeholder="email@exemple.com"
             />
           </div>
           {errors.email && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
               {errors.email}
             </p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Téléphone
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiPhone className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiPhone className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <input
               type="tel"
@@ -231,17 +231,17 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
               value={formData.phone}
               onChange={handleChange}
               disabled={isLoading}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
               placeholder="+33 6 12 34 56 78"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Statut
           </label>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-3">
             <label className="inline-flex items-center">
               <input
                 type="checkbox"
@@ -249,17 +249,18 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
                 checked={formData.isActive}
                 onChange={handleChange}
                 disabled={isLoading}
-                className="form-checkbox h-5 w-5 text-blue-600 rounded-md focus:ring-2 focus:ring-blue-500"
+                className="form-checkbox h-4 w-4 rounded border-stone-300 text-amber-700 focus:ring-amber-500/30"
               />
-              <span className="ml-2 text-gray-700">Actif</span>
+              <span className="ml-2 text-xs text-stone-700">Actif</span>
             </label>
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80">
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             onClick={handleClose}
             disabled={isLoading}
           >
@@ -267,17 +268,18 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, userId }
           </Button>
           <Button
             type="submit"
+            size="sm"
             disabled={isLoading}
-            className="min-w-[140px]"
+            className="min-w-[120px]"
           >
             {isLoading ? (
               <>
-                <FiLoader className="w-5 h-5 mr-2 animate-spin inline" />
+                <FiLoader className="w-4 h-4 mr-1.5 animate-spin inline" />
                 Mise à jour...
               </>
             ) : (
               <>
-                <FiSave className="w-5 h-5 mr-2 inline" />
+                <FiSave className="w-4 h-4 mr-1.5 inline" />
                 Mettre à jour
               </>
             )}

@@ -11,7 +11,12 @@ import Badge from '../ui/Badge';
 import toast from 'react-hot-toast';
 import { FiBook, FiPlus, FiEdit, FiTrash2, FiClock } from 'react-icons/fi';
 
-const CoursesProgramManagement: React.FC = () => {
+type CoursesProgramManagementProps = {
+  /** Typographie plus petite (ex. onglet Gestion académique) */
+  compact?: boolean;
+};
+
+const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ compact = false }) => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
@@ -152,10 +157,12 @@ const CoursesProgramManagement: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Matières et programme</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={compact ? 'text-base font-semibold text-gray-900' : 'text-lg font-semibold text-gray-900'}>
+          Matières et programme
+        </h2>
+        <p className={compact ? 'text-xs text-gray-500 mt-0.5' : 'text-sm text-gray-500 mt-0.5'}>
           Définissez les cours par classe, le code matière et le volume horaire hebdomadaire. Les
           créneaux de l’emploi du temps s’appuient sur ces matières.
         </p>
@@ -165,12 +172,14 @@ const CoursesProgramManagement: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
           <div className="flex-1 min-w-0">
             <SearchBar
+              compact={compact}
               value={search}
               onChange={setSearch}
               placeholder="Rechercher par nom, code ou classe..."
             />
           </div>
           <FilterDropdown
+            compact={compact}
             options={classOptions}
             selected={classFilter}
             onChange={setClassFilter}
@@ -185,7 +194,13 @@ const CoursesProgramManagement: React.FC = () => {
 
       <Card className="border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+          <h3
+            className={
+              compact
+                ? 'text-xs font-semibold text-gray-700 uppercase tracking-wider'
+                : 'text-sm font-semibold text-gray-700 uppercase tracking-wider'
+            }
+          >
             Liste des matières ({filtered.length})
           </h3>
         </div>
@@ -197,7 +212,7 @@ const CoursesProgramManagement: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className={compact ? 'min-w-full text-xs' : 'min-w-full text-sm'}>
               <thead className="bg-gray-50 text-left text-gray-600">
                 <tr>
                   <th className="px-4 py-3 font-medium">Matière</th>

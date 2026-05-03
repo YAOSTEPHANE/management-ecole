@@ -72,6 +72,8 @@ import {
   FiCommand,
   FiArrowRight,
   FiMenu,
+  FiChevronLeft,
+  FiChevronRight,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -117,6 +119,8 @@ type TabItem = {
   description: string;
 };
 
+const SIDEBAR_COLLAPSED_KEY = 'admin-dashboard-sidebar-collapsed';
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -151,6 +155,25 @@ const AdminDashboard = () => {
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1') {
+        setSidebarCollapsed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [sidebarCollapsed]);
 
   const tabs: TabItem[] = [
     { id: 'dashboard', label: 'Tableau de bord', icon: FiLayout, color: 'from-blue-500 to-blue-600', description: 'Vue d’ensemble et indicateurs' },
@@ -223,9 +246,15 @@ const AdminDashboard = () => {
           onTabChange={changeTab}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen((o) => !o)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         />
 
-        <div className="lg:pl-64 flex flex-col min-w-0">
+        <div
+          className={`flex min-w-0 flex-col transition-[padding] duration-300 ease-in-out ${
+            sidebarCollapsed ? 'lg:pl-[4.25rem]' : 'lg:pl-64'
+          }`}
+        >
           {/* Header */}
           <header className="sticky top-16 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shadow-slate-900/5">
             <div className="px-2.5 sm:px-5 py-1.5 sm:py-2">
@@ -234,10 +263,25 @@ const AdminDashboard = () => {
                   <button
                     type="button"
                     onClick={() => setSidebarOpen((o) => !o)}
-                    className="lg:hidden p-1.5 rounded-md hover:bg-slate-100 transition-colors text-slate-700 shrink-0 min-h-[34px] min-w-[34px] flex items-center justify-center"
+                    className="flex min-h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-md p-1.5 text-slate-700 transition-colors hover:bg-slate-100 lg:hidden"
                     aria-label="Ouvrir le menu de navigation"
                   >
-                    <FiMenu className="w-4 h-4" />
+                    <FiMenu className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarCollapsed((c) => !c)}
+                    className="hidden min-h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-md border border-slate-200/80 bg-white/90 p-1.5 text-slate-600 shadow-sm transition-colors hover:border-amber-200 hover:bg-amber-50/50 hover:text-slate-900 lg:flex"
+                    aria-expanded={sidebarCollapsed ? false : true}
+                    aria-label={
+                      sidebarCollapsed ? 'Développer le menu latéral' : 'Réduire le menu latéral'
+                    }
+                  >
+                    {sidebarCollapsed ? (
+                      <FiChevronRight className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <FiChevronLeft className="h-4 w-4" aria-hidden />
+                    )}
                   </button>
                   <div className="min-w-0">
                     <h1 className="font-display text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight break-words leading-tight">

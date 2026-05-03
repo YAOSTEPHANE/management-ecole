@@ -57,6 +57,7 @@ import {
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
+import { ADM } from './adminModuleLayout';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -449,13 +450,13 @@ const AdvancedAnalytics = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.pageRoot}>
       {/* Header */}
-      <Card className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Analytique Avancée</h2>
-            <p className="text-green-100 text-lg">
+      <Card className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className={`text-emerald-50 ${ADM.heroTitle}`}>Analytique Avancée</h2>
+            <p className="text-green-100/95 text-sm leading-snug mt-0.5">
               Tableaux de bord interactifs avec données en temps réel
             </p>
           </div>
@@ -510,8 +511,9 @@ const AdvancedAnalytics = () => {
 
       {/* Filters */}
       <Card>
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-3">
           <FilterDropdown
+            compact
             label="Période"
             value={selectedPeriod}
             onChange={setSelectedPeriod}
@@ -523,6 +525,7 @@ const AdvancedAnalytics = () => {
             ]}
           />
           <FilterDropdown
+            compact
             label="Classe"
             value={selectedClass}
             onChange={setSelectedClass}
@@ -532,6 +535,7 @@ const AdvancedAnalytics = () => {
             ]}
           />
           <FilterDropdown
+            compact
             label="Métrique"
             value={selectedMetric}
             onChange={setSelectedMetric}
@@ -544,6 +548,7 @@ const AdvancedAnalytics = () => {
           />
           <Button
             variant="outline"
+            size="sm"
             onClick={() => {
               setSelectedPeriod('month');
               setSelectedClass('all');

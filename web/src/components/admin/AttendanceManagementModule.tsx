@@ -13,6 +13,7 @@ import {
   FiBarChart2,
   FiBell,
 } from 'react-icons/fi';
+import { ADM } from './adminModuleLayout';
 
 type AttendanceTab = 'overview' | 'rollcall' | 'absences' | 'reports' | 'parents';
 
@@ -41,15 +42,15 @@ const AttendanceManagementModule: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Gestion des présences</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={ADM.h2}>Gestion des présences</h2>
+        <p className={ADM.intro}>
           Appel quotidien (NFC ou manuel), suivi des absences, rapports et messages aux familles.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -58,13 +59,9 @@ const AttendanceManagementModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`${ADM.tabBtn(active, 'bg-teal-50 text-teal-900 ring-1 ring-teal-200')}`}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -72,21 +69,23 @@ const AttendanceManagementModule: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Enregistrements présence</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{absenceCount}</p>
-              <p className="text-xs text-gray-500 mt-1">Lignes en base (toutes dates, filtres globaux)</p>
+        <div className={ADM.section}>
+          <div className={ADM.grid3}>
+            <Card className={`${ADM.statCard} border border-gray-200`}>
+              <p className={ADM.statLabel}>Enregistrements présence</p>
+              <p className={ADM.statVal}>{absenceCount}</p>
+              <p className={ADM.statHint}>Lignes en base (toutes dates, filtres globaux)</p>
             </Card>
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Cours</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{courseCount}</p>
-              <p className="text-xs text-gray-500 mt-1">Pour l’appel par matière et classe</p>
+            <Card className={`${ADM.statCard} border border-gray-200`}>
+              <p className={ADM.statLabel}>Cours</p>
+              <p className={ADM.statVal}>{courseCount}</p>
+              <p className={ADM.statHint}>Pour l’appel par matière et classe</p>
             </Card>
-            <Card className="p-4 border border-teal-100 bg-teal-50/50">
-              <p className="text-xs font-medium text-teal-800 uppercase">Parcours type</p>
-              <ol className="text-sm text-gray-700 mt-2 space-y-1 list-decimal list-inside">
+            <Card className={`${ADM.statCard} border border-teal-100 bg-teal-50/50`}>
+              <p className="text-[10px] font-medium text-teal-800 uppercase tracking-wide leading-tight">
+                Parcours type
+              </p>
+              <ol className={ADM.olSm}>
                 <li>Faire l’appel du jour (pointage NFC ou manuel)</li>
                 <li>Vérifier et justifier les absences</li>
                 <li>Consulter les rapports et prévenir les parents si besoin</li>
@@ -98,7 +97,7 @@ const AttendanceManagementModule: React.FC = () => {
 
       {tab === 'rollcall' && <PointageEleves embedded />}
 
-      {tab === 'absences' && <CompleteManagement attendanceModule />}
+      {tab === 'absences' && <CompleteManagement attendanceModule compact />}
 
       {tab === 'reports' && <AttendanceReportsPanel />}
 

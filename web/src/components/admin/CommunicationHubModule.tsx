@@ -11,6 +11,7 @@ import {
   FiRss,
   FiInbox,
 } from 'react-icons/fi';
+import { ADM } from './adminModuleLayout';
 
 type HubTab = 'overview' | 'messaging' | 'alerts' | 'circulars' | 'news' | 'requests';
 
@@ -51,15 +52,15 @@ const CommunicationHubModule: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Communication</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={ADM.h2}>Communication</h2>
+        <p className={ADM.intro}>
           Échanges avec les familles et le personnel, alertes, publications et suivi des demandes.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -68,13 +69,9 @@ const CommunicationHubModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-rose-50 text-rose-900 ring-1 ring-rose-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-rose-50 text-rose-900 ring-1 ring-rose-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -82,35 +79,41 @@ const CommunicationHubModule: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-5 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Messages (non lus)</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{unreadMessages}</p>
-              <p className="text-xs text-gray-500 mt-1">Messagerie interne</p>
+        <div className={ADM.section}>
+          <div className={ADM.grid4}>
+            <Card className={`${ADM.statCard} border border-gray-200`}>
+              <p className={ADM.statLabel}>Messages (non lus)</p>
+              <p className={ADM.statVal}>{unreadMessages}</p>
+              <p className={ADM.statHint}>Messagerie interne</p>
             </Card>
-            <Card className="p-5 border border-amber-100 bg-amber-50/50">
-              <p className="text-xs font-medium text-amber-900 uppercase">Notifications non lues</p>
-              <p className="text-3xl font-bold text-amber-900 mt-1">
+            <Card className={`${ADM.statCard} border border-amber-100 bg-amber-50/50`}>
+              <p className="text-[10px] font-medium text-amber-900 uppercase tracking-wide leading-tight">
+                Notifications non lues
+              </p>
+              <p className={`${ADM.statValTone} text-amber-900`}>
                 {(notifications as any[] | undefined)?.length ?? 0}
               </p>
-              <p className="text-xs text-gray-600 mt-1">Alertes système</p>
+              <p className={ADM.statHint}>Alertes système</p>
             </Card>
-            <Card className="p-5 border border-pink-100 bg-pink-50/40">
-              <p className="text-xs font-medium text-pink-900 uppercase">Annonces (total)</p>
-              <p className="text-3xl font-bold text-pink-900 mt-1">
+            <Card className={`${ADM.statCard} border border-pink-100 bg-pink-50/40`}>
+              <p className="text-[10px] font-medium text-pink-900 uppercase tracking-wide leading-tight">
+                Annonces (total)
+              </p>
+              <p className={`${ADM.statValTone} text-pink-900`}>
                 {(announcements as any[] | undefined)?.length ?? 0}
               </p>
-              <p className="text-xs text-gray-600 mt-1">Brouillons + publiées</p>
+              <p className={ADM.statHint}>Brouillons + publiées</p>
             </Card>
-            <Card className="p-5 border border-violet-100 bg-violet-50/40">
-              <p className="text-xs font-medium text-violet-900 uppercase">Actualités publiées</p>
-              <p className="text-3xl font-bold text-violet-900 mt-1">{publishedNews}</p>
-              <p className="text-xs text-gray-600 mt-1">Hors circulaires (titre)</p>
+            <Card className={`${ADM.statCard} border border-violet-100 bg-violet-50/40`}>
+              <p className="text-[10px] font-medium text-violet-900 uppercase tracking-wide leading-tight">
+                Actualités publiées
+              </p>
+              <p className={`${ADM.statValTone} text-violet-900`}>{publishedNews}</p>
+              <p className={ADM.statHint}>Hors circulaires (titre)</p>
             </Card>
           </div>
-          <Card className="p-4 border border-gray-200">
-            <p className="text-sm text-gray-700">
+          <Card className={ADM.helpCard}>
+            <p className="text-xs text-gray-700 leading-relaxed">
               Utilisez <strong>Messagerie</strong> pour écrire aux comptes parents, élèves ou
               enseignants. Les <strong>circulaires</strong> sont des annonces dont le titre commence par
               « Circulaire » (ou [Circulaire]). Les <strong>actualités</strong> regroupent les autres
@@ -122,13 +125,18 @@ const CommunicationHubModule: React.FC = () => {
       )}
 
       {tab === 'messaging' && (
-        <CommunicationManagement embedded embeddedTab="messages" messagesMode="all" />
+        <CommunicationManagement
+          embedded
+          compact
+          embeddedTab="messages"
+          messagesMode="all"
+        />
       )}
-      {tab === 'alerts' && <CommunicationManagement embedded embeddedTab="notifications" />}
+      {tab === 'alerts' && <CommunicationManagement embedded compact embeddedTab="notifications" />}
       {tab === 'circulars' && (
         <div className="space-y-3">
           <Card className="p-4 border border-rose-100 bg-rose-50/40">
-            <p className="text-sm text-gray-700">
+            <p className="text-xs text-gray-700 leading-relaxed">
               Pour classer une annonce comme <strong>circulaire</strong>, commencez le titre par{' '}
               <code className="bg-white px-1 rounded text-rose-800">Circulaire</code> ou{' '}
               <code className="bg-white px-1 rounded text-rose-800">[Circulaire]</code>.
@@ -136,24 +144,31 @@ const CommunicationHubModule: React.FC = () => {
           </Card>
           <CommunicationManagement
             embedded
+            compact
             embeddedTab="announcements"
             announcementKind="circular"
           />
         </div>
       )}
       {tab === 'news' && (
-        <CommunicationManagement embedded embeddedTab="announcements" announcementKind="news" />
+        <CommunicationManagement
+          embedded
+          compact
+          embeddedTab="announcements"
+          announcementKind="news"
+        />
       )}
       {tab === 'requests' && (
         <div className="space-y-3">
           <Card className="p-4 border border-blue-100 bg-blue-50/40">
-            <p className="text-sm text-gray-700">
+            <p className="text-xs text-gray-700 leading-relaxed">
               Filtre : messages des <strong>parents et élèves</strong>, catégorie{' '}
               <strong>Urgent</strong>, ou contenant les mots demande, réclamation, plainte, recours.
             </p>
           </Card>
           <CommunicationManagement
             embedded
+            compact
             embeddedTab="messages"
             messagesMode="requests"
           />

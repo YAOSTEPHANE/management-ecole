@@ -46,9 +46,15 @@ interface StudentsListProps {
   searchQuery?: string;
   /** Affiche un filtre par classe (affectation des élèves) */
   showClassFilter?: boolean;
+  /** Typographie plus petite (ex. onglet Gestion académique) */
+  compact?: boolean;
 }
 
-const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClassFilter = false }) => {
+const StudentsList: React.FC<StudentsListProps> = ({
+  searchQuery = '',
+  showClassFilter = false,
+  compact = false,
+}) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -309,17 +315,23 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
       key: 'name',
       header: 'Nom',
       render: (student: any) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Avatar
             src={student.user?.avatar}
             name={`${student.user?.firstName || ''} ${student.user?.lastName || ''}`}
-            size="md"
+            size="sm"
           />
           <div>
-            <p className="font-medium text-gray-900">
+            <p
+              className={
+                compact
+                  ? 'font-medium text-stone-900 text-xs leading-tight'
+                  : 'font-medium text-stone-900 text-sm leading-tight'
+              }
+            >
               {student.user?.firstName} {student.user?.lastName}
             </p>
-            <p className="text-sm text-gray-500">ID: {student.studentId || student.id}</p>
+            <p className="text-[11px] text-stone-500 leading-tight">ID: {student.studentId || student.id}</p>
           </div>
         </div>
       ),
@@ -327,7 +339,9 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
     {
       key: 'email',
       header: 'Email',
-      render: (student: any) => <span className="text-gray-600">{student.user?.email || '—'}</span>,
+      render: (student: any) => (
+        <span className="text-stone-600 text-xs">{student.user?.email || '—'}</span>
+      ),
     },
     {
       key: 'class',
@@ -348,7 +362,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
             <Badge variant={enrollmentBadgeVariant(es)}>
               {ENROLLMENT_STATUS_LABELS[es]}
             </Badge>
-            <span className="text-xs text-gray-500">
+            <span className="text-[10px] text-stone-500">
               Fiche {student.isActive ? 'active' : 'inactive'}
             </span>
           </div>
@@ -367,7 +381,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
             title="Voir les détails"
             aria-label="Voir les détails"
           >
-            <FiEye className="w-5 h-5" />
+            <FiEye className="w-4 h-4" />
           </button>
           <button
             type="button"
@@ -376,7 +390,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
             title="Modifier"
             aria-label="Modifier"
           >
-            <FiEdit className="w-5 h-5" />
+            <FiEdit className="w-4 h-4" />
           </button>
           <button
             type="button"
@@ -391,7 +405,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
             title="Supprimer"
             aria-label="Supprimer"
           >
-            <FiTrash2 className="w-5 h-5" />
+            <FiTrash2 className="w-4 h-4" />
           </button>
         </div>
       ),
@@ -400,14 +414,22 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Élèves</h1>
-          <p className="text-sm text-gray-500 mt-1">Chargement des élèves...</p>
+          <h1
+            className={
+              compact
+                ? 'font-display text-lg font-semibold tracking-[0.04em] text-stone-900'
+                : 'font-display text-xl font-semibold tracking-[0.04em] text-stone-900'
+            }
+          >
+            Élèves
+          </h1>
+          <p className="text-xs text-stone-500 mt-1 uppercase tracking-[0.14em]">Chargement des élèves…</p>
         </div>
-        <Card className="p-8 border border-gray-200">
+        <Card className="p-8">
           <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-500 border-t-transparent" />
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-amber-600/40 border-t-amber-800" />
           </div>
         </Card>
       </div>
@@ -415,13 +437,19 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
       {/* En-tête */}
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">
+        <h1
+          className={
+            compact
+              ? 'font-display text-lg sm:text-xl font-semibold tracking-[0.04em] text-stone-900'
+              : 'font-display text-xl sm:text-2xl font-semibold tracking-[0.04em] text-stone-900'
+          }
+        >
           {showClassFilter ? 'Élèves et affectation aux classes' : 'Élèves'}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-xs text-stone-500 mt-1.5 max-w-3xl leading-relaxed">
           {showClassFilter
             ? 'Filtrez par classe et modifiez la classe d’un élève via « Modifier » (onglet scolarité).'
             : 'Gérez les élèves, leurs classes et leur statut. Recherchez, filtrez et exportez la liste.'}
@@ -429,75 +457,127 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
       </div>
 
       {/* Indicateurs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card className="p-4 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-50">
-              <FiUsers className="w-5 h-5 text-indigo-600" aria-hidden />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-stone-100/90 ring-1 ring-stone-200/80 shrink-0">
+              <FiUsers className="w-3.5 h-3.5 text-amber-800" aria-hidden />
             </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.total}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-50">
-              <FiUserCheck className="w-5 h-5 text-emerald-600" aria-hidden />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Inscr. active</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.enrollmentActive}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-red-50">
-              <FiUserX className="w-5 h-5 text-red-600" aria-hidden />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Suspendus</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.suspended}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Total
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.total}
+              </p>
             </div>
           </div>
         </Card>
-        <Card className="p-4 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-50">
-              <FiUserCheck className="w-5 h-5 text-sky-600" aria-hidden />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-emerald-950/10 ring-1 ring-emerald-900/10 shrink-0">
+              <FiUserCheck className="w-3.5 h-3.5 text-emerald-800" aria-hidden />
             </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Diplômés</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.graduated}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Inscr. active
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.enrollmentActive}
+              </p>
             </div>
           </div>
         </Card>
-        <Card className="p-4 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-50">
-              <FiBook className="w-5 h-5 text-blue-600" aria-hidden />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-rose-950/10 ring-1 ring-rose-900/10 shrink-0">
+              <FiUserX className="w-3.5 h-3.5 text-rose-800" aria-hidden />
             </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Classes</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.classes}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Suspendus
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.suspended}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-sky-950/10 ring-1 ring-sky-900/10 shrink-0">
+              <FiUserCheck className="w-3.5 h-3.5 text-sky-800" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Diplômés
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.graduated}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-stone-100/90 ring-1 ring-amber-900/10 shrink-0">
+              <FiBook className="w-3.5 h-3.5 text-amber-900" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Classes
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.classes}
+              </p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filtres et actions */}
-      <Card className="p-4 border border-gray-200">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+      <Card className="p-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="flex-1 min-w-0">
             <SearchBar
+              compact
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Rechercher par nom, email ou ID..."
             />
           </div>
           <FilterDropdown
+            compact
             options={[
               { label: 'Tous', value: 'all' },
               { label: 'Inscription active', value: 'ACTIVE' },
@@ -510,6 +590,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
           />
           {showClassFilter && (
             <FilterDropdown
+              compact
               options={[
                 { label: 'Toutes les classes', value: 'all' },
                 { label: 'Non assigné', value: 'unassigned' },
@@ -525,47 +606,80 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
           )}
           <Button
             variant={groupByClass ? 'primary' : 'secondary'}
-            size="default"
+            size="sm"
             onClick={() => {
               setGroupByClass(!groupByClass);
               if (!groupByClass && studentsByClass?.sortedClasses.length) {
                 setExpandedClasses(new Set(studentsByClass.sortedClasses));
               }
             }}
+            className="!py-2 shrink-0"
           >
-            <FiUsers className="w-5 h-5 mr-2 inline" aria-hidden />
+            <FiUsers className="w-4 h-4 mr-1.5 inline" aria-hidden />
             {groupByClass ? 'Par classe' : 'Liste simple'}
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={exportToCSV}>
-              <FiDownload className="w-4 h-4 mr-1" aria-hidden /> CSV
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={exportToCSV}
+              className="!px-2 !py-1.5 text-xs !font-medium"
+            >
+              <FiDownload className="w-3.5 h-3.5 mr-0.5 inline" aria-hidden />
+              CSV
             </Button>
-            <Button variant="secondary" size="sm" onClick={exportToJSON}>
-              <FiDownload className="w-4 h-4 mr-1" aria-hidden /> JSON
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={exportToJSON}
+              className="!px-2 !py-1.5 text-xs !font-medium"
+            >
+              <FiDownload className="w-3.5 h-3.5 mr-0.5 inline" aria-hidden />
+              JSON
             </Button>
-            <Button variant="secondary" size="sm" onClick={exportToPDF}>
-              <FiDownload className="w-4 h-4 mr-1" aria-hidden /> PDF
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={exportToPDF}
+              className="!px-2 !py-1.5 text-xs !font-medium"
+            >
+              <FiDownload className="w-3.5 h-3.5 mr-0.5 inline" aria-hidden />
+              PDF
             </Button>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <FiPlus className="w-5 h-5 mr-2 inline" aria-hidden />
+          <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="!py-2 shrink-0">
+            <FiPlus className="w-4 h-4 mr-1.5 inline" aria-hidden />
             Ajouter un élève
           </Button>
         </div>
       </Card>
 
       {/* Liste */}
-      <Card className="border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+      <Card className="overflow-hidden p-0">
+        <div className="px-4 py-3 border-b border-amber-200/25 bg-gradient-to-r from-stone-50/80 to-amber-50/30 flex items-center justify-between">
+          <h2
+            className={
+              compact
+                ? 'text-[10px] font-semibold text-stone-700 uppercase tracking-[0.14em]'
+                : 'text-xs font-semibold text-stone-700 uppercase tracking-[0.14em]'
+            }
+          >
             Liste des élèves ({filteredStudents?.length ?? 0})
           </h2>
         </div>
 
         {groupByClass && studentsByClass ? (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-stone-200/70">
             {studentsByClass.sortedClasses.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">Aucun élève trouvé</div>
+              <div
+                className={
+                  compact
+                    ? 'py-12 text-center text-stone-500 text-xs'
+                    : 'py-12 text-center text-stone-500 text-sm'
+                }
+              >
+                Aucun élève trouvé
+              </div>
             ) : (
               studentsByClass.sortedClasses.map((className) => {
                 const classStudents = studentsByClass.grouped[className];
@@ -577,29 +691,38 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
                     <button
                       type="button"
                       onClick={() => toggleClass(className)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50/25 transition-colors text-left"
                     >
                       <div className="flex items-center gap-3">
                         {isExpanded ? (
-                          <FiChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden />
+                          <FiChevronUp className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
                         ) : (
-                          <FiChevronDown className="w-5 h-5 text-gray-500 shrink-0" aria-hidden />
+                          <FiChevronDown className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
                         )}
                         <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
                           <FiBook className="w-5 h-5 text-indigo-600" aria-hidden />
                         </div>
                         <div>
-                          <span className="font-medium text-gray-900">{className}</span>
+                          <span
+                            className={
+                              compact
+                                ? 'font-medium text-stone-900 text-xs'
+                                : 'font-medium text-stone-900 text-sm'
+                            }
+                          >
+                            {className}
+                          </span>
                           {classLevel && (
-                            <span className="text-sm text-gray-500 ml-2">— {classLevel}</span>
+                            <span className="text-xs text-stone-500 ml-2">— {classLevel}</span>
                           )}
                         </div>
                       </div>
                       <Badge variant="info">{classStudents.length} élève(s)</Badge>
                     </button>
                     {isExpanded && (
-                      <div className="bg-gray-50/50 border-t border-gray-100">
+                      <div className="bg-stone-50/60 border-t border-amber-100/40">
                         <Table
+                          dense
                           data={classStudents}
                           columns={columns}
                           emptyMessage="Aucun élève dans cette classe"
@@ -613,6 +736,7 @@ const StudentsList: React.FC<StudentsListProps> = ({ searchQuery = '', showClass
           </div>
         ) : (
           <Table
+            dense
             data={filteredStudents || []}
             columns={columns}
             emptyMessage="Aucun élève trouvé"

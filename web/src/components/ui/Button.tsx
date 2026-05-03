@@ -17,20 +17,26 @@ const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const size = sizeProp === 'default' ? 'md' : sizeProp;
-  const baseStyles = 'font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none';
-  
+  const baseStyles =
+    'font-semibold rounded-xl tracking-wide transition-all duration-300 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none';
+
   const variants = {
-    primary: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg',
-    secondary: 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md',
-    danger: 'bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 shadow-md hover:shadow-lg',
-    success: 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-md hover:shadow-lg',
-    outline: 'bg-transparent text-gray-700 border-2 border-gray-300 hover:bg-gray-50 shadow-sm',
+    primary:
+      'bg-gradient-to-br from-stone-900 via-zinc-900 to-stone-950 text-amber-50 border border-amber-500/25 shadow-lux-soft hover:shadow-lux hover:border-amber-400/35',
+    secondary:
+      'bg-white/95 text-stone-800 border border-stone-300/90 shadow-sm hover:border-amber-300/60 hover:shadow-md hover:bg-amber-50/30',
+    danger:
+      'bg-gradient-to-br from-red-900 to-rose-950 text-rose-50 border border-rose-500/25 shadow-md hover:shadow-lg',
+    success:
+      'bg-gradient-to-br from-emerald-800 to-teal-950 text-emerald-50 border border-emerald-400/20 shadow-md hover:shadow-lg',
+    outline:
+      'bg-transparent text-stone-700 border border-stone-400/80 hover:bg-stone-100/80 hover:border-amber-400/40 shadow-sm',
   };
   
   const sizes = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-6 py-3 text-base',
-    lg: 'px-8 py-4 text-lg',
+    sm: 'px-3.5 py-2 text-sm',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-7 py-3.5 text-base',
   };
 
   return (

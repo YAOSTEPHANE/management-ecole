@@ -10,6 +10,7 @@ import { FiUser, FiDownload, FiArrowDownCircle, FiArrowUpCircle } from 'react-ic
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../utils/currency';
+import { ADM } from './adminModuleLayout';
 
 type Line = {
   id: string;
@@ -21,7 +22,13 @@ type Line = {
   status?: string;
 };
 
-const StudentFinancialHistoryPanel: React.FC = () => {
+interface StudentFinancialHistoryPanelProps {
+  compact?: boolean;
+}
+
+const StudentFinancialHistoryPanel: React.FC<StudentFinancialHistoryPanelProps> = ({
+  compact = false,
+}) => {
   const [studentId, setStudentId] = useState<string>('');
 
   const { data: students } = useQuery({
@@ -116,17 +123,24 @@ const StudentFinancialHistoryPanel: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={compact ? ADM.root : 'space-y-6'}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Historique financier par élève</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={compact ? ADM.h2 : 'text-lg font-semibold text-gray-900'}>
+          Historique financier par élève
+        </h2>
+        <p className={compact ? ADM.intro : 'text-sm text-gray-500 mt-0.5'}>
           Frais émis et paiements enregistrés, triés du plus récent au plus ancien.
         </p>
       </div>
 
-      <Card className="p-4 border border-gray-200 flex flex-col sm:flex-row gap-4 sm:items-end">
+      <Card
+        className={`border border-gray-200 flex flex-col sm:flex-row gap-4 sm:items-end ${
+          compact ? 'p-3' : 'p-4'
+        }`}
+      >
         <div className="min-w-[260px] flex-1">
           <FilterDropdown
+            compact={compact}
             label="Élève"
             selected={studentId}
             onChange={setStudentId}
@@ -134,7 +148,7 @@ const StudentFinancialHistoryPanel: React.FC = () => {
           />
         </div>
         {studentId && lines.length > 0 && (
-          <Button variant="secondary" onClick={exportCsv}>
+          <Button variant="secondary" size={compact ? 'sm' : 'md'} onClick={exportCsv}>
             <FiDownload className="w-4 h-4 mr-2 inline" />
             Export CSV
           </Button>
@@ -161,7 +175,9 @@ const StudentFinancialHistoryPanel: React.FC = () => {
                 {lines.map((l) => (
                   <div
                     key={l.id}
-                    className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between hover:bg-gray-50/80"
+                    className={`flex flex-col sm:flex-row sm:items-center gap-2 justify-between hover:bg-gray-50/80 ${
+                      compact ? 'px-3 py-2' : 'px-4 py-3'
+                    }`}
                   >
                     <div className="flex items-start gap-3">
                       <div

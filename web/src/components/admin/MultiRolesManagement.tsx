@@ -39,6 +39,7 @@ import {
   FiFileText
 } from 'react-icons/fi';
 import { format } from 'date-fns';
+import { ADM } from './adminModuleLayout';
 import fr from 'date-fns/locale/fr';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -52,6 +53,15 @@ declare module 'jspdf' {
 }
 
 type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'EDUCATOR' | 'all';
+
+/** Clés renvoyées par GET /admin/roles/stats (pluriel), alignées sur chaque rôle */
+const ROLE_STATS_API_KEY: Record<Exclude<Role, 'all'>, 'admins' | 'teachers' | 'students' | 'parents' | 'educators'> = {
+  ADMIN: 'admins',
+  TEACHER: 'teachers',
+  STUDENT: 'students',
+  PARENT: 'parents',
+  EDUCATOR: 'educators',
+};
 
 interface RoleConfig {
   id: Role;
@@ -216,13 +226,21 @@ const MultiRolesManagement = () => {
     );
   }) || [];
 
+  /** Tableau utilisateurs : typographie compacte */
+  const userTh =
+    'text-left py-2 px-2.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide';
+  const userTd = 'py-2 px-2.5 align-top';
+  const userCellIcon = 'w-3 h-3 shrink-0 text-gray-400';
+
   const getRoleBadge = (role: string) => {
     const roleConfig = roles.find((r) => r.id === role);
     if (!roleConfig) return null;
     const Icon = roleConfig.icon;
     return (
-      <Badge className={`bg-gradient-to-r ${roleConfig.color} text-white`}>
-        <Icon className="w-3 h-3 mr-1 inline" />
+      <Badge
+        className={`bg-gradient-to-r ${roleConfig.color} text-white text-[10px] px-1.5 py-0 font-medium leading-tight`}
+      >
+        <Icon className="w-2.5 h-2.5 mr-0.5 inline shrink-0" />
         {roleConfig.label}
       </Badge>
     );
@@ -388,39 +406,39 @@ const MultiRolesManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.pageRoot}>
       {/* Header avec statistiques */}
-      <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Gestion Multi-Rôles</h2>
-            <p className="text-indigo-100 text-lg">
+      <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className={`text-indigo-50 ${ADM.heroTitle}`}>Gestion Multi-Rôles</h2>
+            <p className="text-indigo-100/95 text-sm leading-snug mt-0.5">
               Gérez les rôles et permissions de tous les utilisateurs
             </p>
           </div>
           {statsLoading ? (
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white shrink-0"></div>
           ) : (
-            <div className="hidden md:flex items-center space-x-6">
+            <div className="hidden md:flex items-center gap-3 lg:gap-4 shrink-0 flex-wrap justify-end">
               <div className="text-center">
-                <div className="text-3xl font-bold">{roleStats?.admins || 0}</div>
-                <div className="text-sm text-indigo-100">Administrateurs</div>
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.admins || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Administrateurs</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold">{roleStats?.teachers || 0}</div>
-                <div className="text-sm text-indigo-100">Enseignants</div>
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.teachers || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Enseignants</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold">{roleStats?.students || 0}</div>
-                <div className="text-sm text-indigo-100">Élèves</div>
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.students || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Élèves</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold">{roleStats?.parents || 0}</div>
-                <div className="text-sm text-indigo-100">Parents</div>
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.parents || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Parents</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold">{roleStats?.educators || 0}</div>
-                <div className="text-sm text-indigo-100">Éducateurs</div>
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.educators || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Éducateurs</div>
               </div>
             </div>
           )}
@@ -428,45 +446,61 @@ const MultiRolesManagement = () => {
       </Card>
 
       {/* Cartes des rôles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className={ADM.grid5}>
         {roles.map((role) => {
           const Icon = role.icon;
-          const count = roleStats ? (roleStats as any)[role.id.toLowerCase()] || 0 : 0;
+          const count = roleStats ? (roleStats as any)[ROLE_STATS_API_KEY[role.id]] ?? 0 : 0;
           const isSelected = selectedRole === role.id;
           
           return (
             <Card
               key={role.id}
-              className={`cursor-pointer transition-all duration-300 hover:shadow-xl ${
+              className={`!p-2.5 sm:!p-3 cursor-pointer transition-all duration-300 hover:shadow-lg ${
                 isSelected ? `border-2 border-indigo-500 bg-gradient-to-br ${role.color} text-white` : ''
               }`}
               onClick={() => setSelectedRole(role.id)}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${role.color} flex items-center justify-center ${
-                  isSelected ? 'bg-white/20' : ''
-                }`}>
-                  <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-white'}`} />
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <div
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${role.color} flex items-center justify-center shrink-0 ${
+                    isSelected ? 'bg-white/20' : ''
+                  }`}
+                >
+                  <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-white" />
                 </div>
-                <div className={`text-right ${isSelected ? 'text-white' : 'text-gray-600'}`}>
-                  <div className="text-2xl font-bold">{count}</div>
-                  <div className="text-xs">utilisateurs</div>
+                <div className={`text-right min-w-0 ${isSelected ? 'text-white' : 'text-gray-600'}`}>
+                  <div className="text-base sm:text-lg font-bold tabular-nums leading-none">{count}</div>
+                  <div
+                    className={
+                      isSelected
+                        ? 'text-[10px] font-medium uppercase tracking-wide text-indigo-100/90'
+                        : ADM.statLabel
+                    }
+                  >
+                    utilisateurs
+                  </div>
                 </div>
               </div>
-              <h3 className={`font-bold text-lg mb-2 ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+              <h3 className={`font-bold text-sm mb-1 leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
                 {role.label}
               </h3>
-              <p className={`text-sm mb-3 ${isSelected ? 'text-indigo-100' : 'text-gray-600'}`}>
+              <p
+                className={`text-[11px] mb-1.5 leading-snug line-clamp-2 ${
+                  isSelected ? 'text-indigo-100' : 'text-gray-600'
+                }`}
+              >
                 {role.description}
               </p>
               {isSelected && (
-                <div className="mt-4 pt-4 border-t border-white/20">
-                  <p className="text-xs font-semibold mb-2 text-white">Permissions :</p>
-                  <ul className="space-y-1">
+                <div className="mt-2 pt-2 border-t border-white/20">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5 text-white/95">
+                    Permissions
+                  </p>
+                  <ul className="space-y-0.5 max-h-32 overflow-y-auto pr-0.5">
                     {role.permissions.map((permission, idx) => (
-                      <li key={idx} className="text-xs text-indigo-100 flex items-center">
-                        <FiCheckCircle className="w-3 h-3 mr-1" />
-                        {permission}
+                      <li key={idx} className="text-[10px] text-indigo-100/95 flex items-start gap-1 leading-snug">
+                        <FiCheckCircle className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                        <span>{permission}</span>
                       </li>
                     ))}
                   </ul>
@@ -549,112 +583,112 @@ const MultiRolesManagement = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Utilisateur</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Rôle</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Contact</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Informations</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                  <th className={userTh}>Utilisateur</th>
+                  <th className={userTh}>Rôle</th>
+                  <th className={userTh}>Contact</th>
+                  <th className={userTh}>Informations</th>
+                  <th className={userTh}>Statut</th>
+                  <th className={userTh}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user: any) => (
                   <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-3">
+                    <td className={userTd}>
+                      <div className="flex items-center gap-2 min-w-0">
                         <Avatar
                           src={user.avatar}
                           name={`${user.firstName} ${user.lastName}`}
                           size="sm"
                         />
-                        <div>
-                          <div className="font-medium text-gray-800">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-800 leading-tight truncate">
                             {user.firstName} {user.lastName}
                           </div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                          <div className="text-[11px] text-gray-500 truncate">{user.email}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
-                      {getRoleBadge(user.role)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
+                    <td className={userTd}>{getRoleBadge(user.role)}</td>
+                    <td className={userTd}>
+                      <div className="space-y-0.5">
                         {user.phone && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <FiPhone className="w-4 h-4 mr-2 text-gray-400" />
-                            {user.phone}
+                          <div className="flex items-center gap-1.5 text-gray-600 leading-snug">
+                            <FiPhone className={`${userCellIcon} mr-0`} />
+                            <span className="break-all">{user.phone}</span>
                           </div>
                         )}
-                        <div className="flex items-center text-sm text-gray-600">
-                          <FiMail className="w-4 h-4 mr-2 text-gray-400" />
-                          {user.email}
+                        <div className="flex items-center gap-1.5 text-gray-600 leading-snug">
+                          <FiMail className={userCellIcon} />
+                          <span className="break-all">{user.email}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="space-y-1 text-sm text-gray-600">
+                    <td className={userTd}>
+                      <div className="space-y-0.5 text-gray-600 leading-snug">
                         {user.teacherProfile && (
-                          <div className="flex items-center">
-                            <FiBook className="w-4 h-4 mr-2 text-gray-400" />
-                            {user.teacherProfile.specialization}
+                          <div className="flex items-center gap-1.5">
+                            <FiBook className={userCellIcon} />
+                            <span>{user.teacherProfile.specialization}</span>
                           </div>
                         )}
                         {user.studentProfile && (
-                          <div className="flex items-center">
-                            <FiAward className="w-4 h-4 mr-2 text-gray-400" />
-                            {user.studentProfile.class?.name || 'Non assigné'}
+                          <div className="flex items-center gap-1.5">
+                            <FiAward className={userCellIcon} />
+                            <span>{user.studentProfile.class?.name || 'Non assigné'}</span>
                           </div>
                         )}
-                        <div className="flex items-center">
-                          <FiCalendar className="w-4 h-4 mr-2 text-gray-400" />
-                          {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: fr })}
+                        <div className="flex items-center gap-1.5">
+                          <FiCalendar className={userCellIcon} />
+                          <span>
+                            {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: fr })}
+                          </span>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className={userTd}>
                       {user.isActive ? (
-                        <Badge className="bg-green-100 text-green-800">
-                          <FiCheckCircle className="w-3 h-3 mr-1 inline" />
+                        <Badge className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0">
+                          <FiCheckCircle className="w-2.5 h-2.5 mr-0.5 inline" />
                           Actif
                         </Badge>
                       ) : (
-                        <Badge className="bg-red-100 text-red-800">
-                          <FiX className="w-3 h-3 mr-1 inline" />
+                        <Badge className="bg-red-100 text-red-800 text-[10px] px-1.5 py-0">
+                          <FiX className="w-2.5 h-2.5 mr-0.5 inline" />
                           Inactif
                         </Badge>
                       )}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
+                    <td className={userTd}>
+                      <div className="flex items-center gap-0.5 flex-wrap">
                         <button
                           onClick={() => handleViewUser(user.id)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Voir les détails"
                         >
-                          <FiEye className="w-4 h-4" />
+                          <FiEye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleEditUser(user.id)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="Modifier"
                         >
-                          <FiEdit className="w-4 h-4" />
+                          <FiEdit className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleRoleChange(user)}
-                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          className="p-1 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                           title="Changer le rôle"
                         >
-                          <FiShield className="w-4 h-4" />
+                          <FiShield className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleToggleUserStatus(user.id, user.isActive)}
                           disabled={toggleUserStatusMutation.isPending}
-                          className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                          className={`p-1 rounded-lg transition-colors disabled:opacity-50 ${
                             user.isActive
                               ? 'text-red-600 hover:bg-red-50'
                               : 'text-green-600 hover:bg-green-50'
@@ -662,18 +696,18 @@ const MultiRolesManagement = () => {
                           title={user.isActive ? 'Désactiver' : 'Activer'}
                         >
                           {user.isActive ? (
-                            <FiLock className="w-4 h-4" />
+                            <FiLock className="w-3.5 h-3.5" />
                           ) : (
-                            <FiUnlock className="w-4 h-4" />
+                            <FiUnlock className="w-3.5 h-3.5" />
                           )}
                         </button>
                         <button
                           onClick={() => handleDeleteUser(user.id, `${user.firstName} ${user.lastName}`)}
                           disabled={deleteUserMutation.isPending}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           title="Supprimer"
                         >
-                          <FiTrash2 className="w-4 h-4" />
+                          <FiTrash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

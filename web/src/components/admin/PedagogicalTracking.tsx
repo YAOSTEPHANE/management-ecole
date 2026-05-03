@@ -46,6 +46,7 @@ import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
 import StudentProgressModal from './StudentProgressModal';
+import { ADM } from './adminModuleLayout';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
@@ -323,28 +324,28 @@ const PedagogicalTracking = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.pageRoot}>
       {/* Header */}
-      <Card className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Suivi Pédagogique</h2>
-            <p className="text-purple-100 text-lg">
+      <Card className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className={`text-purple-50 ${ADM.heroTitle}`}>Suivi Pédagogique</h2>
+            <p className="text-purple-100/95 text-sm leading-snug mt-0.5">
               Analysez les performances et la progression des élèves
             </p>
           </div>
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-4 shrink-0">
             <div className="text-center">
-              <div className="text-2xl font-bold">{overallStats.averageGrade.toFixed(2)}</div>
-              <div className="text-sm text-purple-100">Moyenne générale</div>
+              <div className={`text-purple-50 ${ADM.heroStatNum}`}>{overallStats.averageGrade.toFixed(2)}</div>
+              <div className={`text-purple-100 ${ADM.heroStatLbl}`}>Moyenne générale</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{overallStats.successRate.toFixed(1)}%</div>
-              <div className="text-sm text-purple-100">Taux de réussite</div>
+              <div className={`text-purple-50 ${ADM.heroStatNum}`}>{overallStats.successRate.toFixed(1)}%</div>
+              <div className={`text-purple-100 ${ADM.heroStatLbl}`}>Taux de réussite</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{overallStats.totalAbsences}</div>
-              <div className="text-sm text-purple-100">Absences non justifiées</div>
+              <div className={`text-purple-50 ${ADM.heroStatNum}`}>{overallStats.totalAbsences}</div>
+              <div className={`text-purple-100 ${ADM.heroStatLbl}`}>Absences non justifiées</div>
             </div>
           </div>
         </div>
@@ -352,7 +353,7 @@ const PedagogicalTracking = () => {
 
       {/* Tabs */}
       <Card>
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide pb-2">
+        <div className={ADM.bigTabRow}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -360,13 +361,12 @@ const PedagogicalTracking = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                className={ADM.bigTabBtn(
+                  isActive,
+                  'bg-gradient-to-r from-purple-600 to-pink-600'
+                )}
               >
-                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <Icon className={ADM.bigTabIcon} />
                 <span>{tab.label}</span>
               </button>
             );

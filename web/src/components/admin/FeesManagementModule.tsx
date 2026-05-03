@@ -16,6 +16,7 @@ import {
   FiUser,
 } from 'react-icons/fi';
 import { formatFCFA } from '../../utils/currency';
+import { ADM } from './adminModuleLayout';
 
 type FeesTab = 'overview' | 'billing' | 'payments' | 'reminders' | 'receipts' | 'history';
 
@@ -52,15 +53,13 @@ const FeesManagementModule: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Gestion des frais</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Facturation, encaissements, relances, reçus et suivi par famille.
-        </p>
+        <h2 className={ADM.h2}>Gestion des frais</h2>
+        <p className={ADM.intro}>Facturation, encaissements, relances, reçus et suivi par famille.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -69,13 +68,9 @@ const FeesManagementModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -83,24 +78,28 @@ const FeesManagementModule: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Lignes de frais</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{totalFees}</p>
+        <div className={ADM.section}>
+          <div className={ADM.grid3}>
+            <Card className={`${ADM.statCard} border border-gray-200`}>
+              <p className={ADM.statLabel}>Lignes de frais</p>
+              <p className={ADM.statVal}>{totalFees}</p>
             </Card>
-            <Card className="p-4 border border-amber-100 bg-amber-50/40">
-              <p className="text-xs font-medium text-amber-800 uppercase">En attente de paiement</p>
-              <p className="text-2xl font-bold text-amber-900 mt-1">{pending}</p>
+            <Card className={`${ADM.statCard} border border-amber-100 bg-amber-50/40`}>
+              <p className="text-[10px] font-medium text-amber-800 uppercase tracking-wide leading-tight">
+                En attente de paiement
+              </p>
+              <p className={`${ADM.statValTone} text-amber-900`}>{pending}</p>
             </Card>
-            <Card className="p-4 border border-emerald-100 bg-emerald-50/40">
-              <p className="text-xs font-medium text-emerald-800 uppercase">Volume encaissé (suivi)</p>
-              <p className="text-xl font-bold text-emerald-900 mt-1">{formatFCFA(totalPaid)}</p>
+            <Card className={`${ADM.statCard} border border-emerald-100 bg-emerald-50/40`}>
+              <p className="text-[10px] font-medium text-emerald-800 uppercase tracking-wide leading-tight">
+                Volume encaissé (suivi)
+              </p>
+              <p className={`${ADM.statValTone} text-emerald-900 text-base`}>{formatFCFA(totalPaid)}</p>
             </Card>
           </div>
-          <Card className="p-5 border border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-2">Parcours recommandé</h3>
-            <ol className="text-sm text-gray-700 space-y-1.5 list-decimal list-inside">
+          <Card className={ADM.helpCard}>
+            <h3 className={ADM.helpTitle}>Parcours recommandé</h3>
+            <ol className={ADM.helpOl}>
               <li>
                 <strong>Facturation</strong> : créer les frais (élève ou classe entière).
               </li>
@@ -121,11 +120,11 @@ const FeesManagementModule: React.FC = () => {
         </div>
       )}
 
-      {tab === 'billing' && <TuitionFeesManagement embedded />}
-      {tab === 'payments' && <PaymentsManagement embedded />}
-      {tab === 'reminders' && <PaymentRemindersPanel />}
-      {tab === 'receipts' && <PaymentReceiptsPanel />}
-      {tab === 'history' && <StudentFinancialHistoryPanel />}
+      {tab === 'billing' && <TuitionFeesManagement embedded compact />}
+      {tab === 'payments' && <PaymentsManagement embedded compact />}
+      {tab === 'reminders' && <PaymentRemindersPanel compact />}
+      {tab === 'receipts' && <PaymentReceiptsPanel compact />}
+      {tab === 'history' && <StudentFinancialHistoryPanel compact />}
     </div>
   );
 };

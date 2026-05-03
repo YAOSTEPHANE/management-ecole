@@ -29,6 +29,15 @@ const config: Config = {
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
       },
       colors: {
+        lux: {
+          ink: "#0c0a09",
+          charcoal: "#1c1917",
+          mist: "#fafaf9",
+          champagne: "#f5f0e8",
+          gold: "#c9a227",
+          "gold-bright": "#e8d48b",
+          bronze: "#8b6914",
+        },
         brand: {
           50: "#eef2ff",
           100: "#e0e7ff",
@@ -55,6 +64,11 @@ const config: Config = {
           "0 25px 50px -12px rgba(15, 23, 42, 0.15), 0 12px 24px -8px rgba(15, 23, 42, 0.1)",
         glow: "0 0 40px -8px rgba(99, 102, 241, 0.45)",
         innerGlow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.6)",
+        lux:
+          "0 32px 64px -16px rgba(12, 10, 9, 0.45), 0 0 0 1px rgba(201, 162, 39, 0.12), inset 0 1px 0 0 rgba(255,255,255,0.06)",
+        "lux-soft":
+          "0 20px 40px -12px rgba(28, 25, 23, 0.14), 0 0 0 1px rgba(201, 162, 39, 0.08)",
+        "lux-glow": "0 0 48px -8px rgba(201, 162, 39, 0.22)",
       },
       backgroundImage: {
         "gradient-premium":

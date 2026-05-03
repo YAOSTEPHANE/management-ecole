@@ -160,53 +160,53 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
   const selectedLevelColor = formData.level ? levelColors[formData.level] || 'from-gray-500 to-gray-600' : 'from-gray-500 to-gray-600';
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Créer une Classe" size="lg">
-      <div className="space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Créer une Classe" size="lg" compact>
+      <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-2">
           {/* Nom de la classe */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Nom de la classe <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiBook className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiBook className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.name ? 'border-red-500' : 'border-gray-200'
+                className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                  errors.name ? 'border-red-500' : 'border-stone-200'
                 }`}
                 placeholder="Ex: 6ème A, Terminale S, etc."
               />
             </div>
             {errors.name && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+              <p className="mt-1 text-xs text-red-500 flex items-center">
+                <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.name}
               </p>
             )}
           </div>
 
           {/* Niveau et Année académique */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Niveau <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${selectedLevelColor}`}></div>
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                  <div className={`w-2.5 h-2.5 rounded-full bg-gradient-to-br ${selectedLevelColor}`} />
                 </div>
                 <select
                   name="level"
                   value={formData.level}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none ${
-                    errors.level ? 'border-red-500' : 'border-gray-200'
+                  className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all appearance-none ${
+                    errors.level ? 'border-red-500' : 'border-stone-200'
                   }`}
                 >
                   <option value="">Sélectionner un niveau</option>
@@ -218,70 +218,70 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                 </select>
               </div>
               {errors.level && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="w-4 h-4 mr-1" />
+                <p className="mt-1 text-xs text-red-500 flex items-center">
+                  <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                   {errors.level}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Année académique <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiCalendar className="text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                  <FiCalendar className="h-3.5 w-3.5 text-stone-400" />
                 </div>
                 <input
                   type="text"
                   name="academicYear"
                   value={formData.academicYear}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.academicYear ? 'border-red-500' : 'border-gray-200'
+                  className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                    errors.academicYear ? 'border-red-500' : 'border-stone-200'
                   }`}
                   placeholder="2024-2025"
                 />
               </div>
               {errors.academicYear && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="w-4 h-4 mr-1" />
+                <p className="mt-1 text-xs text-red-500 flex items-center">
+                  <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                   {errors.academicYear}
                 </p>
               )}
-              <p className="mt-1 text-xs text-gray-500">Format: AAAA-AAAA</p>
+              <p className="mt-0.5 text-[10px] text-stone-500">Format : AAAA-AAAA</p>
             </div>
           </div>
 
           {/* Salle et Capacité */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Salle
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiMapPin className="text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                  <FiMapPin className="h-3.5 w-3.5 text-stone-400" />
                 </div>
                 <input
                   type="text"
                   name="room"
                   value={formData.room}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                   placeholder="Ex: Salle 101, Labo 2, etc."
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Capacité
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiUsers className="text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                  <FiUsers className="h-3.5 w-3.5 text-stone-400" />
                 </div>
                 <input
                   type="number"
@@ -290,36 +290,36 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   min="1"
                   max="50"
-                  className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.capacity ? 'border-red-500' : 'border-gray-200'
+                  className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                    errors.capacity ? 'border-red-500' : 'border-stone-200'
                   }`}
                   placeholder="30"
                 />
               </div>
               {errors.capacity && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="w-4 h-4 mr-1" />
+                <p className="mt-1 text-xs text-red-500 flex items-center">
+                  <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                   {errors.capacity}
                 </p>
               )}
-              <p className="mt-1 text-xs text-gray-500">Nombre maximum d'élèves (défaut: 30)</p>
+              <p className="mt-0.5 text-[10px] text-stone-500">Nombre maximum d&apos;élèves (défaut : 30)</p>
             </div>
           </div>
 
           {/* Enseignant principal */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Enseignant principal (optionnel)
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiUser className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiUser className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <select
                 name="teacherId"
                 value={formData.teacherId}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all appearance-none"
               >
                 <option value="">Aucun enseignant assigné</option>
                 {teachers?.map((teacher: any) => (
@@ -330,36 +330,37 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                 ))}
               </select>
             </div>
-            <p className="mt-1 text-xs text-gray-500">Vous pourrez assigner un enseignant plus tard</p>
+            <p className="mt-0.5 text-[10px] text-stone-500">Vous pourrez assigner un enseignant plus tard</p>
           </div>
 
           {/* Preview de la classe */}
           {formData.name && formData.level && (
-            <div className={`p-4 rounded-xl bg-gradient-to-br ${selectedLevelColor} text-white`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium opacity-90">Aperçu de la classe</p>
-                  <p className="text-2xl font-black mt-1">{formData.name}</p>
-                  <p className="text-sm opacity-90 mt-1">
+            <div className={`rounded-lg p-2.5 bg-gradient-to-br ${selectedLevelColor} text-white shadow-md`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wide opacity-90">Aperçu</p>
+                  <p className="text-lg font-bold leading-tight truncate mt-0.5">{formData.name}</p>
+                  <p className="text-xs opacity-90 mt-0.5 truncate">
                     {formData.level} • {formData.academicYear}
                   </p>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    <FiUsers className="w-5 h-5 opacity-90" />
-                    <span className="text-lg font-bold">{formData.capacity}</span>
+                <div className="text-right shrink-0">
+                  <div className="flex items-center justify-end gap-1">
+                    <FiUsers className="w-4 h-4 opacity-90" />
+                    <span className="text-base font-bold tabular-nums">{formData.capacity}</span>
                   </div>
-                  <p className="text-xs opacity-75 mt-1">élèves max</p>
+                  <p className="text-[10px] opacity-75 mt-0.5">élèves max</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80">
             <Button
               type="button"
               variant="secondary"
+              size="sm"
               onClick={handleClose}
               disabled={createClassMutation.isPending}
             >
@@ -367,17 +368,18 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={createClassMutation.isPending}
-              className="min-w-[140px]"
+              className="min-w-[120px]"
             >
               {createClassMutation.isPending ? (
                 <>
-                  <FiLoader className="w-5 h-5 mr-2 animate-spin inline" />
+                  <FiLoader className="w-4 h-4 mr-1.5 animate-spin inline" />
                   Création...
                 </>
               ) : (
                 <>
-                  <FiSave className="w-5 h-5 mr-2 inline" />
+                  <FiSave className="w-4 h-4 mr-1.5 inline" />
                   Créer la classe
                 </>
               )}

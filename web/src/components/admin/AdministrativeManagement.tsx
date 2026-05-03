@@ -31,6 +31,7 @@ import {
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
+import { ADM } from './adminModuleLayout';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
@@ -721,36 +722,44 @@ const AdministrativeManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 text-sm">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Gestion Administrative</h2>
-            <p className="text-indigo-100 text-lg">
-              Gérez les inscriptions, le personnel et les ressources de l'établissement
+      <Card className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-3 text-white sm:p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="mb-0.5 text-lg font-black leading-tight text-indigo-50 sm:text-xl">
+              Gestion Administrative
+            </h2>
+            <p className="mt-0.5 text-xs leading-snug text-indigo-100/95">
+              Gérez les inscriptions, le personnel et les ressources de l&apos;établissement
             </p>
           </div>
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden shrink-0 items-center space-x-3 md:flex">
             <div className="text-center">
-              <div className="text-2xl font-bold">{stats?.totalStudents || 0}</div>
-              <div className="text-sm text-indigo-100">Élèves</div>
+              <div className="text-base font-bold tabular-nums text-indigo-50">
+                {stats?.totalStudents || 0}
+              </div>
+              <div className="text-[10px] text-indigo-100">Élèves</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{stats?.totalTeachers || 0}</div>
-              <div className="text-sm text-indigo-100">Enseignants</div>
+              <div className="text-base font-bold tabular-nums text-indigo-50">
+                {stats?.totalTeachers || 0}
+              </div>
+              <div className="text-[10px] text-indigo-100">Enseignants</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{stats?.totalClasses || 0}</div>
-              <div className="text-sm text-indigo-100">Classes</div>
+              <div className="text-base font-bold tabular-nums text-indigo-50">
+                {stats?.totalClasses || 0}
+              </div>
+              <div className="text-[10px] text-indigo-100">Classes</div>
             </div>
           </div>
         </div>
       </Card>
 
       {/* Tabs */}
-      <Card>
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide pb-2">
+      <Card className="p-3 sm:p-4">
+        <div className={`${ADM.bigTabRow} pb-1`}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -758,16 +767,15 @@ const AdministrativeManagement = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                className={ADM.bigTabBtn(
+                  isActive,
+                  'bg-gradient-to-r from-indigo-600 to-purple-600'
+                )}
               >
-                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 <span>{tab.label}</span>
                 {isActive && (
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1/2 h-1 bg-white rounded-full"></div>
+                  <div className="absolute -bottom-1 left-1/2 h-0.5 w-2/5 -translate-x-1/2 transform rounded-full bg-white" />
                 )}
               </button>
             );
@@ -778,109 +786,118 @@ const AdministrativeManagement = () => {
       {/* Content */}
       <div className="animate-slide-up">
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Statistiques rapides */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Élèves</p>
-                    <p className="text-3xl font-bold text-blue-600">{stats?.totalStudents || 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {stats?.activeStudents || 0} actifs
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-[11px] text-gray-600">Total Élèves</p>
+                    <p className="text-2xl font-bold tabular-nums text-blue-600">
+                      {stats?.totalStudents || 0}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-gray-500">{stats?.activeStudents || 0} actifs</p>
                   </div>
-                  <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <FiUsers className="w-8 h-8 text-white" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Classes</p>
-                    <p className="text-3xl font-bold text-purple-600">{stats?.totalClasses || 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">Classes actives</p>
-                  </div>
-                  <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center">
-                    <FiBook className="w-8 h-8 text-white" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+                    <FiUsers className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Enseignants</p>
-                    <p className="text-3xl font-bold text-indigo-600">{stats?.totalTeachers || 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">Personnel actif</p>
+              <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-[11px] text-gray-600">Total Classes</p>
+                    <p className="text-2xl font-bold tabular-nums text-purple-600">
+                      {stats?.totalClasses || 0}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-500">Classes actives</p>
                   </div>
-                  <div className="w-16 h-16 bg-indigo-600 rounded-xl flex items-center justify-center">
-                    <FiUserCheck className="w-8 h-8 text-white" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-purple-600">
+                    <FiBook className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Parents</p>
-                    <p className="text-3xl font-bold text-green-600">{stats?.totalParents || 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">Comptes parents</p>
+              <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 sm:p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-[11px] text-gray-600">Total Enseignants</p>
+                    <p className="text-2xl font-bold tabular-nums text-indigo-600">
+                      {stats?.totalTeachers || 0}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-500">Personnel actif</p>
                   </div>
-                  <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center">
-                    <FiUsers className="w-8 h-8 text-white" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600">
+                    <FiUserCheck className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-[11px] text-gray-600">Total Parents</p>
+                    <p className="text-2xl font-bold tabular-nums text-green-600">
+                      {stats?.totalParents || 0}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-500">Comptes parents</p>
+                  </div>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-green-600">
+                    <FiUsers className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </Card>
             </div>
 
             {/* Actions rapides */}
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-6">Actions Rapides</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-3 sm:p-4">
+              <h3 className="mb-3 text-base font-bold text-gray-800">Actions Rapides</h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <button
                   onClick={() => setIsAddStudentModalOpen(true)}
-                  className="group p-6 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl hover:border-green-400 hover:shadow-lg transition-all duration-300 text-left"
+                  type="button"
+                  className="group rounded-lg border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100 p-3 text-left transition-all duration-300 hover:border-green-400 hover:shadow-md sm:p-3.5"
                 >
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <FiUsers className="w-6 h-6 text-white" />
+                  <div className="mb-2 flex items-center space-x-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 transition-transform group-hover:scale-105">
+                      <FiUsers className="h-4 w-4 text-white" />
                     </div>
-                    <h4 className="font-bold text-gray-800">Ajouter un élève</h4>
+                    <h4 className="text-sm font-bold text-gray-800">Ajouter un élève</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs leading-snug text-gray-600">
                     Enregistrer un nouvel élève dans le système
                   </p>
                 </button>
 
                 <button
                   onClick={() => setIsAddClassModalOpen(true)}
-                  className="group p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl hover:border-purple-400 hover:shadow-lg transition-all duration-300 text-left"
+                  type="button"
+                  className="group rounded-lg border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-3 text-left transition-all duration-300 hover:border-purple-400 hover:shadow-md sm:p-3.5"
                 >
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <FiBook className="w-6 h-6 text-white" />
+                  <div className="mb-2 flex items-center space-x-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 transition-transform group-hover:scale-105">
+                      <FiBook className="h-4 w-4 text-white" />
                     </div>
-                    <h4 className="font-bold text-gray-800">Créer une classe</h4>
+                    <h4 className="text-sm font-bold text-gray-800">Créer une classe</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs leading-snug text-gray-600">
                     Créer une nouvelle classe et assigner un enseignant
                   </p>
                 </button>
 
                 <button
                   onClick={() => setIsAddTeacherModalOpen(true)}
-                  className="group p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-200 rounded-xl hover:border-indigo-400 hover:shadow-lg transition-all duration-300 text-left"
+                  type="button"
+                  className="group rounded-lg border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 text-left transition-all duration-300 hover:border-indigo-400 hover:shadow-md sm:p-3.5"
                 >
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <FiUserCheck className="w-6 h-6 text-white" />
+                  <div className="mb-2 flex items-center space-x-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 transition-transform group-hover:scale-105">
+                      <FiUserCheck className="h-4 w-4 text-white" />
                     </div>
-                    <h4 className="font-bold text-gray-800">Ajouter un enseignant</h4>
+                    <h4 className="text-sm font-bold text-gray-800">Ajouter un enseignant</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs leading-snug text-gray-600">
                     Enregistrer un nouvel enseignant dans le système
                   </p>
                 </button>
@@ -888,29 +905,29 @@ const AdministrativeManagement = () => {
             </Card>
 
             {/* Résumé récent */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Élèves récemment ajoutés</h3>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card className="p-3 sm:p-4">
+                <h3 className="mb-3 text-base font-bold text-gray-800">Élèves récemment ajoutés</h3>
                 {students && students.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {students.slice(0, 5).map((student: any) => (
                       <div
                         key={student.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-2 transition-colors hover:bg-gray-100"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <FiUsers className="w-5 h-5 text-green-600" />
+                        <div className="flex min-w-0 items-center space-x-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                            <FiUsers className="h-4 w-4 text-green-600" />
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-800">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-gray-800">
                               {student.user.firstName} {student.user.lastName}
                             </p>
-                            <p className="text-xs text-gray-500">{student.studentId}</p>
+                            <p className="text-[10px] text-gray-500">{student.studentId}</p>
                           </div>
                         </div>
                         {student.class && (
-                          <Badge className="bg-blue-100 text-blue-800">
+                          <Badge className="shrink-0 bg-blue-100 text-xs text-blue-800">
                             {student.class.name}
                           </Badge>
                         )}
@@ -918,36 +935,38 @@ const AdministrativeManagement = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Aucun élève enregistré</p>
+                  <p className="py-6 text-center text-sm text-gray-500">Aucun élève enregistré</p>
                 )}
               </Card>
 
-              <Card>
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Classes récemment créées</h3>
+              <Card className="p-3 sm:p-4">
+                <h3 className="mb-3 text-base font-bold text-gray-800">Classes récemment créées</h3>
                 {classes && classes.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {classes.slice(0, 5).map((cls: any) => (
                       <div
                         key={cls.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-2 transition-colors hover:bg-gray-100"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <FiBook className="w-5 h-5 text-purple-600" />
+                        <div className="flex min-w-0 items-center space-x-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-100">
+                            <FiBook className="h-4 w-4 text-purple-600" />
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-800">{cls.name}</p>
-                            <p className="text-xs text-gray-500">{cls.level} - {cls.academicYear}</p>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-gray-800">{cls.name}</p>
+                            <p className="text-[10px] text-gray-500">
+                              {cls.level} - {cls.academicYear}
+                            </p>
                           </div>
                         </div>
-                        <Badge className="bg-indigo-100 text-indigo-800">
+                        <Badge className="shrink-0 bg-indigo-100 text-xs text-indigo-800">
                           {cls._count?.students || 0} élèves
                         </Badge>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Aucune classe créée</p>
+                  <p className="py-6 text-center text-sm text-gray-500">Aucune classe créée</p>
                 )}
               </Card>
             </div>
@@ -955,10 +974,10 @@ const AdministrativeManagement = () => {
         )}
 
         {activeTab === 'students' && (
-          <div className="space-y-4">
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Gestion des Élèves</h3>
+          <div className="space-y-3">
+            <Card className="p-3 sm:p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-gray-800">Gestion des Élèves</h3>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -994,10 +1013,10 @@ const AdministrativeManagement = () => {
           </div>
         )}
         {activeTab === 'classes' && (
-          <div className="space-y-4">
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Gestion des Classes</h3>
+          <div className="space-y-3">
+            <Card className="p-3 sm:p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-gray-800">Gestion des Classes</h3>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -1033,10 +1052,10 @@ const AdministrativeManagement = () => {
           </div>
         )}
         {activeTab === 'teachers' && (
-          <div className="space-y-4">
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Gestion des Enseignants</h3>
+          <div className="space-y-3">
+            <Card className="p-3 sm:p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-gray-800">Gestion des Enseignants</h3>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -1073,122 +1092,131 @@ const AdministrativeManagement = () => {
         )}
 
         {activeTab === 'reports' && (
-          <div className="space-y-6">
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-6">Rapports Administratifs</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
+            <Card className="p-3 sm:p-4">
+              <h3 className="mb-3 text-base font-bold text-gray-800">Rapports Administratifs</h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {/* Rapport des Élèves */}
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 hover:shadow-xl transition-all">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
-                      <FiUsers className="w-8 h-8 text-white" />
+                <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-3 transition-all hover:shadow-lg sm:p-3.5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+                      <FiUsers className="h-5 w-5 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 mb-1">Rapport des Élèves</h4>
-                      <p className="text-sm text-gray-600">Liste complète des élèves</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="mb-0.5 text-sm font-bold text-gray-800">Rapport des Élèves</h4>
+                      <p className="text-xs leading-snug text-gray-600">Liste complète des élèves</p>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
                   <Button
                     variant="secondary"
+                    size="sm"
                     onClick={() => exportStudentsToCSV()}
-                    className="flex-1 min-w-[100px]"
+                    className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                   >
-                    <FiDownload className="w-4 h-4 mr-2" />
+                    <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                     <span>CSV</span>
                   </Button>
                   <Button
                     variant="secondary"
+                    size="sm"
                     onClick={() => exportStudentsToJSON()}
-                    className="flex-1 min-w-[100px]"
+                    className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                   >
-                    <FiDownload className="w-4 h-4 mr-2" />
+                    <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                     <span>JSON</span>
                   </Button>
                   <Button
                     variant="secondary"
+                    size="sm"
                     onClick={() => exportStudentsToPDF()}
-                    className="flex-1 min-w-[100px]"
+                    className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                   >
-                    <FiDownload className="w-4 h-4 mr-2" />
+                    <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                     <span>PDF</span>
                   </Button>
                   </div>
                 </Card>
 
                 {/* Rapport des Classes */}
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 hover:shadow-xl transition-all">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center">
-                      <FiBook className="w-8 h-8 text-white" />
+                <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-3 transition-all hover:shadow-lg sm:p-3.5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-purple-600">
+                      <FiBook className="h-5 w-5 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 mb-1">Rapport des Classes</h4>
-                      <p className="text-sm text-gray-600">Statistiques par classe</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="mb-0.5 text-sm font-bold text-gray-800">Rapport des Classes</h4>
+                      <p className="text-xs leading-snug text-gray-600">Statistiques par classe</p>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportClassesToCSV()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>CSV</span>
                     </Button>
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportClassesToJSON()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>JSON</span>
                     </Button>
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportClassesToPDF()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>PDF</span>
                     </Button>
                   </div>
                 </Card>
 
                 {/* Rapport du Personnel */}
-                <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-200 hover:shadow-xl transition-all">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-indigo-600 rounded-xl flex items-center justify-center">
-                      <FiUserCheck className="w-8 h-8 text-white" />
+                <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 transition-all hover:shadow-lg sm:p-3.5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600">
+                      <FiUserCheck className="h-5 w-5 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 mb-1">Rapport du Personnel</h4>
-                      <p className="text-sm text-gray-600">Liste des enseignants</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="mb-0.5 text-sm font-bold text-gray-800">Rapport du Personnel</h4>
+                      <p className="text-xs leading-snug text-gray-600">Liste des enseignants</p>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportTeachersToCSV()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>CSV</span>
                     </Button>
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportTeachersToJSON()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>JSON</span>
                     </Button>
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => exportTeachersToPDF()}
-                      className="flex-1 min-w-[100px]"
+                      className="min-w-0 flex-1 sm:min-w-[5.5rem]"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
+                      <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                       <span>PDF</span>
                     </Button>
                   </div>
@@ -1197,35 +1225,38 @@ const AdministrativeManagement = () => {
             </Card>
 
             {/* Rapport global */}
-            <Card>
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Rapport Global</h3>
-              <p className="text-gray-600 mb-4">
+            <Card className="p-3 sm:p-4">
+              <h3 className="mb-2 text-base font-bold text-gray-800">Rapport Global</h3>
+              <p className="mb-3 text-xs leading-relaxed text-gray-600">
                 Exportez toutes les données administratives en un seul fichier
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <Button
                   variant="secondary"
+                  size="sm"
                   onClick={() => exportGlobalToCSV()}
-                  className="flex-1"
+                  className="min-w-[8rem] flex-1 text-xs"
                 >
-                  <FiDownload className="w-4 h-4 mr-2" />
-                  Exporter tout en CSV
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
+                  Tout en CSV
                 </Button>
                 <Button
                   variant="secondary"
+                  size="sm"
                   onClick={() => exportGlobalToJSON()}
-                  className="flex-1"
+                  className="min-w-[8rem] flex-1 text-xs"
                 >
-                  <FiDownload className="w-4 h-4 mr-2" />
-                  Exporter tout en JSON
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
+                  Tout en JSON
                 </Button>
                 <Button
                   variant="secondary"
+                  size="sm"
                   onClick={() => exportGlobalToPDF()}
-                  className="flex-1"
+                  className="min-w-[8rem] flex-1 text-xs"
                 >
-                  <FiDownload className="w-4 h-4 mr-2" />
-                  Exporter tout en PDF
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
+                  Tout en PDF
                 </Button>
               </div>
             </Card>

@@ -13,6 +13,7 @@ import {
   FiMapPin,
   FiShare2,
 } from 'react-icons/fi';
+import { ADM } from '../adminModuleLayout';
 
 type MatTab = 'overview' | 'rooms' | 'equipment' | 'maintenance' | 'allocations';
 
@@ -58,15 +59,13 @@ const MaterialManagementModule: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Gestion matérielle</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Salles, inventaire, interventions et prêts (utilisateur, classe ou salle).
-        </p>
+        <h2 className={ADM.h2}>Gestion matérielle</h2>
+        <p className={ADM.intro}>Salles, inventaire, interventions et prêts (utilisateur, classe ou salle).</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -75,13 +74,9 @@ const MaterialManagementModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -89,26 +84,34 @@ const MaterialManagementModule: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card className="p-5 border border-gray-200">
-            <p className="text-xs font-medium text-gray-500 uppercase">Salles actives</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{overview.r}</p>
+        <div className={ADM.grid5}>
+          <Card className={`${ADM.statCard} border border-gray-200`}>
+            <p className={ADM.statLabel}>Salles actives</p>
+            <p className={ADM.statVal}>{overview.r}</p>
           </Card>
-          <Card className="p-5 border border-emerald-100 bg-emerald-50/40">
-            <p className="text-xs font-medium text-emerald-900 uppercase">Références inventaire</p>
-            <p className="text-3xl font-bold text-emerald-900 mt-1">{overview.eq}</p>
+          <Card className={`${ADM.statCard} border border-emerald-100 bg-emerald-50/40`}>
+            <p className="text-[10px] font-medium text-emerald-900 uppercase tracking-wide leading-tight">
+              Références inventaire
+            </p>
+            <p className={`${ADM.statValTone} text-emerald-900`}>{overview.eq}</p>
           </Card>
-          <Card className="p-5 border border-amber-100 bg-amber-50/40">
-            <p className="text-xs font-medium text-amber-900 uppercase">Maint. ouvertes</p>
-            <p className="text-3xl font-bold text-amber-900 mt-1">{overview.mOpen}</p>
+          <Card className={`${ADM.statCard} border border-amber-100 bg-amber-50/40`}>
+            <p className="text-[10px] font-medium text-amber-900 uppercase tracking-wide leading-tight">
+              Maint. ouvertes
+            </p>
+            <p className={`${ADM.statValTone} text-amber-900`}>{overview.mOpen}</p>
           </Card>
-          <Card className="p-5 border border-violet-100 bg-violet-50/40">
-            <p className="text-xs font-medium text-violet-900 uppercase">Maint. en cours</p>
-            <p className="text-3xl font-bold text-violet-900 mt-1">{overview.mIp}</p>
+          <Card className={`${ADM.statCard} border border-violet-100 bg-violet-50/40`}>
+            <p className="text-[10px] font-medium text-violet-900 uppercase tracking-wide leading-tight">
+              Maint. en cours
+            </p>
+            <p className={`${ADM.statValTone} text-violet-900`}>{overview.mIp}</p>
           </Card>
-          <Card className="p-5 border border-sky-100 bg-sky-50/40">
-            <p className="text-xs font-medium text-sky-900 uppercase">Allocations actives</p>
-            <p className="text-3xl font-bold text-sky-900 mt-1">{overview.a}</p>
+          <Card className={`${ADM.statCard} border border-sky-100 bg-sky-50/40`}>
+            <p className="text-[10px] font-medium text-sky-900 uppercase tracking-wide leading-tight">
+              Allocations actives
+            </p>
+            <p className={`${ADM.statValTone} text-sky-900`}>{overview.a}</p>
           </Card>
         </div>
       )}

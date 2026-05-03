@@ -30,13 +30,19 @@ import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
 import { formatFCFA } from '../../utils/currency';
 import { getCurrentAcademicYear } from '../../utils/academicYear';
+import { ADM } from './adminModuleLayout';
 
 interface TuitionFeesManagementProps {
   /** Masque le titre principal (module Gestion des frais) */
   embedded?: boolean;
+  /** Typo et espacements compacts (défaut : true ; passer false pour une vue plus aérée) */
+  compact?: boolean;
 }
 
-const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded = false }) => {
+const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
+  embedded = false,
+  compact = true,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
@@ -369,29 +375,35 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
 
   if (isLoading) {
     return (
-      <Card>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Chargement des frais de scolarité...</p>
+      <Card className="p-6 sm:p-8">
+        <div className="py-6 text-center">
+          <div className="inline-block h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
+          <p className="mt-3 text-sm text-gray-600">Chargement des frais de scolarité…</p>
         </div>
       </Card>
     );
   }
 
+  const btnSize = 'sm';
+  const tc = 'py-2 px-3 text-xs sm:text-sm';
+
   return (
-    <div className="space-y-6">
+    <div className={compact ? ADM.root : 'space-y-4 text-sm'}>
       {/* Header */}
       <div
         className={`flex items-center justify-between flex-wrap gap-3 ${embedded ? 'justify-end' : ''}`}
       >
         {!embedded && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gestion des Frais de Scolarité</h2>
-            <p className="text-gray-600 mt-1">Attribuez et gérez les frais de scolarité des élèves</p>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 sm:text-xl">Gestion des Frais de Scolarité</h2>
+            <p className="mt-0.5 text-xs leading-snug text-gray-600 sm:text-sm">
+              Attribuez et gérez les frais de scolarité des élèves
+            </p>
           </div>
         )}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           <Button
+            size={btnSize}
             variant={groupByStudent ? 'primary' : 'secondary'}
             onClick={() => {
               setGroupByStudent(!groupByStudent);
@@ -401,107 +413,110 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
               }
             }}
           >
-            <FiUsers className="w-4 h-4 mr-2" />
+            <FiUsers className="mr-1.5 h-3.5 w-3.5 shrink-0" />
             {groupByStudent ? 'Par élève' : 'Liste simple'}
           </Button>
           <Button
+            size={btnSize}
             variant="secondary"
             onClick={() => createTestMutation.mutate()}
             disabled={createTestMutation.isPending}
           >
-            <FiRefreshCw className="w-4 h-4 mr-2" />
-            Créer des frais de test
+            <FiRefreshCw className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+            Frais de test
           </Button>
           <Button
+            size={btnSize}
             variant="secondary"
             onClick={() => setShowBulkModal(true)}
           >
-            <FiUsers className="w-4 h-4 mr-2" />
-            Attribuer à une classe
+            <FiUsers className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+            Par classe
           </Button>
           <Button
+            size={btnSize}
             variant="primary"
             onClick={() => {
               resetForm();
               setShowAddModal(true);
             }}
           >
-            <FiPlus className="w-4 h-4 mr-2" />
-            Ajouter un frais
+            <FiPlus className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+            Ajouter
           </Button>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              <p className="text-xs text-gray-500 mt-1">{formatFCFA(stats.totalAmount)}</p>
+      <div className={ADM.grid4}>
+        <Card className={`border-l-4 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Total</p>
+              <p className={ADM.statVal}>{stats.total}</p>
+              <p className={ADM.statHint}>{formatFCFA(stats.totalAmount)}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white">
-              <FiDollarSign className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Payés</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.paid}</p>
-              <p className="text-xs text-gray-500 mt-1">{formatFCFA(stats.paidAmount)}</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white">
-              <FiCheckCircle className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white">
+              <FiDollarSign className="h-4 w-4" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-amber-50 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">En attente</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
+        <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Payés</p>
+              <p className={ADM.statVal}>{stats.paid}</p>
+              <p className={ADM.statHint}>{formatFCFA(stats.paidAmount)}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center text-white">
-              <FiClock className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-500 text-white">
+              <FiCheckCircle className="h-4 w-4" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-pink-50 border-l-4 border-red-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">En retard</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.overdue}</p>
+        <Card className={`border-l-4 border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>En attente</p>
+              <p className={ADM.statVal}>{stats.pending}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center text-white">
-              <FiXCircle className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white">
+              <FiClock className="h-4 w-4" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className={`border-l-4 border-red-500 bg-gradient-to-br from-red-50 to-pink-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>En retard</p>
+              <p className={ADM.statVal}>{stats.overdue}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white">
+              <FiXCircle className="h-4 w-4" />
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <Card className="p-3 sm:p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
             <input
               type="text"
               placeholder="Rechercher par élève, période, année..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 py-1.5 pl-8 pr-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <select
             value={filterClass}
             onChange={(e) => setFilterClass(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Toutes les classes</option>
             {classes?.map((cls: any) => (
@@ -511,7 +526,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Tous les statuts</option>
             <option value="paid">Payés</option>
@@ -521,7 +536,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
           <select
             value={filterPeriod}
             onChange={(e) => setFilterPeriod(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Toutes les périodes</option>
             {periods.map((period) => (
@@ -532,9 +547,9 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
       </Card>
 
       {/* Table ou Vue groupée */}
-      <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-800">
+      <Card className="p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className={`${ADM.h2} text-gray-800`}>
             {groupByStudent 
               ? `Frais de Scolarité (${filteredGroupedFees?.length || 0} élève(s))`
               : `Liste des Frais (${filteredFees?.length || 0})`
@@ -543,12 +558,12 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
         </div>
 
         {groupByStudent ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredGroupedFees.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <FiDollarSign className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg mb-2">Aucun frais de scolarité trouvé</p>
-                <p className="text-sm">Créez un nouveau frais ou attribuez des frais à une classe</p>
+              <div className="py-8 text-center text-gray-500">
+                <FiDollarSign className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                <p className="mb-1 text-sm font-medium">Aucun frais de scolarité trouvé</p>
+                <p className="text-xs">Créez un frais ou attribuez à une classe</p>
               </div>
             ) : (
               filteredGroupedFees.map((group: any) => {
@@ -557,45 +572,49 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                 return (
                   <Card key={group.student.id} className="overflow-hidden">
                     <button
+                      type="button"
                       onClick={() => toggleStudent(group.student.id)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      className="flex w-full items-center justify-between p-3 transition-colors hover:bg-gray-50"
                     >
-                      <div className="flex items-center space-x-3 flex-1">
+                      <div className="flex flex-1 items-center space-x-2 sm:space-x-3">
                         {isExpanded ? (
-                          <FiChevronUp className="w-5 h-5 text-gray-500" />
+                          <FiChevronUp className="h-4 w-4 shrink-0 text-gray-500" />
                         ) : (
-                          <FiChevronDown className="w-5 h-5 text-gray-500" />
+                          <FiChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
                         )}
-                        <Avatar
-                          name={group.student.name}
-                          size="md"
-                        />
-                        <div className="text-left flex-1">
-                          <h3 className="font-semibold text-gray-800 text-lg">
+                        <Avatar name={group.student.name} size="sm" />
+                        <div className="min-w-0 flex-1 text-left">
+                          <h3 className="text-base font-semibold text-gray-800">
                             {group.student.name}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="truncate text-xs text-gray-500">
                             {group.student.class} - {group.student.email}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="ml-2 flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-x-3">
                         <div className="text-right">
-                          <p className="text-sm text-gray-500">Total</p>
-                          <p className="font-bold text-gray-900">{formatFCFA(group.totalAmount)}</p>
+                          <p className="text-[10px] text-gray-500 sm:text-xs">Total</p>
+                          <p className="text-xs font-bold text-gray-900 sm:text-sm">
+                            {formatFCFA(group.totalAmount)}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-gray-500">Payé</p>
-                          <p className="font-bold text-green-600">{formatFCFA(group.totalPaid)}</p>
+                          <p className="text-[10px] text-gray-500 sm:text-xs">Payé</p>
+                          <p className="text-xs font-bold text-green-600 sm:text-sm">
+                            {formatFCFA(group.totalPaid)}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-gray-500">Restant</p>
-                          <p className="font-bold text-orange-600">{formatFCFA(group.remainingAmount)}</p>
+                          <p className="text-[10px] text-gray-500 sm:text-xs">Restant</p>
+                          <p className="text-xs font-bold text-orange-600 sm:text-sm">
+                            {formatFCFA(group.remainingAmount)}
+                          </p>
                         </div>
-                        <div className="w-24">
-                          <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                        <div className="w-16 sm:w-24">
+                          <div className="mb-1 h-1.5 w-full rounded-full bg-gray-200 sm:h-2">
                             <div
-                              className={`h-2 rounded-full ${
+                              className={`h-1.5 rounded-full sm:h-2 ${
                                 group.paymentProgress >= 100
                                   ? 'bg-green-500'
                                   : group.paymentProgress >= 50
@@ -605,11 +624,11 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                               style={{ width: `${Math.min(group.paymentProgress, 100)}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-500 text-center">
+                          <p className="text-center text-[10px] text-gray-500 sm:text-xs">
                             {group.paymentProgress.toFixed(0)}%
                           </p>
                         </div>
-                        <Badge variant="info" className="text-sm">
+                        <Badge variant="info" className="text-xs">
                           {group.fees.length} frais
                         </Badge>
                       </div>
@@ -618,7 +637,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                     {isExpanded && (
                       <div className="border-t border-gray-200">
                         {/* Liste des frais pour cet élève */}
-                        <div className="p-4 space-y-4">
+                        <div className="space-y-3 p-3">
                           {group.fees.map((fee: any) => {
                             const feeTotalPaid = fee.payments
                               ?.filter((p: any) => p.status === 'COMPLETED')
@@ -629,32 +648,40 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                             return (
                               <div
                                 key={fee.id}
-                                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                                className="rounded-lg border border-gray-200 bg-gray-50 p-3"
                               >
-                                <div className="flex items-center justify-between mb-3">
-                                  <div>
-                                    <p className="font-medium text-gray-800">
+                                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-gray-800">
                                       {fee.period} - {fee.academicYear}
                                     </p>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-xs text-gray-500">
                                       Échéance: {format(new Date(fee.dueDate), 'dd MMM yyyy', { locale: fr })}
                                     </p>
                                     {fee.description && (
-                                      <p className="text-sm text-gray-600 mt-1">{fee.description}</p>
+                                      <p className="mt-1 text-xs text-gray-600">
+                                        {fee.description}
+                                      </p>
                                     )}
                                   </div>
-                                  <div className="flex items-center space-x-4">
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                     <div className="text-right">
-                                      <p className="text-sm text-gray-500">Montant</p>
-                                      <p className="font-bold text-gray-900">{formatFCFA(fee.amount)}</p>
+                                      <p className="text-xs text-gray-500">Montant</p>
+                                      <p className="text-sm font-bold text-gray-900">
+                                        {formatFCFA(fee.amount)}
+                                      </p>
                                     </div>
                                     <div className="text-right">
-                                      <p className="text-sm text-gray-500">Payé</p>
-                                      <p className="font-bold text-green-600">{formatFCFA(feeTotalPaid)}</p>
+                                      <p className="text-xs text-gray-500">Payé</p>
+                                      <p className="text-sm font-bold text-green-600">
+                                        {formatFCFA(feeTotalPaid)}
+                                      </p>
                                     </div>
                                     <div className="text-right">
-                                      <p className="text-sm text-gray-500">Restant</p>
-                                      <p className="font-bold text-orange-600">{formatFCFA(feeRemaining)}</p>
+                                      <p className="text-xs text-gray-500">Restant</p>
+                                      <p className="text-sm font-bold text-orange-600">
+                                        {formatFCFA(feeRemaining)}
+                                      </p>
                                     </div>
                                     <Badge
                                       variant={
@@ -664,7 +691,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                                           ? 'warning'
                                           : 'danger'
                                       }
-                                      className="text-sm"
+                                      className="text-xs"
                                     >
                                       {feeProgress.toFixed(0)}%
                                     </Badge>
@@ -689,34 +716,32 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
 
                                 {/* Paiements par parent */}
                                 {group.byParent && group.byParent.length > 0 && (
-                                  <div className="mt-3 pt-3 border-t border-gray-200">
-                                    <p className="text-sm font-medium text-gray-700 mb-2">Paiements par parent :</p>
-                                    <div className="space-y-2">
+                                  <div className="mt-2 border-t border-gray-200 pt-2">
+                                    <p className="mb-1.5 text-xs font-medium text-gray-700">Paiements par parent</p>
+                                    <div className="space-y-1.5">
                                       {group.byParent.map((parentGroup: any) => (
                                         <div
                                           key={parentGroup.payer.id}
-                                          className="bg-white rounded p-3 border border-gray-200 flex items-center justify-between"
+                                          className="flex items-center justify-between rounded border border-gray-200 bg-white p-2"
                                         >
-                                          <div className="flex items-center space-x-2">
-                                            <FiUser className="w-4 h-4 text-gray-400" />
-                                            <div>
-                                              <p className="text-sm font-medium text-gray-800">
+                                          <div className="flex min-w-0 items-center space-x-2">
+                                            <FiUser className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                            <div className="min-w-0">
+                                              <p className="truncate text-xs font-medium text-gray-800">
                                                 {parentGroup.payer.name}
                                               </p>
-                                              <p className="text-xs text-gray-500">
+                                              <p className="truncate text-[10px] text-gray-500">
                                                 {parentGroup.payer.email} ({parentGroup.payer.role})
                                               </p>
                                             </div>
                                           </div>
-                                          <div className="flex items-center space-x-3">
-                                            <div className="text-right">
-                                              <p className="text-sm font-semibold text-gray-900">
-                                                {formatFCFA(parentGroup.totalPaid)}
-                                              </p>
-                                              <p className="text-xs text-gray-500">
-                                                {parentGroup.payments.length} paiement{parentGroup.payments.length > 1 ? 's' : ''}
-                                              </p>
-                                            </div>
+                                          <div className="ml-2 shrink-0 text-right">
+                                            <p className="text-xs font-semibold text-gray-900">
+                                              {formatFCFA(parentGroup.totalPaid)}
+                                            </p>
+                                            <p className="text-[10px] text-gray-500">
+                                              {parentGroup.payments.length} paiement{parentGroup.payments.length > 1 ? 's' : ''}
+                                            </p>
                                           </div>
                                         </div>
                                       ))}
@@ -739,43 +764,57 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Élève</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Classe</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Période</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Année scolaire</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Montant</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Échéance</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Élève
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Classe
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Période
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Année scolaire
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Montant
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Échéance
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Statut
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredFees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-gray-500">
-                      <FiDollarSign className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                      <p className="text-lg mb-2">Aucun frais de scolarité trouvé</p>
-                      <p className="text-sm">Créez un nouveau frais ou attribuez des frais à une classe</p>
+                    <td colSpan={8} className="py-8 text-center text-gray-500">
+                      <FiDollarSign className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                      <p className="mb-1 text-sm font-medium">Aucun frais de scolarité trouvé</p>
+                      <p className="text-xs">Créez un frais ou attribuez à une classe</p>
                     </td>
                   </tr>
                 ) : (
                   filteredFees.map((fee: any) => (
                     <tr key={fee.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4">
+                      <td className={tc}>
                         <div className="font-medium text-gray-900">
                           {fee.student?.user?.firstName} {fee.student?.user?.lastName}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {fee.student?.class?.name || '-'}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{fee.period}</td>
-                      <td className="py-3 px-4 text-gray-600">{fee.academicYear}</td>
-                      <td className="py-3 px-4 font-semibold text-gray-900">{formatFCFA(fee.amount)}</td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className={`${tc} text-gray-600`}>{fee.student?.class?.name || '-'}</td>
+                      <td className={`${tc} text-gray-600`}>{fee.period}</td>
+                      <td className={`${tc} text-gray-600`}>{fee.academicYear}</td>
+                      <td className={`${tc} font-semibold text-gray-900`}>{formatFCFA(fee.amount)}</td>
+                      <td className={`${tc} text-gray-600`}>
                         {format(new Date(fee.dueDate), 'dd MMM yyyy', { locale: fr })}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className={tc}>
                         {fee.isPaid ? (
                           <Badge variant="success" size="sm">Payé</Badge>
                         ) : new Date(fee.dueDate) < new Date() ? (
@@ -784,7 +823,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({ embedded 
                           <Badge variant="warning" size="sm">En attente</Badge>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className={tc}>
                         <div className="flex gap-2">
                           <Button
                             size="sm"

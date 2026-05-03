@@ -28,7 +28,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_OPTIONS = Object.entries(TYPE_LABELS).map(([value, label]) => ({ label, value }));
 
-const SchoolCalendarManagement: React.FC = () => {
+type SchoolCalendarManagementProps = {
+  compact?: boolean;
+};
+
+const SchoolCalendarManagement: React.FC<SchoolCalendarManagementProps> = ({ compact = false }) => {
   const queryClient = useQueryClient();
   const [academicYear, setAcademicYear] = useState(defaultAcademicYear());
   const [modalOpen, setModalOpen] = useState(false);
@@ -153,16 +157,19 @@ const SchoolCalendarManagement: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Calendrier scolaire</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={compact ? 'text-base font-semibold text-gray-900' : 'text-lg font-semibold text-gray-900'}>
+          Calendrier scolaire
+        </h2>
+        <p className={compact ? 'text-xs text-gray-500 mt-0.5' : 'text-sm text-gray-500 mt-0.5'}>
           Vacances, jours fériés, périodes d’examens et événements pour l’année sélectionnée.
         </p>
       </div>
 
       <Card className="p-4 border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
         <FilterDropdown
+          compact={compact}
           options={yearOptions}
           selected={academicYear}
           onChange={setAcademicYear}
@@ -176,7 +183,13 @@ const SchoolCalendarManagement: React.FC = () => {
 
       <Card className="border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <h3
+            className={
+              compact
+                ? 'text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2'
+                : 'text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2'
+            }
+          >
             <FiCalendar className="w-4 h-4" />
             Événements ({sorted.length})
           </h3>
@@ -199,7 +212,7 @@ const SchoolCalendarManagement: React.FC = () => {
                     <span className="font-medium text-gray-900">{ev.title}</span>
                     <Badge variant="secondary">{TYPE_LABELS[ev.type] || ev.type}</Badge>
                   </div>
-                  <p className="text-sm text-gray-600 mt-0.5">
+                  <p className={compact ? 'text-xs text-gray-600 mt-0.5' : 'text-sm text-gray-600 mt-0.5'}>
                     {format(new Date(ev.startDate), 'd MMMM yyyy', { locale: fr })}
                     {ev.endDate &&
                       new Date(ev.endDate).toDateString() !== new Date(ev.startDate).toDateString() &&

@@ -16,6 +16,7 @@ import {
 } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../utils/currency';
+import { ADM } from './adminModuleLayout';
 
 function buildReminderText(fee: any) {
   const name = fee.student?.user
@@ -33,7 +34,11 @@ function buildReminderText(fee: any) {
   );
 }
 
-const PaymentRemindersPanel: React.FC = () => {
+interface PaymentRemindersPanelProps {
+  compact?: boolean;
+}
+
+const PaymentRemindersPanel: React.FC<PaymentRemindersPanelProps> = ({ compact = false }) => {
   const { data: tuitionFees, isLoading } = useQuery({
     queryKey: ['admin-tuition-fees-reminders'],
     queryFn: () => adminApi.getTuitionFees(),
@@ -76,19 +81,19 @@ const PaymentRemindersPanel: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={compact ? ADM.root : 'space-y-6'}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Rappels de paiement</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={compact ? ADM.h2 : 'text-lg font-semibold text-gray-900'}>Rappels de paiement</h2>
+        <p className={compact ? ADM.intro : 'text-sm text-gray-500 mt-0.5'}>
           Frais non soldés : <strong>échus</strong> (date dépassée) ou <strong>à échéance sous 7 jours</strong>.
           Copiez le texte type pour vos relances (e-mail, SMS, messagerie).
         </p>
       </div>
 
-      <Card className="p-4 border-amber-200 bg-amber-50/60">
+      <Card className={compact ? 'p-3 border-amber-200 bg-amber-50/60' : 'p-4 border-amber-200 bg-amber-50/60'}>
         <div className="flex items-start gap-3">
-          <FiAlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-900">
+          <FiAlertTriangle className={`text-amber-700 shrink-0 mt-0.5 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
+          <p className={compact ? 'text-xs text-amber-900 leading-relaxed' : 'text-sm text-amber-900'}>
             Les relances sont manuelles : ce module ne déclenche pas d’envoi automatique. Utilisez la
             messagerie de la plateforme si vous devez notifier plusieurs familles.
           </p>
@@ -108,7 +113,12 @@ const PaymentRemindersPanel: React.FC = () => {
               const days = differenceInCalendarDays(today, new Date(fee.dueDate));
               const text = buildReminderText(fee);
               return (
-                <Card key={fee.id} className="p-4 border border-red-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <Card
+                  key={fee.id}
+                  className={`border border-red-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between ${
+                    compact ? 'p-3' : 'p-4'
+                  }`}
+                >
                   <div>
                     <p className="font-medium text-gray-900">
                       {fee.student?.user?.firstName} {fee.student?.user?.lastName}
@@ -151,7 +161,9 @@ const PaymentRemindersPanel: React.FC = () => {
               return (
                 <Card
                   key={fee.id}
-                  className="p-4 border border-amber-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+                  className={`border border-amber-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between ${
+                    compact ? 'p-3' : 'p-4'
+                  }`}
                 >
                   <div>
                     <p className="font-medium text-gray-900">

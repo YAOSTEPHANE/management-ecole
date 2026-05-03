@@ -8,19 +8,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens — shell premium (toute l’app) */
+/* Design tokens — shell ultra-luxe (toute l’app) */
 :root {
-  --home-bg: #fafbfc;
-  --home-text: #1a1d29;
-  --home-text-muted: #5c617a;
-  --home-border: #e8eaef;
-  --home-hero-from: #0f172a;
-  --home-hero-via: #1e293b;
-  --home-hero-to: #0f172a;
-  --home-primary: #2563eb;
-  --home-primary-dark: #4f46e5;
-  --premium-ring: rgba(99, 102, 241, 0.35);
-  --premium-nav-border: rgba(255, 255, 255, 0.72);
+  --home-bg: #fafaf9;
+  --home-text: #1c1917;
+  --home-text-muted: #57534e;
+  --home-border: #e7e5e4;
+  --home-hero-from: #0c0a09;
+  --home-hero-via: #1c1917;
+  --home-hero-to: #0c0a09;
+  --home-primary: #a16207;
+  --home-primary-dark: #854d0e;
+  --lux-gold: #c9a227;
+  --lux-gold-mid: #e8d48b;
+  --lux-ink: #0c0a09;
+  --premium-ring: rgba(201, 162, 39, 0.35);
+  --premium-nav-border: rgba(231, 229, 228, 0.9);
 }
 
 @layer base {
@@ -38,20 +41,27 @@
   }
 
   ::selection {
-    background-color: rgba(99, 102, 241, 0.22);
-    color: #0f172a;
+    background-color: rgba(201, 162, 39, 0.28);
+    color: #0c0a09;
   }
 }
 
 @layer components {
-  /* Fond global subtil (mailles + léger dégradé) */
+  /* Fond global — pierre, brume et touches or */
   .premium-body {
-    background-color: #f8fafc;
+    background-color: #fafaf9;
     background-image:
-      radial-gradient(at 42% 18%, rgba(99, 102, 241, 0.11) 0px, transparent 52%),
-      radial-gradient(at 88% 6%, rgba(168, 85, 247, 0.09) 0px, transparent 48%),
-      radial-gradient(at 4% 72%, rgba(14, 165, 233, 0.07) 0px, transparent 45%),
-      linear-gradient(165deg, #f8fafc 0%, #f1f5f9 55%, #fafafa 100%);
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(201, 162, 39, 0.09) 0%, transparent 55%),
+      radial-gradient(at 92% 20%, rgba(120, 113, 108, 0.07) 0px, transparent 42%),
+      radial-gradient(at 6% 70%, rgba(201, 162, 39, 0.05) 0px, transparent 48%),
+      linear-gradient(168deg, #fafaf9 0%, #f5f0e8 48%, #fafaf9 100%),
+      repeating-linear-gradient(
+        -12deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.03) 2px,
+        rgba(255, 255, 255, 0.03) 3px
+      );
     background-attachment: fixed;
   }
 
@@ -59,21 +69,45 @@
     @apply border-b backdrop-blur-2xl;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.86) 0%,
-      rgba(248, 250, 252, 0.78) 100%
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(250, 250, 249, 0.88) 100%
     );
-    border-color: rgba(255, 255, 255, 0.55);
+    border-color: rgba(231, 229, 228, 0.85);
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
-      0 8px 32px -8px rgba(15, 23, 42, 0.08);
+      0 1px 0 0 rgba(255, 255, 255, 0.75) inset,
+      0 12px 40px -12px rgba(12, 10, 9, 0.1),
+      0 0 0 1px rgba(201, 162, 39, 0.07);
   }
 
   .premium-card-surface {
-    @apply rounded-2xl border border-white/60 bg-white/85 backdrop-blur-xl shadow-premium;
+    @apply rounded-2xl border border-stone-200/90 backdrop-blur-xl;
+    background-color: rgba(255, 255, 255, 0.92);
+    box-shadow:
+      0 24px 48px -20px rgba(12, 10, 9, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.55) inset,
+      0 0 0 1px rgba(201, 162, 39, 0.06);
+  }
+
+  /* Cartes « bijou » — bordure or tamisée */
+  .lux-card-surface {
+    @apply rounded-2xl border border-amber-200/30 bg-gradient-to-br from-white via-stone-50/95 to-amber-50/35 backdrop-blur-xl;
+    box-shadow:
+      0 22px 44px -18px rgba(12, 10, 9, 0.14),
+      0 0 0 1px rgba(201, 162, 39, 0.1),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
   }
 
   .text-gradient-display {
-    @apply bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent;
+    background: linear-gradient(
+      115deg,
+      #0c0a09 0%,
+      #44403c 38%,
+      #b45309 72%,
+      #c9a227 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .card {
@@ -274,23 +308,67 @@
 
 }
 
-/* React Calendar Styles */
+/* React Calendar — format compact (emploi du temps, etc.) */
 .custom-calendar .react-calendar {
   width: 100%;
+  max-width: 17rem;
+  margin-inline: auto;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-family: inherit;
+  font-size: 0.6875rem;
+  line-height: 1.15;
+}
+
+.custom-calendar .react-calendar__navigation {
+  height: auto;
+  margin-bottom: 0.125rem;
+}
+
+.custom-calendar .react-calendar__navigation__label {
+  font-size: 0.75rem !important;
+  font-weight: 600;
+}
+
+.custom-calendar .react-calendar__navigation button {
+  min-width: 1.75rem;
+  padding: 0.25rem 0.35rem;
+  background: none;
+  font-size: 0.6875rem !important;
+  margin-top: 0.25rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.custom-calendar .react-calendar__month-view__weekdays {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.custom-calendar .react-calendar__month-view__weekdays__weekday {
+  padding: 0.125rem 0.05rem 0.25rem;
+}
+
+.custom-calendar .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
 }
 
 .custom-calendar .react-calendar__tile {
-  padding: 12px;
-  border-radius: 8px;
+  padding: 0.2rem 0.1rem;
+  border-radius: 6px;
+  font-size: 0.625rem;
+  min-height: 1.65rem;
   transition: all 0.2s;
+}
+
+.custom-calendar .react-calendar__tile abbr {
+  font-size: inherit;
 }
 
 .custom-calendar .react-calendar__tile:hover {
   background-color: #e0e7ff;
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 .custom-calendar .react-calendar__tile--active {
@@ -301,15 +379,6 @@
 .custom-calendar .react-calendar__tile--now {
   background: #f3f4f6;
   font-weight: bold;
-}
-
-.custom-calendar .react-calendar__navigation button {
-  min-width: 44px;
-  background: none;
-  font-size: 0.875rem;
-  margin-top: 8px;
-  border-radius: 8px;
-  transition: all 0.2s;
 }
 
 .custom-calendar .react-calendar__navigation button:hover {

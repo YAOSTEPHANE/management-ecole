@@ -15,6 +15,7 @@ import {
   FiTrendingUp,
   FiRefreshCw,
 } from 'react-icons/fi';
+import { ADM } from '../adminModuleLayout';
 
 type RepTab = 'dashboard' | 'financial' | 'academic' | 'admissions' | 'performance';
 
@@ -44,20 +45,21 @@ const ReportsStatisticsModule: React.FC = () => {
       : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <div className={ADM.root}>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Rapports et statistiques</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className={ADM.h2}>Rapports et statistiques</h2>
+          <p className={ADM.intro}>
             Indicateurs consolidés : finances, résultats, dossiers d’inscription et risques pédagogiques.
           </p>
           {updated && (
-            <p className="text-xs text-gray-400 mt-1">Dernière mise à jour : {updated}</p>
+            <p className="text-[11px] text-gray-400 mt-1">Dernière mise à jour : {updated}</p>
           )}
         </div>
         <Button
           type="button"
           variant="outline"
+          size="sm"
           className="shrink-0"
           onClick={() => refetch()}
           disabled={isFetching}
@@ -67,7 +69,7 @@ const ReportsStatisticsModule: React.FC = () => {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -76,13 +78,9 @@ const ReportsStatisticsModule: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );

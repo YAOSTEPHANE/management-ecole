@@ -4,8 +4,6 @@ import { educatorApi } from '../../services/api';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
-import { FiX } from 'react-icons/fi';
-
 interface ConductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -106,18 +104,18 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
   const academicYears = Array.from({ length: 3 }, (_, i) => (currentYear - 1 + i).toString());
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={conductId ? 'Modifier l\'évaluation' : 'Nouvelle évaluation'}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal isOpen={isOpen} onClose={onClose} title={conductId ? 'Modifier l\'évaluation' : 'Nouvelle évaluation'} size="lg" compact>
+      <form onSubmit={handleSubmit} className="space-y-2">
         {!conductId && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Élève *
               </label>
               <select
                 value={formData.studentId}
                 onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                 required
               >
                 <option value="">Sélectionner un élève</option>
@@ -129,15 +127,15 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Période *
                 </label>
                 <select
                   value={formData.period}
                   onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                   required
                 >
                   {periods.map((period) => (
@@ -149,13 +147,13 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Année scolaire *
                 </label>
                 <select
                   value={formData.academicYear}
                   onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                   required
                 >
                   {academicYears.map((year) => (
@@ -169,9 +167,9 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
           </>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Ponctualité (0-20) *
             </label>
             <input
@@ -181,13 +179,13 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               step="0.1"
               value={formData.punctuality}
               onChange={(e) => setFormData({ ...formData, punctuality: parseFloat(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Respect (0-20) *
             </label>
             <input
@@ -197,13 +195,13 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               step="0.1"
               value={formData.respect}
               onChange={(e) => setFormData({ ...formData, respect: parseFloat(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Participation (0-20) *
             </label>
             <input
@@ -213,13 +211,13 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               step="0.1"
               value={formData.participation}
               onChange={(e) => setFormData({ ...formData, participation: parseFloat(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Comportement (0-20) *
             </label>
             <input
@@ -229,30 +227,30 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
               step="0.1"
               value={formData.behavior}
               onChange={(e) => setFormData({ ...formData, behavior: parseFloat(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Commentaires
           </label>
           <textarea
             value={formData.comments}
             onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
             rows={4}
-            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
             placeholder="Commentaires sur la conduite de l'élève..."
           />
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4 border-t">
-          <Button type="button" variant="secondary" onClick={onClose}>
+        <div className="flex justify-end gap-2 pt-3 border-t border-stone-200/80">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" disabled={createMutation.isPending}>
+          <Button type="submit" size="sm" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Enregistrement...' : conductId ? 'Modifier' : 'Créer'}
           </Button>
         </div>

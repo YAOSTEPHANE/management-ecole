@@ -271,35 +271,35 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
   if (isEditMode && isLoadingGrade) {
     return (
-      <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? "Modifier une Note" : "Ajouter une Note"} size="xl">
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">Chargement des données de la note...</p>
+      <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? "Modifier une Note" : "Ajouter une Note"} size="lg" compact>
+        <div className="text-center py-6">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-amber-700/50 border-t-amber-900"></div>
+          <p className="mt-2 text-xs text-stone-600">Chargement des données de la note...</p>
         </div>
       </Modal>
     );
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? "Modifier une Note" : "Ajouter une Note"} size="xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? "Modifier une Note" : "Ajouter une Note"} size="lg" compact>
+      <form onSubmit={handleSubmit} className="space-y-2">
         {/* Student Selection */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Élève <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiUser className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiUser className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <select
               name="studentId"
               value={formData.studentId}
               onChange={handleChange}
               disabled={isEditMode}
-              className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.studentId ? 'border-red-500' : 'border-gray-200'
-              } ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.studentId ? 'border-red-500' : 'border-stone-200'
+              } ${isEditMode ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
             >
               <option value="">Sélectionner un élève</option>
               {students?.map((student: any) => (
@@ -310,8 +310,8 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
             </select>
           </div>
           {errors.studentId && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
               {errors.studentId}
             </p>
           )}
@@ -319,21 +319,21 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
         {/* Course Selection */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Matière <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiBook className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiBook className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <select
               name="courseId"
               value={formData.courseId}
               onChange={handleChange}
               disabled={isEditMode}
-              className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.courseId ? 'border-red-500' : 'border-gray-200'
-              } ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.courseId ? 'border-red-500' : 'border-stone-200'
+              } ${isEditMode ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
             >
               <option value="">Sélectionner une matière</option>
               {filteredCourses.map((course: any) => (
@@ -344,8 +344,8 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
             </select>
           </div>
           {errors.courseId && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
               {errors.courseId}
             </p>
           )}
@@ -353,21 +353,21 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
         {/* Teacher Selection */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Enseignant <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiUser className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiUser className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <select
               name="teacherId"
               value={formData.teacherId}
               onChange={handleChange}
               disabled={isEditMode}
-              className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.teacherId ? 'border-red-500' : 'border-gray-200'
-              } ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.teacherId ? 'border-red-500' : 'border-stone-200'
+              } ${isEditMode ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
             >
               <option value="">Sélectionner un enseignant</option>
               {filteredTeachers.map((teacher: any) => (
@@ -378,17 +378,17 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
             </select>
           </div>
           {errors.teacherId && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
               {errors.teacherId}
             </p>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {/* Evaluation Type */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Type d'évaluation <span className="text-red-500">*</span>
             </label>
             <select
@@ -396,9 +396,9 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
               value={formData.evaluationType}
               onChange={handleChange}
               disabled={isEditMode}
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.evaluationType ? 'border-red-500' : 'border-gray-200'
-              } ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.evaluationType ? 'border-red-500' : 'border-stone-200'
+              } ${isEditMode ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
             >
               {evaluationTypes.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -410,12 +410,12 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Date <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiCalendar className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiCalendar className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <input
                 type="date"
@@ -423,14 +423,14 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
                 value={formData.date}
                 onChange={handleChange}
                 max={new Date().toISOString().split('T')[0]}
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.date ? 'border-red-500' : 'border-gray-200'
+                className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                  errors.date ? 'border-red-500' : 'border-stone-200'
                 }`}
               />
             </div>
             {errors.date && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.date}
               </p>
             )}
@@ -439,41 +439,41 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
         {/* Title */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Titre de l'évaluation <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiClipboard className="text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <FiClipboard className="h-3.5 w-3.5 text-stone-400" />
             </div>
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.title ? 'border-red-500' : 'border-gray-200'
+              className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.title ? 'border-red-500' : 'border-stone-200'
               }`}
               placeholder="Ex: Contrôle de mathématiques - Chapitre 3"
             />
           </div>
           {errors.title && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
               {errors.title}
             </p>
           )}
         </div>
 
         {/* Score and Max Score */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Note obtenue <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiAward className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <FiAward className="h-3.5 w-3.5 text-stone-400" />
               </div>
               <input
                 type="number"
@@ -482,22 +482,22 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
                 onChange={handleChange}
                 step="0.01"
                 min="0"
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.score ? 'border-red-500' : 'border-gray-200'
+                className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                  errors.score ? 'border-red-500' : 'border-stone-200'
                 }`}
                 placeholder="0.00"
               />
             </div>
             {errors.score && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.score}
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Note maximale <span className="text-red-500">*</span>
             </label>
             <input
@@ -507,21 +507,21 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
               onChange={handleChange}
               step="0.01"
               min="0.01"
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.maxScore ? 'border-red-500' : 'border-gray-200'
+              className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.maxScore ? 'border-red-500' : 'border-stone-200'
               }`}
               placeholder="20"
             />
             {errors.maxScore && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.maxScore}
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
               Coefficient <span className="text-red-500">*</span>
             </label>
             <input
@@ -531,14 +531,14 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
               onChange={handleChange}
               step="0.1"
               min="0.1"
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                errors.coefficient ? 'border-red-500' : 'border-gray-200'
+              className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                errors.coefficient ? 'border-red-500' : 'border-stone-200'
               }`}
               placeholder="1"
             />
             {errors.coefficient && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-1" />
+            <p className="mt-1 text-xs text-red-500 flex items-center">
+              <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                 {errors.coefficient}
               </p>
             )}
@@ -547,11 +547,11 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
         {/* Percentage Preview */}
         {formData.score && formData.maxScore && !errors.score && !errors.maxScore && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <FiAward className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">Pourcentage:</span>
+          <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FiAward className="w-4 h-4 text-amber-900 shrink-0" />
+                <span className="text-xs font-semibold text-stone-900">Pourcentage</span>
               </div>
               <Badge className={`${
                 parseFloat(percentage) >= 80 ? 'bg-green-100 text-green-800' :
@@ -567,7 +567,7 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
 
         {/* Comments */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
             Commentaires (optionnel)
           </label>
           <textarea
@@ -575,16 +575,16 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
             value={formData.comments}
             onChange={handleChange}
             rows={3}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+            className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all resize-none"
             placeholder="Commentaires sur la note..."
           />
         </div>
 
         {/* Summary */}
         {(selectedStudent || selectedCourse || selectedTeacher) && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-800 mb-2">Résumé:</h4>
-            <div className="space-y-1 text-sm text-gray-600">
+          <div className="rounded-lg border border-stone-200/80 bg-stone-50/60 p-2.5">
+            <h4 className="text-xs font-semibold text-stone-800 mb-1">Résumé</h4>
+            <div className="space-y-0.5 text-xs text-stone-600">
               {selectedStudent && (
                 <p><span className="font-medium">Élève:</span> {selectedStudent.user.firstName} {selectedStudent.user.lastName} {selectedStudent.class?.name ? `(${selectedStudent.class.name})` : ''}</p>
               )}
@@ -599,10 +599,11 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80">
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             onClick={handleClose}
             disabled={createGradeMutation.isPending}
           >
@@ -610,17 +611,18 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
           </Button>
           <Button
             type="submit"
+            size="sm"
             disabled={createGradeMutation.isPending}
-            className="min-w-[140px]"
+            className="min-w-[120px]"
           >
             {createGradeMutation.isPending ? (
               <>
-                <FiLoader className="w-5 h-5 mr-2 animate-spin inline" />
+                <FiLoader className="w-4 h-4 mr-1.5 animate-spin inline" />
                 {isEditMode ? 'Modification...' : 'Création...'}
               </>
             ) : (
               <>
-                <FiSave className="w-5 h-5 mr-2 inline" />
+                <FiSave className="w-4 h-4 mr-1.5 inline" />
                 {isEditMode ? 'Enregistrer' : 'Créer la note'}
               </>
             )}

@@ -9,6 +9,7 @@ import Input from '../ui/Input';
 import SearchBar from '../ui/SearchBar';
 import FilterDropdown from '../ui/FilterDropdown';
 import toast from 'react-hot-toast';
+import { ADM } from './adminModuleLayout';
 import {
   FiShield,
   FiLock,
@@ -568,36 +569,44 @@ const SecurityPrivacyManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 text-sm">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-red-600 to-rose-600 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Sécurité & Confidentialité</h2>
-            <p className="text-red-100 text-lg">
+      <Card className="bg-gradient-to-r from-red-600 to-rose-600 p-3 text-white sm:p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-black leading-tight text-red-50 sm:text-xl">
+              Sécurité & Confidentialité
+            </h2>
+            <p className="mt-0.5 text-xs leading-snug text-red-100/95 sm:text-sm">
               Protection des données avec authentification robuste
             </p>
           </div>
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden shrink-0 items-center space-x-3 md:flex">
             <div className="text-center">
-              <div className="text-2xl font-bold">{securityStats?.totalLogins || 0}</div>
-              <div className="text-sm text-red-100">Connexions</div>
+              <div className="text-base font-bold tabular-nums text-red-50 sm:text-lg">
+                {securityStats?.totalLogins || 0}
+              </div>
+              <div className="text-[10px] text-red-100 sm:text-xs">Connexions</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{securityStats?.recentEvents || 0}</div>
-              <div className="text-sm text-red-100">Événements (7j)</div>
+              <div className="text-base font-bold tabular-nums text-red-50 sm:text-lg">
+                {securityStats?.recentEvents || 0}
+              </div>
+              <div className="text-[10px] text-red-100 sm:text-xs">Événements (7j)</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{securityStats?.criticalEvents || 0}</div>
-              <div className="text-sm text-red-100">Critiques</div>
+              <div className="text-base font-bold tabular-nums text-red-50 sm:text-lg">
+                {securityStats?.criticalEvents || 0}
+              </div>
+              <div className="text-[10px] text-red-100 sm:text-xs">Critiques</div>
             </div>
           </div>
         </div>
       </Card>
 
       {/* Tabs */}
-      <Card>
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide pb-2">
+      <Card className="p-2 sm:p-3">
+        <div className={ADM.bigTabRow}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -605,13 +614,9 @@ const SecurityPrivacyManagement = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                className={ADM.bigTabBtn(isActive, 'bg-gradient-to-r from-red-600 to-rose-600')}
               >
-                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <Icon className={ADM.bigTabIcon} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -621,10 +626,11 @@ const SecurityPrivacyManagement = () => {
 
       {/* Filters */}
       {(activeTab === 'login-logs' || activeTab === 'security-events' || activeTab === 'users') && (
-        <Card>
-          <div className="flex flex-col md:flex-row gap-4">
+        <Card className="p-3 sm:p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:gap-3">
             <div className="flex-1">
               <SearchBar
+                compact
                 value={searchQuery}
                 onChange={setSearchQuery}
                 placeholder="Rechercher..."
@@ -632,6 +638,7 @@ const SecurityPrivacyManagement = () => {
             </div>
             {activeTab === 'security-events' && (
               <FilterDropdown
+                compact
                 label="Sévérité"
                 value={selectedSeverity}
                 onChange={setSelectedSeverity}
@@ -651,100 +658,94 @@ const SecurityPrivacyManagement = () => {
       {/* Content */}
       <div className="animate-slide-up">
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Statistiques de sécurité */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Taux de Réussite</p>
-                    <p className="text-3xl font-bold text-green-600">
+            <div className={ADM.grid4}>
+              <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-green-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Taux de réussite</p>
+                    <p className={`${ADM.statVal} text-green-600`}>
                       {securityStats?.successRate?.toFixed(1) || '0.0'}%
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className={ADM.statHint}>
                       {securityStats?.successfulLogins || 0} / {securityStats?.totalLogins || 0}
                     </p>
                   </div>
-                  <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center">
-                    <FiCheckCircle className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-600 text-white">
+                    <FiCheckCircle className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Échecs de Connexion</p>
-                    <p className="text-3xl font-bold text-red-600">
-                      {securityStats?.failedLogins || 0}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">Tentatives échouées</p>
+              <Card className={`border-l-4 border-red-500 bg-gradient-to-br from-red-50 to-red-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Échecs de connexion</p>
+                    <p className={`${ADM.statVal} text-red-600`}>{securityStats?.failedLogins || 0}</p>
+                    <p className={ADM.statHint}>Tentatives échouées</p>
                   </div>
-                  <div className="w-16 h-16 bg-red-600 rounded-xl flex items-center justify-center">
-                    <FiXCircle className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white">
+                    <FiXCircle className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Événements Récents</p>
-                    <p className="text-3xl font-bold text-yellow-600">
-                      {securityStats?.recentEvents || 0}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">7 derniers jours</p>
+              <Card className={`border-l-4 border-yellow-500 bg-gradient-to-br from-yellow-50 to-yellow-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Événements récents</p>
+                    <p className={`${ADM.statVal} text-yellow-700`}>{securityStats?.recentEvents || 0}</p>
+                    <p className={ADM.statHint}>7 derniers jours</p>
                   </div>
-                  <div className="w-16 h-16 bg-yellow-600 rounded-xl flex items-center justify-center">
-                    <FiActivity className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-yellow-600 text-white">
+                    <FiActivity className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Événements Critiques</p>
-                    <p className="text-3xl font-bold text-orange-600">
-                      {securityStats?.criticalEvents || 0}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">Nécessitent attention</p>
+              <Card className={`border-l-4 border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Événements critiques</p>
+                    <p className={`${ADM.statVal} text-orange-600`}>{securityStats?.criticalEvents || 0}</p>
+                    <p className={ADM.statHint}>À surveiller</p>
                   </div>
-                  <div className="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center">
-                    <FiAlertCircle className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-white">
+                    <FiAlertCircle className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
             </div>
 
             {/* Recommandations de sécurité */}
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Recommandations de Sécurité</h3>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <FiShield className="w-5 h-5 text-blue-600 mt-0.5" />
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Recommandations de sécurité</h3>
+              <div className="space-y-2">
+                <div className="flex items-start space-x-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <FiShield className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Authentification à deux facteurs</h4>
-                    <p className="text-sm text-gray-600">
-                      Activez l'authentification à deux facteurs pour renforcer la sécurité des comptes administrateurs.
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Authentification à deux facteurs</h4>
+                    <p className="text-xs text-gray-600">
+                      Activez l&apos;authentification à deux facteurs pour renforcer la sécurité des comptes administrateurs.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <FiLock className="w-5 h-5 text-green-600 mt-0.5" />
+                <div className="flex items-start space-x-2 rounded-lg border border-green-200 bg-green-50 p-3">
+                  <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Mots de passe forts</h4>
-                    <p className="text-sm text-gray-600">
-                      Assurez-vous que tous les utilisateurs utilisent des mots de passe complexes (minimum 8 caractères).
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Mots de passe forts</h4>
+                    <p className="text-xs text-gray-600">
+                      Mots de passe complexes (minimum 8 caractères) pour tous les utilisateurs.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <FiClock className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div className="flex items-start space-x-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                  <FiClock className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Sessions actives</h4>
-                    <p className="text-sm text-gray-600">
-                      Configurez un délai d'expiration des sessions pour limiter les risques de sécurité.
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Sessions actives</h4>
+                    <p className="text-xs text-gray-600">
+                      Définissez un délai d&apos;expiration des sessions pour limiter les risques.
                     </p>
                   </div>
                 </div>
@@ -754,58 +755,58 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'login-logs' && (
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">
-                Logs de Connexion ({filteredLoginLogs.length})
+          <Card className="p-3 sm:p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className={`${ADM.h2} text-gray-800`}>
+                Logs de connexion ({filteredLoginLogs.length})
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <Button variant="secondary" size="sm" onClick={exportLoginLogsToCSV}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   CSV
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportLoginLogsToJSON}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   JSON
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportLoginLogsToPDF}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   PDF
                 </Button>
               </div>
             </div>
             {filteredLoginLogs.length === 0 ? (
-              <div className="text-center py-12">
-                <FiActivity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">Aucun log de connexion trouvé</p>
+              <div className="py-8 text-center">
+                <FiActivity className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                <p className="text-sm text-gray-600">Aucun log de connexion trouvé</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Utilisateur</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Email</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Adresse IP</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Raison</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Utilisateur</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Statut</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Adresse IP</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Date</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Raison</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLoginLogs.map((log: any) => (
-                      <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4">
+                      <tr key={log.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                        <td className="px-3 py-2">
                           <div className="flex items-center space-x-2">
-                            <FiUser className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">
+                            <FiUser className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="text-xs font-medium sm:text-sm">
                               {log.user?.firstName} {log.user?.lastName}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{log.email}</td>
-                        <td className="py-3 px-4">
+                        <td className="px-3 py-2 text-xs text-gray-600 sm:text-sm">{log.email}</td>
+                        <td className="px-3 py-2">
                           {log.success ? (
                             <Badge className="bg-green-100 text-green-800">
                               <FiCheckCircle className="w-3 h-3 mr-1 inline" />
@@ -818,21 +819,24 @@ const SecurityPrivacyManagement = () => {
                             </Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{log.ipAddress || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className="px-3 py-2 text-xs text-gray-600 sm:text-sm">{log.ipAddress || 'N/A'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-600 sm:text-sm">
                           {format(new Date(log.createdAt), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{log.reason || '-'}</td>
-                        <td className="py-3 px-4">
+                        <td className="max-w-[140px] truncate px-3 py-2 text-xs text-gray-600 sm:text-sm">
+                          {log.reason || '-'}
+                        </td>
+                        <td className="px-3 py-2">
                           <button
+                            type="button"
                             onClick={() => {
                               setSelectedLog(log);
                               setIsLogDetailsModalOpen(true);
                             }}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                             title="Voir les détails"
                           >
-                            <FiEye className="w-4 h-4" />
+                            <FiEye className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>
@@ -845,54 +849,54 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'security-events' && (
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">
-                Événements de Sécurité ({filteredSecurityEvents.length})
+          <Card className="p-3 sm:p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className={`${ADM.h2} text-gray-800`}>
+                Événements de sécurité ({filteredSecurityEvents.length})
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <Button variant="secondary" size="sm" onClick={exportSecurityEventsToCSV}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   CSV
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportSecurityEventsToJSON}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   JSON
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportSecurityEventsToPDF}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   PDF
                 </Button>
               </div>
             </div>
             {filteredSecurityEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <FiShield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">Aucun événement de sécurité trouvé</p>
+              <div className="py-8 text-center">
+                <FiShield className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                <p className="text-sm text-gray-600">Aucun événement de sécurité trouvé</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {filteredSecurityEvents.map((event: any) => (
                   <div
                     key={event.id}
-                    className={`p-4 rounded-lg border-2 ${
+                    className={`rounded-lg border p-3 ${
                       event.severity === 'critical'
-                        ? 'bg-red-50 border-red-200'
+                        ? 'border-red-200 bg-red-50'
                         : event.severity === 'error'
-                        ? 'bg-orange-50 border-orange-200'
+                        ? 'border-orange-200 bg-orange-50'
                         : event.severity === 'warning'
-                        ? 'bg-yellow-50 border-yellow-200'
-                        : 'bg-blue-50 border-blue-200'
+                        ? 'border-yellow-200 bg-yellow-50'
+                        : 'border-blue-200 bg-blue-50'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
                           {getSeverityBadge(event.severity)}
-                          <span className="text-sm font-semibold text-gray-800">{event.type}</span>
+                          <span className="text-xs font-semibold text-gray-800 sm:text-sm">{event.type}</span>
                         </div>
-                        <p className="text-gray-700 mb-2">{event.description}</p>
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <p className="text-xs text-gray-700 sm:text-sm">{event.description}</p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500 sm:text-xs">
                           {event.user && (
                             <div className="flex items-center">
                               <FiUser className="w-3 h-3 mr-1" />
@@ -912,14 +916,15 @@ const SecurityPrivacyManagement = () => {
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
                           setSelectedEvent(event);
                           setIsEventDetailsModalOpen(true);
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors ml-4"
+                        className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                         title="Voir les détails"
                       >
-                        <FiEye className="w-4 h-4" />
+                        <FiEye className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -930,59 +935,59 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'users' && (
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">
-                Gestion des Utilisateurs ({filteredUsers.length})
+          <Card className="p-3 sm:p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className={`${ADM.h2} text-gray-800`}>
+                Gestion des utilisateurs ({filteredUsers.length})
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <Button variant="secondary" size="sm" onClick={exportUsersToCSV}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   CSV
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportUsersToJSON}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   JSON
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportUsersToPDF}>
-                  <FiDownload className="w-4 h-4 mr-2" />
+                  <FiDownload className="mr-1.5 h-3.5 w-3.5" />
                   PDF
                 </Button>
               </div>
             </div>
             {filteredUsers.length === 0 ? (
-              <div className="text-center py-12">
-                <FiUser className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">Aucun utilisateur trouvé</p>
+              <div className="py-8 text-center">
+                <FiUser className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                <p className="text-sm text-gray-600">Aucun utilisateur trouvé</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Utilisateur</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Email</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Rôle</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Utilisateur</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Rôle</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Statut</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map((user: any) => (
-                      <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4">
+                      <tr key={user.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                        <td className="px-3 py-2">
                           <div className="flex items-center space-x-2">
-                            <FiUser className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">
+                            <FiUser className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="text-xs font-medium sm:text-sm">
                               {user.firstName} {user.lastName}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{user.email}</td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-indigo-100 text-indigo-800">{user.role}</Badge>
+                        <td className="px-3 py-2 text-xs text-gray-600 sm:text-sm">{user.email}</td>
+                        <td className="px-3 py-2">
+                          <Badge className="bg-indigo-100 text-xs text-indigo-800">{user.role}</Badge>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="px-3 py-2">
                           {user.isActive ? (
                             <Badge className="bg-green-100 text-green-800">
                               <FiCheckCircle className="w-3 h-3 mr-1 inline" />
@@ -995,26 +1000,28 @@ const SecurityPrivacyManagement = () => {
                             </Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center space-x-1">
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedUser(user);
                                 setIsPasswordModalOpen(true);
                               }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                               title="Changer le mot de passe"
                             >
-                              <FiKey className="w-4 h-4" />
+                              <FiKey className="h-4 w-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() =>
                                 changeStatusMutation.mutate({
                                   userId: user.id,
                                   isActive: !user.isActive,
                                 })
                               }
-                              className={`p-2 rounded-lg transition-colors ${
+                              className={`rounded-lg p-1.5 transition-colors ${
                                 user.isActive
                                   ? 'text-red-600 hover:bg-red-50'
                                   : 'text-green-600 hover:bg-green-50'
@@ -1022,9 +1029,9 @@ const SecurityPrivacyManagement = () => {
                               title={user.isActive ? 'Désactiver' : 'Activer'}
                             >
                               {user.isActive ? (
-                                <FiLockIcon className="w-4 h-4" />
+                                <FiLockIcon className="h-4 w-4" />
                               ) : (
-                                <FiUnlock className="w-4 h-4" />
+                                <FiUnlock className="h-4 w-4" />
                               )}
                             </button>
                           </div>
@@ -1039,67 +1046,67 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'privacy' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Protection des Données</h3>
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiDatabase className="w-5 h-5 text-blue-600" />
-                    <h4 className="font-semibold text-gray-800">Chiffrement des données</h4>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Protection des données</h3>
+              <div className="space-y-2">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiDatabase className="h-4 w-4 text-blue-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Chiffrement des données</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Toutes les données sensibles sont chiffrées en transit et au repos.
                   </p>
                 </div>
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiLock className="w-5 h-5 text-green-600" />
-                    <h4 className="font-semibold text-gray-800">Mots de passe sécurisés</h4>
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiLock className="h-4 w-4 text-green-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Mots de passe sécurisés</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Les mots de passe sont hachés avec bcrypt avant stockage.
                   </p>
                 </div>
-                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiShield className="w-5 h-5 text-purple-600" />
-                    <h4 className="font-semibold text-gray-800">Contrôle d'accès</h4>
+                <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiShield className="h-4 w-4 text-purple-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Contrôle d&apos;accès</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    Système RBAC pour limiter l'accès aux données selon les rôles.
+                  <p className="text-xs text-gray-600">
+                    Système RBAC pour limiter l&apos;accès aux données selon les rôles.
                   </p>
                 </div>
               </div>
             </Card>
 
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Confidentialité</h3>
-              <div className="space-y-4">
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiEye className="w-5 h-5 text-yellow-600" />
-                    <h4 className="font-semibold text-gray-800">Visibilité des données</h4>
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Confidentialité</h3>
+              <div className="space-y-2">
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiEye className="h-4 w-4 text-yellow-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Visibilité des données</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Seuls les utilisateurs autorisés peuvent accéder aux données.
                   </p>
                 </div>
-                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiFileText className="w-5 h-5 text-indigo-600" />
-                    <h4 className="font-semibold text-gray-800">Journalisation</h4>
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiFileText className="h-4 w-4 text-indigo-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Journalisation</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Tous les accès et modifications sont enregistrés dans les logs.
                   </p>
                 </div>
-                <div className="p-4 bg-pink-50 border border-pink-200 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiRefreshCw className="w-5 h-5 text-pink-600" />
-                    <h4 className="font-semibold text-gray-800">Sauvegarde automatique</h4>
+                <div className="rounded-lg border border-pink-200 bg-pink-50 p-3">
+                  <div className="mb-1 flex items-center space-x-2">
+                    <FiRefreshCw className="h-4 w-4 text-pink-600" />
+                    <h4 className="text-sm font-semibold text-gray-800">Sauvegarde automatique</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Sauvegardes régulières pour protéger contre la perte de données.
                   </p>
                 </div>
@@ -1109,55 +1116,55 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'compliance' && (
-          <div className="space-y-6">
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <FiCheckCircle className="w-8 h-8 text-white" />
+          <div className="space-y-4">
+            <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-3 sm:p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-600">
+                  <FiCheckCircle className="h-6 w-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">Conformité RGPD</h3>
-                  <p className="text-gray-600 mb-4">
-                    L'application respecte les exigences du Règlement Général sur la Protection des Données (RGPD).
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-800 sm:text-xl">Conformité RGPD</h3>
+                  <p className="mt-1 text-xs text-gray-600 sm:text-sm">
+                    L&apos;application respecte les exigences du Règlement Général sur la Protection des Données (RGPD).
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <h4 className="font-semibold text-gray-800 mb-1">Droit à l'oubli</h4>
-                      <p className="text-xs text-gray-600">Suppression des données à la demande</p>
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
+                    <div className="rounded-lg bg-white p-2.5">
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Droit à l&apos;oubli</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">Suppression des données à la demande</p>
                     </div>
-                    <div className="p-3 bg-white rounded-lg">
-                      <h4 className="font-semibold text-gray-800 mb-1">Portabilité des données</h4>
-                      <p className="text-xs text-gray-600">Export des données personnelles</p>
+                    <div className="rounded-lg bg-white p-2.5">
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Portabilité des données</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">Export des données personnelles</p>
                     </div>
-                    <div className="p-3 bg-white rounded-lg">
-                      <h4 className="font-semibold text-gray-800 mb-1">Consentement</h4>
-                      <p className="text-xs text-gray-600">Gestion des consentements utilisateurs</p>
+                    <div className="rounded-lg bg-white p-2.5">
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Consentement</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">Gestion des consentements utilisateurs</p>
                     </div>
-                    <div className="p-3 bg-white rounded-lg">
-                      <h4 className="font-semibold text-gray-800 mb-1">Transparence</h4>
-                      <p className="text-xs text-gray-600">Information claire sur l'utilisation des données</p>
+                    <div className="rounded-lg bg-white p-2.5">
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Transparence</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">Information claire sur l&apos;utilisation des données</p>
                     </div>
                   </div>
                 </div>
               </div>
             </Card>
 
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Audit de Sécurité</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Audit de sécurité</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
                   <div>
-                    <h4 className="font-semibold text-gray-800">Dernière vérification</h4>
-                    <p className="text-sm text-gray-600">15/01/2024</p>
+                    <h4 className="text-sm font-semibold text-gray-800">Dernière vérification</h4>
+                    <p className="text-xs text-gray-600">15/01/2024</p>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">Conforme</Badge>
+                  <Badge className="bg-green-100 text-xs text-green-800">Conforme</Badge>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
                   <div>
-                    <h4 className="font-semibold text-gray-800">Prochaine vérification</h4>
-                    <p className="text-sm text-gray-600">15/04/2024</p>
+                    <h4 className="text-sm font-semibold text-gray-800">Prochaine vérification</h4>
+                    <p className="text-xs text-gray-600">15/04/2024</p>
                   </div>
-                  <Badge className="bg-blue-100 text-blue-800">Planifiée</Badge>
+                  <Badge className="bg-blue-100 text-xs text-blue-800">Planifiée</Badge>
                 </div>
               </div>
             </Card>

@@ -10,6 +10,7 @@ import Modal from '../ui/Modal';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
+import { ADM } from './adminModuleLayout';
 import {
   FiUserPlus,
   FiFilter,
@@ -174,33 +175,33 @@ const AdmissionsManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white border-0 shadow-lg">
+    <div className={ADM.root}>
+      <Card className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white border-0 shadow-lg p-4 sm:p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-white/15">
-              <FiUserPlus className="w-8 h-8" />
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-white/15 shrink-0">
+              <FiUserPlus className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Inscriptions & admissions</h2>
-              <p className="text-indigo-100 text-sm mt-1 max-w-xl">
+              <h2 className="text-lg sm:text-xl font-bold leading-tight">Inscriptions & admissions</h2>
+              <p className="text-indigo-100/95 text-xs mt-1 max-w-xl leading-relaxed">
                 Traitez les pré-inscriptions en ligne, proposez une classe, acceptez le dossier puis créez le compte
                 élève lorsque l’admission est finalisée.
               </p>
             </div>
           </div>
           {stats && (
-            <div className="flex flex-wrap gap-3 text-sm">
-              <span className="px-3 py-1.5 rounded-lg bg-white/10">
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10">
                 En attente: <strong>{stats.pending}</strong>
               </span>
-              <span className="px-3 py-1.5 rounded-lg bg-white/10">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10">
                 Examen: <strong>{stats.underReview}</strong>
               </span>
-              <span className="px-3 py-1.5 rounded-lg bg-white/10">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10">
                 Acceptés: <strong>{stats.accepted}</strong>
               </span>
-              <span className="px-3 py-1.5 rounded-lg bg-white/10">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10">
                 Total: <strong>{stats.total}</strong>
               </span>
             </div>
@@ -208,13 +209,13 @@ const AdmissionsManagement = () => {
         </div>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-gray-600">
-          <FiFilter className="w-4 h-4" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 text-gray-600 text-xs">
+          <FiFilter className="w-3.5 h-3.5 shrink-0" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white"
           >
             <option value="">Tous les statuts</option>
             {(Object.keys(STATUS_LABEL) as AdmissionStatus[]).map((s) => (
@@ -227,9 +228,10 @@ const AdmissionsManagement = () => {
         <Button
           type="button"
           variant="secondary"
+          size="sm"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="inline-flex items-center gap-2"
+          className="inline-flex items-center gap-2 text-xs"
         >
           <FiRefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
           Actualiser

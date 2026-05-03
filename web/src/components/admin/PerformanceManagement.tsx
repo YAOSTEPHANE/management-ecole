@@ -4,6 +4,7 @@ import { adminApi } from '../../services/api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import { ADM } from './adminModuleLayout';
 import {
   FiZap,
   FiTrendingUp,
@@ -133,54 +134,66 @@ const PerformanceManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 text-sm">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">Performance & Rapidité</h2>
-            <p className="text-yellow-100 text-lg">
+      <Card className="bg-gradient-to-r from-yellow-500 to-orange-500 p-3 text-white sm:p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-black leading-tight text-amber-50 sm:text-xl">
+              Performance & Rapidité
+            </h2>
+            <p className="mt-0.5 text-xs leading-snug text-yellow-100/95 sm:text-sm">
               Interface rapide et réactive pour une expérience fluide
             </p>
           </div>
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden shrink-0 items-center space-x-3 md:flex">
             <div className="text-center">
-              <div className="text-2xl font-bold">{performanceMetrics.uptime.toFixed(1)}%</div>
-              <div className="text-sm text-yellow-100">Disponibilité</div>
+              <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
+                {performanceMetrics.uptime.toFixed(1)}%
+              </div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">Disponibilité</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{performanceMetrics.responseTime.toFixed(0)}ms</div>
-              <div className="text-sm text-yellow-100">Temps réponse</div>
+              <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
+                {performanceMetrics.responseTime.toFixed(0)}ms
+              </div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">Temps réponse</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{performanceMetrics.activeUsers}</div>
-              <div className="text-sm text-yellow-100">Utilisateurs actifs</div>
+              <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
+                {performanceMetrics.activeUsers}
+              </div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">Actifs</div>
             </div>
           </div>
         </div>
       </Card>
 
       {/* Refresh Control */}
-      <Card>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <Card className="p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Button
+              size="sm"
               onClick={() => setLastUpdate(new Date())}
               className="bg-yellow-500 hover:bg-yellow-600"
             >
-              <FiRefreshCw className="w-4 h-4 mr-2" />
+              <FiRefreshCw className="mr-1.5 h-3.5 w-3.5" />
               Actualiser
             </Button>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs text-gray-600 sm:text-sm">
               Dernière mise à jour : {lastUpdate.toLocaleTimeString('fr-FR')}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm text-gray-600">Intervalle d'actualisation :</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="perf-refresh-interval" className="text-xs text-gray-600 sm:text-sm">
+              Intervalle :
+            </label>
             <select
+              id="perf-refresh-interval"
               value={refreshInterval}
               onChange={(e) => setRefreshInterval(Number(e.target.value))}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+              className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs sm:text-sm"
             >
               <option value={5000}>5 secondes</option>
               <option value={10000}>10 secondes</option>
@@ -192,8 +205,8 @@ const PerformanceManagement = () => {
       </Card>
 
       {/* Tabs */}
-      <Card>
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide pb-2">
+      <Card className="p-2 sm:p-3">
+        <div className={ADM.bigTabRow}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -201,13 +214,12 @@ const PerformanceManagement = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                className={ADM.bigTabBtn(
+                  isActive,
+                  'bg-gradient-to-r from-yellow-500 to-orange-500'
+                )}
               >
-                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <Icon className={ADM.bigTabIcon} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -218,87 +230,87 @@ const PerformanceManagement = () => {
       {/* Content */}
       <div className="animate-slide-up">
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Métriques principales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Temps de Réponse</p>
-                    <p className="text-3xl font-bold text-green-600">
+            <div className={ADM.grid4}>
+              <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-green-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Temps de réponse</p>
+                    <p className={`${ADM.statVal} text-green-600`}>
                       {performanceMetrics.responseTime.toFixed(0)}ms
                     </p>
                     {getPerformanceStatus(performanceMetrics.responseTime, 200, 'lower') === 'good' ? (
-                      <FiTrendingDown className="w-4 h-4 text-green-600 mt-1" />
+                      <FiTrendingDown className="mt-0.5 h-3.5 w-3.5 text-green-600" />
                     ) : (
-                      <FiTrendingUp className="w-4 h-4 text-red-600 mt-1" />
+                      <FiTrendingUp className="mt-0.5 h-3.5 w-3.5 text-red-600" />
                     )}
                   </div>
-                  <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center">
-                    <FiZap className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-600 text-white">
+                    <FiZap className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Charge Serveur</p>
-                    <p className="text-3xl font-bold text-blue-600">
+              <Card className={`border-l-4 border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Charge serveur</p>
+                    <p className={`${ADM.statVal} text-blue-600`}>
                       {performanceMetrics.serverLoad.toFixed(1)}%
                     </p>
                     {getPerformanceStatus(performanceMetrics.serverLoad, 70, 'lower') === 'good' ? (
-                      <FiCheckCircle className="w-4 h-4 text-green-600 mt-1" />
+                      <FiCheckCircle className="mt-0.5 h-3.5 w-3.5 text-green-600" />
                     ) : (
-                      <FiAlertCircle className="w-4 h-4 text-yellow-600 mt-1" />
+                      <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 text-yellow-600" />
                     )}
                   </div>
-                  <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <FiServer className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                    <FiServer className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Taux de Cache</p>
-                    <p className="text-3xl font-bold text-purple-600">
+              <Card className={`border-l-4 border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Taux de cache</p>
+                    <p className={`${ADM.statVal} text-purple-600`}>
                       {performanceMetrics.cacheHitRate.toFixed(1)}%
                     </p>
                     {getPerformanceStatus(performanceMetrics.cacheHitRate, 80, 'higher') === 'good' ? (
-                      <FiTrendingUp className="w-4 h-4 text-green-600 mt-1" />
+                      <FiTrendingUp className="mt-0.5 h-3.5 w-3.5 text-green-600" />
                     ) : (
-                      <FiTrendingDown className="w-4 h-4 text-yellow-600 mt-1" />
+                      <FiTrendingDown className="mt-0.5 h-3.5 w-3.5 text-yellow-600" />
                     )}
                   </div>
-                  <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center">
-                    <FiDatabase className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white">
+                    <FiDatabase className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Requêtes/min</p>
-                    <p className="text-3xl font-bold text-orange-600">
+              <Card className={`border-l-4 border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Requêtes/min</p>
+                    <p className={`${ADM.statVal} text-orange-600`}>
                       {performanceMetrics.requestsPerMinute}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">Actif</p>
+                    <p className={ADM.statHint}>Actif</p>
                   </div>
-                  <div className="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center">
-                    <FiActivity className="w-8 h-8 text-white" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-white">
+                    <FiActivity className="h-4 w-4" />
                   </div>
                 </div>
               </Card>
             </div>
 
             {/* Graphiques de performance */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Temps de Réponse (24h)</h3>
-                <ResponsiveContainer width="100%" height={300}>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card className="p-3 sm:p-4">
+                <h3 className={`${ADM.h2} mb-2 text-gray-800`}>Temps de réponse (24h)</h3>
+                <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={responseTimeData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
@@ -315,9 +327,9 @@ const PerformanceManagement = () => {
                 </ResponsiveContainer>
               </Card>
 
-              <Card>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Charge Serveur</h3>
-                <ResponsiveContainer width="100%" height={300}>
+              <Card className="p-3 sm:p-4">
+                <h3 className={`${ADM.h2} mb-2 text-gray-800`}>Charge serveur</h3>
+                <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={serverLoadData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -335,11 +347,11 @@ const PerformanceManagement = () => {
         )}
 
         {activeTab === 'metrics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Temps de Réponse</h4>
+          <div className="space-y-4">
+            <div className={ADM.grid3}>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Temps de réponse</h4>
                   {getStatusBadge(getPerformanceStatus(performanceMetrics.responseTime, 200, 'lower'))}
                 </div>
                 <div className="space-y-2">
@@ -357,9 +369,9 @@ const PerformanceManagement = () => {
                 </div>
               </Card>
 
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Utilisation CPU</h4>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Utilisation CPU</h4>
                   {getStatusBadge(getPerformanceStatus(performanceMetrics.cpuUsage, 70, 'lower'))}
                 </div>
                 <div className="space-y-2">
@@ -377,9 +389,9 @@ const PerformanceManagement = () => {
                 </div>
               </Card>
 
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Utilisation Mémoire</h4>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Utilisation mémoire</h4>
                   {getStatusBadge(getPerformanceStatus(performanceMetrics.memoryUsage, 80, 'lower'))}
                 </div>
                 <div className="space-y-2">
@@ -397,9 +409,9 @@ const PerformanceManagement = () => {
                 </div>
               </Card>
 
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Requêtes Base de Données</h4>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Requêtes base de données</h4>
                   {getStatusBadge('good')}
                 </div>
                 <div className="space-y-2">
@@ -414,9 +426,9 @@ const PerformanceManagement = () => {
                 </div>
               </Card>
 
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Taux de Cache</h4>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Taux de cache</h4>
                   {getStatusBadge(getPerformanceStatus(performanceMetrics.cacheHitRate, 80, 'higher'))}
                 </div>
                 <div className="space-y-2">
@@ -434,9 +446,9 @@ const PerformanceManagement = () => {
                 </div>
               </Card>
 
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-800">Disponibilité</h4>
+              <Card className="p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">Disponibilité</h4>
                   {getStatusBadge('good')}
                 </div>
                 <div className="space-y-2">
@@ -455,11 +467,11 @@ const PerformanceManagement = () => {
         )}
 
         {activeTab === 'usage' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Répartition des Utilisateurs</h3>
-                <ResponsiveContainer width="100%" height={300}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card className="p-3 sm:p-4">
+                <h3 className={`${ADM.h2} mb-2 text-gray-800`}>Répartition des utilisateurs</h3>
+                <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
                     <Pie
                       data={usageData}
@@ -480,9 +492,9 @@ const PerformanceManagement = () => {
                 </ResponsiveContainer>
               </Card>
 
-              <Card>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Activité par Heure</h3>
-                <ResponsiveContainer width="100%" height={300}>
+              <Card className="p-3 sm:p-4">
+                <h3 className={`${ADM.h2} mb-2 text-gray-800`}>Activité par heure</h3>
+                <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={responseTimeData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
@@ -494,37 +506,37 @@ const PerformanceManagement = () => {
               </Card>
             </div>
 
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Statistiques d'Utilisation</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiUsers className="w-6 h-6 text-blue-600" />
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Statistiques d&apos;utilisation</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                <div className="rounded-lg bg-blue-50 p-3">
+                  <div className="flex items-center space-x-2">
+                    <FiUsers className="h-5 w-5 shrink-0 text-blue-600" />
                     <div>
-                      <p className="text-2xl font-bold text-gray-800">{performanceMetrics.activeUsers}</p>
-                      <p className="text-sm text-gray-600">Utilisateurs actifs</p>
+                      <p className="text-lg font-bold text-gray-800">{performanceMetrics.activeUsers}</p>
+                      <p className="text-xs text-gray-600">Utilisateurs actifs</p>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiActivity className="w-6 h-6 text-green-600" />
+                <div className="rounded-lg bg-green-50 p-3">
+                  <div className="flex items-center space-x-2">
+                    <FiActivity className="h-5 w-5 shrink-0 text-green-600" />
                     <div>
-                      <p className="text-2xl font-bold text-gray-800">
+                      <p className="text-lg font-bold text-gray-800">
                         {performanceMetrics.requestsPerMinute}
                       </p>
-                      <p className="text-sm text-gray-600">Requêtes/minute</p>
+                      <p className="text-xs text-gray-600">Requêtes/minute</p>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FiDatabase className="w-6 h-6 text-purple-600" />
+                <div className="rounded-lg bg-purple-50 p-3">
+                  <div className="flex items-center space-x-2">
+                    <FiDatabase className="h-5 w-5 shrink-0 text-purple-600" />
                     <div>
-                      <p className="text-2xl font-bold text-gray-800">
+                      <p className="text-lg font-bold text-gray-800">
                         {performanceMetrics.databaseQueries}
                       </p>
-                      <p className="text-sm text-gray-600">Requêtes DB</p>
+                      <p className="text-xs text-gray-600">Requêtes DB</p>
                     </div>
                   </div>
                 </div>
@@ -534,14 +546,14 @@ const PerformanceManagement = () => {
         )}
 
         {activeTab === 'optimization' && (
-          <div className="space-y-6">
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">État des Optimisations</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>État des optimisations</h3>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
                 {optimizationData.map((item, index) => (
-                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">{item.name}</h4>
+                  <div key={index} className="rounded-lg bg-gray-50 p-3">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-gray-800">{item.name}</h4>
                       <Badge className={item.value >= 80 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
                         {item.value}%
                       </Badge>
@@ -557,41 +569,41 @@ const PerformanceManagement = () => {
               </div>
             </Card>
 
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Recommandations d'Optimisation</h3>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <FiZap className="w-5 h-5 text-blue-600 mt-0.5" />
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Recommandations d&apos;optimisation</h3>
+              <div className="space-y-2">
+                <div className="flex items-start space-x-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <FiZap className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Activer la compression GZIP</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Activer la compression GZIP</h4>
+                    <p className="text-xs text-gray-600">
                       Réduire la taille des réponses HTTP de 60-70% pour améliorer les temps de chargement.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <FiDatabase className="w-5 h-5 text-green-600 mt-0.5" />
+                <div className="flex items-start space-x-2 rounded-lg border border-green-200 bg-green-50 p-3">
+                  <FiDatabase className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Optimiser les requêtes DB</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Optimiser les requêtes DB</h4>
+                    <p className="text-xs text-gray-600">
                       Ajouter des index sur les champs fréquemment utilisés pour accélérer les recherches.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <FiServer className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div className="flex items-start space-x-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                  <FiServer className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Mettre en cache les données statiques</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Mettre en cache les données statiques</h4>
+                    <p className="text-xs text-gray-600">
                       Utiliser Redis ou Memcached pour mettre en cache les données fréquemment accédées.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <FiGlobe className="w-5 h-5 text-purple-600 mt-0.5" />
+                <div className="flex items-start space-x-2 rounded-lg border border-purple-200 bg-purple-50 p-3">
+                  <FiGlobe className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-1">Utiliser un CDN</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="mb-0.5 text-sm font-semibold text-gray-800">Utiliser un CDN</h4>
+                    <p className="text-xs text-gray-600">
                       Distribuer les assets statiques via un CDN pour réduire la latence.
                     </p>
                   </div>
@@ -602,54 +614,54 @@ const PerformanceManagement = () => {
         )}
 
         {activeTab === 'monitoring' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">CPU</p>
-                    <p className="text-3xl font-bold text-red-600">{performanceMetrics.cpuUsage.toFixed(1)}%</p>
+          <div className="space-y-4">
+            <div className={ADM.grid4}>
+              <Card className={`border-l-4 border-red-500 bg-gradient-to-br from-red-50 to-red-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>CPU</p>
+                    <p className={`${ADM.statVal} text-red-600`}>{performanceMetrics.cpuUsage.toFixed(1)}%</p>
                   </div>
-                  <FiCpu className="w-8 h-8 text-red-600" />
+                  <FiCpu className="h-7 w-7 shrink-0 text-red-600" />
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Mémoire</p>
-                    <p className="text-3xl font-bold text-blue-600">
+              <Card className={`border-l-4 border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Mémoire</p>
+                    <p className={`${ADM.statVal} text-blue-600`}>
                       {performanceMetrics.memoryUsage.toFixed(1)}%
                     </p>
                   </div>
-                  <FiHardDrive className="w-8 h-8 text-blue-600" />
+                  <FiHardDrive className="h-7 w-7 shrink-0 text-blue-600" />
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Réseau</p>
-                    <p className="text-3xl font-bold text-green-600">Normal</p>
+              <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-green-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Réseau</p>
+                    <p className={`${ADM.statVal} text-base text-green-600`}>Normal</p>
                   </div>
-                  <FiWifi className="w-8 h-8 text-green-600" />
+                  <FiWifi className="h-7 w-7 shrink-0 text-green-600" />
                 </div>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Disque</p>
-                    <p className="text-3xl font-bold text-purple-600">65%</p>
+              <Card className={`border-l-4 border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 ${ADM.statCard}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={ADM.statLabel}>Disque</p>
+                    <p className={`${ADM.statVal} text-purple-600`}>65%</p>
                   </div>
-                  <FiDatabase className="w-8 h-8 text-purple-600" />
+                  <FiDatabase className="h-7 w-7 shrink-0 text-purple-600" />
                 </div>
               </Card>
             </div>
 
-            <Card>
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Monitoring en Temps Réel</h3>
-              <ResponsiveContainer width="100%" height={400}>
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-2 text-gray-800`}>Monitoring en temps réel</h3>
+              <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={responseTimeData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="time" />

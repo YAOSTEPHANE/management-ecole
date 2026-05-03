@@ -20,12 +20,18 @@ import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../utils/currency';
 import toast from 'react-hot-toast';
+import { ADM } from './adminModuleLayout';
 
 interface PaymentsManagementProps {
   embedded?: boolean;
+  /** Densité réduite (défaut : true) */
+  compact?: boolean;
 }
 
-const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = false }) => {
+const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
+  embedded = false,
+  compact = true,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
@@ -145,36 +151,43 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
 
   if (isLoading) {
     return (
-      <Card>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Chargement des paiements...</p>
+      <Card className="p-6 sm:p-8">
+        <div className="py-6 text-center">
+          <div className="inline-block h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
+          <p className="mt-3 text-sm text-gray-600">Chargement des paiements…</p>
         </div>
       </Card>
     );
   }
 
+  const btnSize = 'sm';
+  const tc = 'py-2 px-3 text-xs sm:text-sm';
+
   return (
-    <div className="space-y-6">
+    <div className={compact ? ADM.root : 'space-y-4 text-sm'}>
       {/* Header */}
       <div
-        className={`flex items-center justify-between flex-wrap gap-3 ${embedded ? 'justify-end' : ''}`}
+        className={`flex flex-wrap items-center justify-between gap-2 sm:gap-3 ${embedded ? 'justify-end' : ''}`}
       >
         {!embedded && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gestion des Paiements</h2>
-            <p className="text-gray-600 mt-1">Paiements regroupés par élève et par parent</p>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 sm:text-xl">Gestion des Paiements</h2>
+            <p className="mt-0.5 text-xs leading-snug text-gray-600 sm:text-sm">
+              Paiements regroupés par élève et par parent
+            </p>
           </div>
         )}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           <Button
+            size={btnSize}
             variant={groupByStudent ? 'primary' : 'secondary'}
             onClick={() => setGroupByStudent(!groupByStudent)}
           >
-            <FiUsers className="w-4 h-4 mr-2" />
+            <FiUsers className="mr-1.5 h-3.5 w-3.5 shrink-0" />
             {groupByStudent ? 'Par élève' : 'Liste simple'}
           </Button>
           <Button
+            size={btnSize}
             variant="secondary"
             onClick={() => {
               const rows = groupByStudent
@@ -223,74 +236,76 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
               toast.success('Export CSV téléchargé');
             }}
           >
-            <FiDownload className="w-4 h-4 mr-2" />
+            <FiDownload className="mr-1.5 h-3.5 w-3.5 shrink-0" />
             Exporter
           </Button>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Élèves</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
+      <div className={ADM.grid4}>
+        <Card className={`border-l-4 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Élèves</p>
+              <p className={ADM.statVal}>{stats.totalStudents}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white">
-              <FiUsers className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Paiements</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalPayments}</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white">
-              <FiDollarSign className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white">
+              <FiUsers className="h-4 w-4" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total payé</p>
-              <p className="text-2xl font-bold text-gray-900">{formatFCFA(stats.totalAmount)}</p>
+        <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Paiements</p>
+              <p className={ADM.statVal}>{stats.totalPayments}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center text-white">
-              <FiDollarSign className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-500 text-white">
+              <FiDollarSign className="h-4 w-4" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-amber-50 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Parents</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalParents}</p>
+        <Card className={`border-l-4 border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Total payé</p>
+              <p className={`${ADM.statVal} text-base`}>{formatFCFA(stats.totalAmount)}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center text-white">
-              <FiUser className="w-6 h-6" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500 text-white">
+              <FiDollarSign className="h-4 w-4" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className={`border-l-4 border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 ${ADM.statCard}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className={ADM.statLabel}>Parents</p>
+              <p className={ADM.statVal}>{stats.totalParents}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white">
+              <FiUser className="h-4 w-4" />
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
-        <div className="flex flex-col md:flex-row gap-4">
+      <Card className="p-3 sm:p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:gap-3">
           <div className="flex-1">
             <SearchBar
+              compact={compact}
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder="Rechercher par élève, classe..."
             />
           </div>
           <FilterDropdown
+            compact={compact}
             options={[
               { label: 'Tous', value: 'all' },
               { label: 'Complétés', value: 'completed' },
@@ -306,12 +321,12 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
 
       {/* Payments grouped by student */}
       {groupByStudent ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredPayments.length === 0 ? (
-            <Card>
-              <div className="text-center py-12 text-gray-500">
-                <FiDollarSign className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg mb-2">Aucun paiement trouvé</p>
+            <Card className="p-4 sm:p-6">
+              <div className="py-8 text-center text-gray-500">
+                <FiDollarSign className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                <p className="text-sm font-medium">Aucun paiement trouvé</p>
               </div>
             </Card>
           ) : (
@@ -321,34 +336,30 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
               return (
                 <Card key={group.student.id} className="overflow-hidden">
                   <button
+                    type="button"
                     onClick={() => toggleStudent(group.student.id)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                    className="flex w-full items-center justify-between p-3 transition-colors hover:bg-gray-50"
                   >
-                    <div className="flex items-center space-x-3 flex-1">
+                    <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-3">
                       {isExpanded ? (
-                        <FiChevronUp className="w-5 h-5 text-gray-500" />
+                        <FiChevronUp className="h-4 w-4 shrink-0 text-gray-500" />
                       ) : (
-                        <FiChevronDown className="w-5 h-5 text-gray-500" />
+                        <FiChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
                       )}
-                      <Avatar
-                        name={group.student.name}
-                        size="md"
-                      />
-                      <div className="text-left flex-1">
-                        <h3 className="font-semibold text-gray-800 text-lg">
-                          {group.student.name}
-                        </h3>
-                        <p className="text-sm text-gray-500">
+                      <Avatar name={group.student.name} size="sm" />
+                      <div className="min-w-0 flex-1 text-left">
+                        <h3 className="text-base font-semibold text-gray-800">{group.student.name}</h3>
+                        <p className="truncate text-xs text-gray-500">
                           {group.student.class} - {group.student.email}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="ml-2 flex shrink-0 items-center space-x-2 sm:space-x-3">
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Total payé</p>
-                        <p className="font-bold text-green-600">{formatFCFA(group.totalPaid)}</p>
+                        <p className="text-[10px] text-gray-500 sm:text-xs">Total payé</p>
+                        <p className="text-sm font-bold text-green-600">{formatFCFA(group.totalPaid)}</p>
                       </div>
-                      <Badge variant="info" className="text-sm">
+                      <Badge variant="info" className="text-xs">
                         {group.payments.length} paiement{group.payments.length > 1 ? 's' : ''}
                       </Badge>
                     </div>
@@ -357,77 +368,72 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
                   {isExpanded && (
                     <div className="border-t border-gray-200">
                       {/* Grouped by parent */}
-                      <div className="p-4 space-y-4">
+                      <div className="space-y-3 p-3">
                         {group.byParent.length === 0 ? (
-                          <p className="text-sm text-gray-500 text-center py-4">
+                          <p className="py-3 text-center text-xs text-gray-500">
                             Aucun paiement enregistré
                           </p>
                         ) : (
                           group.byParent.map((parentGroup: any) => (
                             <div
                               key={parentGroup.parent.id}
-                              className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                              className="rounded-lg border border-gray-200 bg-gray-50 p-3"
                             >
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-3">
-                                  <Avatar
-                                    name={parentGroup.parent.name}
-                                    size="sm"
-                                  />
-                                  <div>
-                                    <p className="font-medium text-gray-800">
+                              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex min-w-0 items-center space-x-2">
+                                  <Avatar name={parentGroup.parent.name} size="sm" />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-gray-800">
                                       {parentGroup.parent.name}
                                     </p>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="truncate text-xs text-gray-500">
                                       {parentGroup.parent.email} ({parentGroup.parent.role})
                                     </p>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-sm text-gray-500">Total payé</p>
-                                  <p className="font-bold text-green-600">
+                                <div className="shrink-0 text-right">
+                                  <p className="text-xs text-gray-500">Total payé</p>
+                                  <p className="text-sm font-bold text-green-600">
                                     {formatFCFA(parentGroup.totalPaid)}
                                   </p>
                                 </div>
                               </div>
 
                               {/* Liste des paiements de ce parent */}
-                              <div className="mt-3 space-y-2">
+                              <div className="mt-2 space-y-1.5">
                                 {parentGroup.payments.map((payment: any) => (
                                   <div
                                     key={payment.id}
-                                    className="bg-white rounded p-3 border border-gray-200 flex items-center justify-between"
+                                    className="flex items-center justify-between rounded border border-gray-200 bg-white p-2"
                                   >
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium text-gray-800">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-medium text-gray-800">
                                         {payment.tuitionFee?.period} - {payment.tuitionFee?.academicYear}
                                       </p>
-                                      <p className="text-xs text-gray-500">
+                                      <p className="text-[10px] text-gray-500 sm:text-xs">
                                         {format(new Date(payment.createdAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
                                       </p>
                                     </div>
-                                    <div className="flex items-center space-x-3">
-                                      <div className="text-right">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          {formatFCFA(payment.amount)}
-                                        </p>
-                                        <Badge
-                                          variant={
-                                            payment.status === 'COMPLETED'
-                                              ? 'success'
-                                              : payment.status === 'PENDING'
-                                              ? 'warning'
-                                              : 'danger'
-                                          }
-                                          className="text-xs"
-                                        >
-                                          {payment.status === 'COMPLETED'
-                                            ? 'Complété'
+                                    <div className="ml-2 flex shrink-0 flex-col items-end gap-1 text-right">
+                                      <p className="text-xs font-semibold text-gray-900 sm:text-sm">
+                                        {formatFCFA(payment.amount)}
+                                      </p>
+                                      <Badge
+                                        variant={
+                                          payment.status === 'COMPLETED'
+                                            ? 'success'
                                             : payment.status === 'PENDING'
-                                            ? 'En attente'
-                                            : 'Échoué'}
-                                        </Badge>
-                                      </div>
+                                            ? 'warning'
+                                            : 'danger'
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {payment.status === 'COMPLETED'
+                                          ? 'Complété'
+                                          : payment.status === 'PENDING'
+                                          ? 'En attente'
+                                          : 'Échoué'}
+                                      </Badge>
                                     </div>
                                   </div>
                                 ))}
@@ -444,35 +450,37 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
           )}
         </div>
       ) : (
-        <Card>
+        <Card className="p-3 sm:p-4">
           <div className="overflow-x-auto">
             {flatPayments.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <FiDollarSign className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p>Aucun paiement trouvé</p>
+              <div className="py-8 text-center text-gray-500">
+                <FiDollarSign className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                <p className="text-sm">Aucun paiement trouvé</p>
               </div>
             ) : (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Élève</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Classe</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Parent</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Période</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Montant</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Élève</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Classe</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Parent</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Période</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700">Montant</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Statut</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {flatPayments.map((p) => (
                     <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">{p.studentName}</td>
-                      <td className="py-3 px-4 text-gray-600">{p.studentClass}</td>
-                      <td className="py-3 px-4 text-gray-600">{p.parentName}</td>
-                      <td className="py-3 px-4 text-gray-600">{p.period ?? '-'} {p.academicYear ?? ''}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatFCFA(p.amount)}</td>
-                      <td className="py-3 px-4">
+                      <td className={`${tc} font-medium text-gray-900`}>{p.studentName}</td>
+                      <td className={`${tc} text-gray-600`}>{p.studentClass}</td>
+                      <td className={`${tc} text-gray-600`}>{p.parentName}</td>
+                      <td className={`${tc} text-gray-600`}>
+                        {p.period ?? '-'} {p.academicYear ?? ''}
+                      </td>
+                      <td className={`${tc} text-right font-semibold text-gray-900`}>{formatFCFA(p.amount)}</td>
+                      <td className={tc}>
                         <Badge
                           variant={
                             p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'danger'
@@ -482,7 +490,7 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({ embedded = fals
                           {p.status === 'COMPLETED' ? 'Complété' : p.status === 'PENDING' ? 'En attente' : 'Échoué'}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-500">
+                      <td className={`${tc} text-gray-500`}>
                         {format(new Date(p.createdAt), 'dd MMM yyyy HH:mm', { locale: fr })}
                       </td>
                     </tr>

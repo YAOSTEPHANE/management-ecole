@@ -184,11 +184,11 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
     const daySchedule = getDaySchedule(date);
     if (daySchedule.length > 0) {
       return (
-        <div className="flex flex-wrap gap-1 justify-center mt-1">
+        <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
           {daySchedule.slice(0, 2).map((item, idx) => (
             <div
               key={idx}
-              className="w-2 h-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-sm transform-gpu transition-transform duration-200 hover:scale-125"
+              className="h-1.5 w-1.5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-sm transform-gpu transition-transform duration-200 hover:scale-125"
               title={item.course.name}
               style={{
                 boxShadow: '0 2px 4px rgba(147, 51, 234, 0.3)',
@@ -197,7 +197,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
           ))}
           {daySchedule.length > 2 && (
             <div 
-              className="w-2 h-2 bg-gray-400 rounded-full" 
+              className="h-1.5 w-1.5 rounded-full bg-gray-400" 
               title={`+${daySchedule.length - 2} autres`}
               style={{
                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
@@ -211,13 +211,13 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-sm">
       {/* Header avec bouton d'export */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
+      <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Mon Emploi du Temps</h2>
-            <p className="text-sm text-gray-600">Visualisez et téléchargez votre emploi du temps</p>
+            <h2 className="text-lg font-bold text-gray-900">Mon Emploi du Temps</h2>
+            <p className="text-xs text-gray-600">Visualisez et téléchargez votre emploi du temps</p>
           </div>
           <Button
             onClick={exportToPDF}
@@ -239,7 +239,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
         <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         <div className="relative z-10 flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-600">Choisissez votre mode d'affichage</p>
+            <p className="text-xs text-gray-600">Choisissez votre mode d&apos;affichage</p>
           </div>
           <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm rounded-xl p-1 border-2 border-purple-200 shadow-lg"
             style={{
@@ -248,7 +248,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
           >
             <button
               onClick={() => setViewMode('weekly')}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 transform-gpu ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 transform-gpu ${
                 viewMode === 'weekly'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -262,7 +262,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 transform-gpu ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 transform-gpu ${
                 viewMode === 'calendar'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -301,7 +301,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
           
           <div className="relative z-10">
             <h3 
-              className="text-xl font-bold text-gray-800 mb-6 relative"
+              className="relative mb-4 text-lg font-bold text-gray-800"
               style={{
                 textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                 transform: 'perspective(300px) translateZ(10px)',
@@ -312,11 +312,11 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
 
             {/* Weekly Schedule Grid */}
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr>
                     <th 
-                      className="border border-gray-200 p-3 bg-gradient-to-br from-purple-100 to-pink-100 font-semibold text-gray-700 relative min-w-[100px]"
+                      className="relative min-w-[88px] border border-gray-200 bg-gradient-to-br from-purple-100 to-pink-100 px-2 py-1.5 text-[11px] font-semibold text-gray-700 sm:text-xs"
                       style={{
                         boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(255, 255, 255, 0.5)',
                         transform: 'perspective(200px) rotateX(5deg)',
@@ -327,7 +327,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                     {DAYS.slice(1, 6).map((day) => (
                       <th
                         key={day.value}
-                        className="border border-gray-200 p-3 bg-gradient-to-br from-purple-100 to-pink-100 font-semibold text-gray-700 min-w-[150px] relative"
+                        className="relative min-w-[118px] border border-gray-200 bg-gradient-to-br from-purple-100 to-pink-100 px-2 py-1.5 text-[11px] font-semibold text-gray-700 sm:min-w-[128px] sm:text-xs"
                         style={{
                           boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(255, 255, 255, 0.5)',
                           transform: 'perspective(200px) rotateX(5deg)',
@@ -344,7 +344,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                     return (
                       <tr key={time}>
                         <td 
-                          className="border border-gray-200 p-2 text-sm text-gray-600 font-medium bg-gradient-to-br from-gray-50 to-gray-100 relative"
+                          className="relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-xs font-medium text-gray-600"
                           style={{
                             boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)',
                           }}
@@ -361,11 +361,11 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                           return (
                             <td
                               key={day.value}
-                              className="border border-gray-200 p-2 align-top"
+                              className="border border-gray-200 p-1 align-top sm:p-1.5"
                             >
                               {scheduleForSlot ? (
                                 <div 
-                                  className="relative group/course bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 border-2 border-purple-300 rounded-lg p-3 mb-1 transform-gpu transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
+                                  className="relative mb-1 cursor-pointer rounded-lg border-2 border-purple-300 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 p-1.5 transform-gpu transition-all duration-300 group/course hover:scale-[1.02] hover:shadow-xl sm:p-2"
                                   style={{
                                     boxShadow: '0 4px 12px rgba(147, 51, 234, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
                                     transform: 'perspective(500px) translateZ(0) rotateX(2deg)',
@@ -399,7 +399,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                                   
                                   <div className="relative z-10">
                                     <p 
-                                      className="font-bold text-sm text-gray-800 relative mb-1"
+                                      className="relative mb-0.5 text-xs font-bold leading-snug text-gray-800 sm:text-[13px]"
                                       style={{
                                         textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
                                         transform: 'translateZ(5px)',
@@ -407,26 +407,26 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                                     >
                                       {scheduleForSlot.course?.name}
                                     </p>
-                                    <div className="flex items-center text-xs text-gray-600 mb-1">
-                                      <FiUser className="w-3 h-3 mr-1" />
+                                    <div className="mb-0.5 flex items-center text-[11px] text-gray-600">
+                                      <FiUser className="mr-0.5 h-2.5 w-2.5 shrink-0" />
                                       {scheduleForSlot.course?.teacher?.user?.firstName}{' '}
                                       {scheduleForSlot.course?.teacher?.user?.lastName}
                                     </div>
                                     {scheduleForSlot.room && (
-                                      <div className="flex items-center text-xs text-gray-500 mb-1">
-                                        <FiMapPin className="w-3 h-3 mr-1" />
+                                      <div className="mb-0.5 flex items-center text-[10px] text-gray-500">
+                                        <FiMapPin className="mr-0.5 h-2.5 w-2.5 shrink-0" />
                                         {scheduleForSlot.room}
                                       </div>
                                     )}
-                                    <div className="flex items-center text-xs text-purple-600 font-semibold">
-                                      <FiClock className="w-3 h-3 mr-1" />
+                                    <div className="flex items-center text-[10px] font-semibold text-purple-600">
+                                      <FiClock className="mr-0.5 h-2.5 w-2.5 shrink-0" />
                                       {scheduleForSlot.startTime} - {scheduleForSlot.endTime}
                                     </div>
                                   </div>
                                 </div>
                               ) : (
                                 <div 
-                                  className="h-20 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50 opacity-50"
+                                  className="h-14 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-50 sm:h-16"
                                   style={{
                                     boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
                                   }}
@@ -455,7 +455,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
             <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative z-10">
               <h3 
-                className="text-lg font-bold text-gray-800 mb-4 relative"
+                className="relative mb-3 text-base font-bold text-gray-800"
                 style={{
                   textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                   transform: 'perspective(300px) translateZ(10px)',
@@ -463,14 +463,14 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
               >
                 Calendrier
               </h3>
-              <div className="custom-calendar">
+              <div className="custom-calendar mx-auto w-full max-w-[16.5rem] sm:max-w-[17rem]">
                 <Calendar
                   onChange={(v) => {
                     if (v instanceof Date) setSelectedDate(v);
                   }}
                   value={selectedDate}
                   tileContent={tileContent}
-                  className="w-full border-0 rounded-lg"
+                  className="w-full rounded-lg border-0 text-[11px] leading-tight"
                 />
               </div>
             </div>
@@ -486,7 +486,7 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
             <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative z-10">
               <h3 
-                className="text-lg font-bold text-gray-800 mb-4 relative"
+                className="relative mb-3 text-base font-bold text-gray-800"
                 style={{
                   textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                   transform: 'perspective(300px) translateZ(10px)',
@@ -593,24 +593,32 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
         
         .custom-calendar .react-calendar {
           border: none;
-          border-radius: 12px;
-          box-shadow: 0 4px 12px rgba(147, 51, 234, 0.1);
+          border-radius: 10px;
+          box-shadow: 0 2px 10px rgba(147, 51, 234, 0.08);
+          font-size: 0.6875rem;
+        }
+        
+        .custom-calendar .react-calendar__navigation__label {
+          font-size: 0.75rem !important;
         }
         
         .custom-calendar .react-calendar__tile {
-          border-radius: 8px;
+          border-radius: 6px;
+          padding: 0.2rem 0.1rem;
+          min-height: 1.55rem;
+          font-size: 0.625rem;
           transition: all 0.2s;
         }
         
         .custom-calendar .react-calendar__tile:hover {
           background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(236, 72, 153, 0.1));
-          transform: scale(1.05);
+          transform: scale(1.02);
         }
         
         .custom-calendar .react-calendar__tile--active {
           background: linear-gradient(135deg, #9333ea, #ec4899);
           color: white;
-          box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+          box-shadow: 0 2px 8px rgba(147, 51, 234, 0.35);
         }
       `}</style>
     </div>

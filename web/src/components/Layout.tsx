@@ -1,7 +1,19 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import Avatar from './ui/Avatar';
-import { FiChevronDown, FiLogOut } from 'react-icons/fi';
+import ProfileEditModal from './ProfileEditModal';
+import {
+  FiBook,
+  FiBookOpen,
+  FiChevronDown,
+  FiEdit3,
+  FiLogOut,
+  FiMail,
+  FiPhone,
+  FiSettings,
+  FiShield,
+  FiUser,
+} from 'react-icons/fi';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,40 +27,100 @@ const ROLE_ACCENTS: Record<
   { bar: string; badge: string; logo: string; label: string }
 > = {
   ADMIN: {
-    bar: 'from-indigo-500 via-violet-500 to-fuchsia-500',
-    badge: 'bg-indigo-500/10 text-indigo-800 ring-1 ring-indigo-500/20',
-    logo: 'from-indigo-600 to-violet-600',
+    bar: 'from-amber-700 via-yellow-500 to-amber-800',
+    badge: 'bg-stone-900/90 text-amber-100 ring-1 ring-amber-500/35',
+    logo: 'from-stone-900 to-zinc-800',
     label: 'Administrateur',
   },
   TEACHER: {
-    bar: 'from-emerald-500 via-teal-500 to-cyan-500',
-    badge: 'bg-emerald-500/10 text-emerald-900 ring-1 ring-emerald-500/20',
-    logo: 'from-emerald-600 to-teal-600',
+    bar: 'from-emerald-800 via-teal-700 to-cyan-800',
+    badge: 'bg-emerald-950/80 text-emerald-100 ring-1 ring-emerald-500/30',
+    logo: 'from-emerald-900 to-teal-900',
     label: 'Enseignant',
   },
   STUDENT: {
-    bar: 'from-fuchsia-500 via-purple-500 to-indigo-500',
-    badge: 'bg-fuchsia-500/10 text-fuchsia-900 ring-1 ring-fuchsia-500/20',
-    logo: 'from-fuchsia-600 to-purple-600',
+    bar: 'from-violet-800 via-indigo-700 to-slate-900',
+    badge: 'bg-indigo-950/85 text-violet-100 ring-1 ring-violet-400/30',
+    logo: 'from-indigo-900 to-violet-950',
     label: 'Élève',
   },
   PARENT: {
-    bar: 'from-amber-500 via-orange-500 to-rose-500',
-    badge: 'bg-orange-500/10 text-orange-900 ring-1 ring-orange-500/20',
-    logo: 'from-amber-500 to-orange-600',
+    bar: 'from-amber-800 via-orange-700 to-rose-900',
+    badge: 'bg-orange-950/85 text-amber-50 ring-1 ring-amber-500/30',
+    logo: 'from-amber-900 to-orange-950',
     label: 'Parent',
   },
   EDUCATOR: {
-    bar: 'from-rose-500 via-pink-500 to-red-500',
-    badge: 'bg-rose-500/10 text-rose-900 ring-1 ring-rose-500/20',
-    logo: 'from-rose-600 to-pink-600',
+    bar: 'from-rose-900 via-pink-800 to-red-950',
+    badge: 'bg-rose-950/85 text-rose-100 ring-1 ring-rose-400/30',
+    logo: 'from-rose-900 to-pink-950',
     label: 'Éducateur',
   },
 };
 
+type ProfileRow = { key: string; icon: typeof FiMail; label: string; value: string };
+
+function buildProfileRows(user: LayoutProps['user'], role: string): ProfileRow[] {
+  const rows: ProfileRow[] = [];
+  if (user?.email) {
+    rows.push({ key: 'email', icon: FiMail, label: 'E-mail', value: user.email });
+  }
+  if (user?.phone) {
+    rows.push({ key: 'phone', icon: FiPhone, label: 'Téléphone', value: String(user.phone) });
+  }
+  const isActive = user?.isActive !== false;
+  rows.push({
+    key: 'status',
+    icon: FiShield,
+    label: 'Compte',
+    value: isActive ? 'Actif' : 'Suspendu',
+  });
+  if (role === 'TEACHER' && user?.teacherProfile) {
+    const t = user.teacherProfile as {
+      employeeId?: string | null;
+      specialization?: string | null;
+    };
+    if (t.employeeId) {
+      rows.push({ key: 'emp', icon: FiUser, label: 'Matricule', value: String(t.employeeId) });
+    }
+    if (t.specialization) {
+      rows.push({
+        key: 'spec',
+        icon: FiBookOpen,
+        label: 'Spécialité',
+        value: String(t.specialization),
+      });
+    }
+  }
+  if (role === 'STUDENT' && user?.studentProfile?.class?.name) {
+    rows.push({
+      key: 'class',
+      icon: FiBook,
+      label: 'Classe',
+      value: String(user.studentProfile.class.name),
+    });
+  }
+  if (role === 'PARENT' && Array.isArray(user?.parentProfile?.students)) {
+    const n = user.parentProfile.students.length;
+    if (n > 0) {
+      rows.push({
+        key: 'children',
+        icon: FiUser,
+        label: 'Enfants liés',
+        value: `${n} élève${n > 1 ? 's' : ''}`,
+      });
+    }
+  }
+  return rows;
+}
+
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const accent = ROLE_ACCENTS[role] ?? ROLE_ACCENTS.ADMIN;
+  const profileRows = buildProfileRows(user, role);
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'Utilisateur';
 
   const getRolePath = () => {
     switch (role) {
@@ -71,7 +143,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
     <div className="min-h-screen">
       <header className="sticky top-0 z-40">
         <div
-          className={`h-1 w-full bg-gradient-to-r opacity-95 ${accent.bar}`}
+          className={`h-0.5 w-full bg-gradient-to-r opacity-[0.98] shadow-[0_0_20px_-2px_rgba(201,162,39,0.45)] ${accent.bar}`}
           aria-hidden
         />
         <nav className="glass-nav">
@@ -82,84 +154,169 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                 className="flex items-center gap-2 sm:gap-2.5 min-w-0 group"
               >
                 <div
-                  className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.logo} text-white shadow-md shadow-black/10 ring-2 ring-white/30 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-lg`}
+                  className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.logo} text-amber-50 shadow-lg shadow-black/25 ring-2 ring-amber-500/25 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-xl`}
                 >
-                  <span className="font-display text-sm font-bold tracking-tight">É</span>
+                  <span className="font-display text-base font-semibold tracking-[0.12em]">É</span>
                   <span
-                    className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/25"
+                    className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/15"
                     aria-hidden
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+                  <p className="font-display text-base sm:text-lg font-semibold tracking-[0.06em] text-stone-900 truncate">
                     Gestion scolaire
                   </p>
-                  <p className="text-[9px] sm:text-[10px] font-medium text-slate-500 truncate">
+                  <p className="text-[9px] sm:text-[10px] font-medium uppercase tracking-[0.2em] text-stone-500 truncate">
                     Espace sécurisé
                   </p>
                 </div>
               </Link>
 
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
                 <span
-                  className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${accent.badge}`}
+                  className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold shrink-0 ${accent.badge}`}
                 >
                   {accent.label}
                 </span>
 
-                <div className="hidden md:block text-right min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 truncate">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-[9px] text-slate-500 truncate max-w-[200px]">{user?.email}</p>
+                <div className="hidden sm:block text-right min-w-0 max-w-[min(220px,28vw)] lg:max-w-[260px]">
+                  <p className="text-xs font-semibold text-stone-900 truncate">{displayName}</p>
+                  <p className="text-[9px] text-stone-500 truncate">{user?.email}</p>
+                  {user?.phone ? (
+                    <p className="text-[9px] text-stone-400 truncate tabular-nums">{user.phone}</p>
+                  ) : null}
                 </div>
 
-                <div className="relative">
+                <div className="relative z-50">
                   <button
                     type="button"
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/70 px-1.5 py-1 pr-2 shadow-sm backdrop-blur-sm transition hover:bg-white hover:shadow-md hover:border-slate-300/90 min-h-[40px] sm:min-h-0"
-                    aria-expanded={showUserMenu}
+                    className="flex items-center gap-2 rounded-xl border border-stone-300/70 bg-white/85 pl-1 pr-2 py-1 shadow-sm backdrop-blur-sm transition hover:bg-amber-50/40 hover:shadow-md hover:border-amber-300/50 min-h-[40px] sm:min-h-[44px]"
+                    aria-expanded={showUserMenu ? true : false}
                     aria-haspopup="menu"
+                    aria-label="Menu du compte"
                   >
-                    <span className="ring-2 ring-white rounded-full shadow-sm">
+                    <span className="ring-2 ring-white rounded-full shadow-sm shrink-0">
                       <Avatar
                         src={user?.avatar}
-                        name={`${user?.firstName} ${user?.lastName}`}
+                        name={displayName}
                         size="md"
                       />
                     </span>
+                    <span className="hidden min-[420px]:inline max-w-[100px] sm:max-w-[140px] truncate text-left text-xs font-semibold text-stone-800 leading-tight">
+                      {user?.firstName}
+                    </span>
                     <FiChevronDown
-                      className={`h-4 w-4 text-slate-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                      className={`h-4 w-4 text-slate-500 shrink-0 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
                     />
                   </button>
 
                   {showUserMenu && (
                     <div
                       role="menu"
-                      className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 py-2 shadow-premium backdrop-blur-xl animate-fade-in z-50"
+                      aria-label="Compte utilisateur"
+                      className="absolute right-0 mt-2 w-[min(calc(100vw-1.5rem),20rem)] sm:w-80 overflow-hidden rounded-2xl border border-stone-200/90 bg-white/98 shadow-lux-soft backdrop-blur-xl animate-fade-in ring-1 ring-amber-900/5"
                     >
-                      <div className="border-b border-slate-100 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {user?.firstName} {user?.lastName}
-                        </p>
-                        <p className="text-xs text-slate-500 break-all">{user?.email}</p>
-                        <p className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:hidden ${accent.badge}`}>
-                          {accent.label}
-                        </p>
+                      <div role="group" aria-label="Informations du profil">
+                        <div
+                          className={`relative overflow-hidden border-b border-stone-200/60 px-4 pt-4 pb-3 bg-gradient-to-br from-white via-stone-50/80 to-amber-50/40`}
+                        >
+                        <div
+                          className={`h-1 w-full shrink-0 bg-gradient-to-r opacity-90 ${accent.bar}`}
+                          role="presentation"
+                        >
+                        </div>
+                        <div className="relative flex gap-3 pt-2">
+                          <span className="ring-2 ring-white/90 rounded-full shadow-md shrink-0">
+                            <Avatar src={user?.avatar} name={displayName} size="lg" />
+                          </span>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <p className="text-base font-bold text-slate-900 leading-snug truncate">
+                              {displayName}
+                            </p>
+                            <p className="text-[11px] text-slate-600 break-all leading-snug mt-0.5">
+                              {user?.email}
+                            </p>
+                            <p
+                              className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${accent.badge}`}
+                            >
+                              {accent.label}
+                            </p>
+                          </div>
+                        </div>
+                        {role === 'ADMIN' ? (
+                          <p className="relative mt-3 text-[10px] leading-relaxed text-slate-500">
+                            Pilotage stratégique, opérationnel et conformité de l’établissement.
+                          </p>
+                        ) : null}
                       </div>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          onLogout();
-                        }}
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50"
-                      >
-                        <FiLogOut className="h-4 w-4 shrink-0" />
-                        Déconnexion
-                      </button>
+
+                      <div className="px-2 py-2 space-y-0.5 max-h-[min(50vh,16rem)] overflow-y-auto overscroll-contain">
+                        {profileRows.map((row) => {
+                          const Icon = row.icon;
+                          return (
+                            <div
+                              key={row.key}
+                              className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-stone-50/90 transition-colors"
+                            >
+                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600">
+                                <Icon className="h-3.5 w-3.5" aria-hidden />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                                  {row.label}
+                                </p>
+                                <p className="text-xs font-medium text-slate-800 break-words">{row.value}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      </div>
+
+                      <div className="px-2 pb-1">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            setProfileModalOpen(true);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-stone-800 transition hover:bg-stone-100/90"
+                        >
+                          <FiEdit3 className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
+                          Modifier mon profil
+                        </button>
+                      </div>
+
+                      {role === 'ADMIN' ? (
+                        <div className="px-2 pb-1">
+                          <Link
+                            href="/admin?tab=settings"
+                            role="menuitem"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex w-full items-center gap-2 rounded-xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50 to-violet-50/80 px-3 py-2.5 text-sm font-semibold text-indigo-900 transition hover:from-indigo-100 hover:to-violet-100/90"
+                          >
+                            <FiSettings className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
+                            Paramètres de l’établissement
+                          </Link>
+                        </div>
+                      ) : null}
+
+                      <div className="border-t border-slate-100 bg-stone-50/40 p-1.5">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            onLogout();
+                          }}
+                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                        >
+                          <FiLogOut className="h-4 w-4 shrink-0" aria-hidden />
+                          Déconnexion
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -179,6 +336,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
           onClick={() => setShowUserMenu(false)}
         />
       )}
+
+      <ProfileEditModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
     </div>
   );
 };

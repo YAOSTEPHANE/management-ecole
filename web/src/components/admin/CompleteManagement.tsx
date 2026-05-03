@@ -59,11 +59,14 @@ interface CompleteManagementProps {
   gradingModule?: boolean;
   /** Absences / présences uniquement (module Gestion des présences) */
   attendanceModule?: boolean;
+  /** Police et entêtes plus compacts (ex. sous « Notation et évaluation ») */
+  compact?: boolean;
 }
 
 const CompleteManagement: React.FC<CompleteManagementProps> = ({
   gradingModule = false,
   attendanceModule = false,
+  compact = false,
 }) => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ManagementTab>(
@@ -967,6 +970,31 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
     );
   }) || [];
 
+  /** Dashboard « Gestion complète » : tableaux plus denses (idem module compact) */
+  const fullManagement = !gradingModule && !attendanceModule;
+  const tightTable = compact || fullManagement;
+
+  /** Tableaux notes & absences : police réduite si compact ou gestion complète */
+  const gradeTableText = tightTable ? 'text-xs' : 'text-sm';
+  const gradeTh = tightTable
+    ? 'text-left py-2 px-2.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wide'
+    : 'text-left py-2.5 px-3 text-xs font-semibold text-gray-700';
+  const gradeTd = tightTable ? 'py-2 px-2.5 align-top' : 'py-2.5 px-3 align-top';
+  const gradeIcon = tightTable ? 'w-3 h-3 shrink-0 text-gray-400' : 'w-3.5 h-3.5 shrink-0 text-gray-400';
+
+  /** Carte filtres : couleurs alignées sur le bandeau du module (notation / présences) */
+  const filterCardClass = gradingModule
+    ? compact
+      ? '!p-2.5 sm:!p-3 border border-indigo-200/80 bg-gradient-to-r from-indigo-50 via-violet-50 to-indigo-50/95 shadow-sm ring-1 ring-violet-300/35'
+      : '!p-4 sm:!p-5 border border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-violet-50/75 to-indigo-50/50 ring-1 ring-violet-200/40'
+    : attendanceModule && compact
+      ? '!p-3 sm:!p-3.5 border border-teal-200/70 bg-gradient-to-r from-teal-50 via-cyan-50/80 to-teal-50/90 shadow-sm ring-1 ring-teal-300/30'
+    : compact
+      ? '!p-3 sm:!p-3.5'
+      : '';
+  const filterRowGap =
+    gradingModule && compact ? 'gap-2' : compact ? 'gap-3' : 'gap-4';
+
   const getGradeColor = (score: number, maxScore: number) => {
     const percentage = (score / maxScore) * 100;
     if (percentage >= 80) return 'text-green-600 bg-green-100';
@@ -987,27 +1015,41 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
       {/* Header */}
       <Card
-        className={
+        className={`${
           attendanceModule
             ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white border-0'
             : gradingModule
               ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-0'
               : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-        }
+        } ${compact ? 'p-4 sm:p-5' : ''}`}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black mb-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2
+              className={
+                compact
+                  ? 'text-xl sm:text-2xl font-black mb-1 leading-tight'
+                  : 'text-3xl font-black mb-2'
+              }
+            >
               {attendanceModule
                 ? 'Suivi des absences & présences'
                 : gradingModule
                   ? 'Saisie des notes & bulletins'
                   : 'Gestion Complète'}
             </h2>
-            <p className="text-blue-100 text-lg">
+            <p
+              className={
+                compact
+                  ? attendanceModule
+                    ? 'text-teal-50/95 text-sm leading-snug'
+                    : 'text-blue-100/95 text-sm leading-snug'
+                  : 'text-blue-100 text-lg'
+              }
+            >
               {attendanceModule
                 ? 'Consultez les absences, justifications et exports pour votre établissement.'
                 : gradingModule
@@ -1015,23 +1057,41 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
                   : 'Centralisez toutes les données académiques en un seul endroit'}
             </p>
           </div>
-          <div className="hidden md:flex items-center space-x-4">
+          <div className={`hidden md:flex items-center shrink-0 ${compact ? 'space-x-3' : 'space-x-4'}`}>
             {!attendanceModule && (
               <div className="text-right">
-                <div className="text-2xl font-bold">{grades?.length || 0}</div>
-                <div className="text-sm text-blue-100">Notes</div>
+                <div className={compact ? 'text-lg font-bold tabular-nums' : 'text-2xl font-bold'}>
+                  {grades?.length || 0}
+                </div>
+                <div className={compact ? 'text-xs text-blue-100' : 'text-sm text-blue-100'}>Notes</div>
               </div>
             )}
             {!gradingModule && (
               <>
                 <div className="text-right">
-                  <div className="text-2xl font-bold">{absences?.length || 0}</div>
-                  <div className="text-sm text-blue-100">Absences</div>
+                  <div className={compact ? 'text-lg font-bold tabular-nums' : 'text-2xl font-bold'}>
+                    {absences?.length || 0}
+                  </div>
+                  <div
+                    className={
+                      compact
+                        ? attendanceModule
+                          ? 'text-xs text-teal-100'
+                          : 'text-xs text-blue-100'
+                        : 'text-sm text-blue-100'
+                    }
+                  >
+                    Absences
+                  </div>
                 </div>
                 {!attendanceModule && (
                   <div className="text-right">
-                    <div className="text-2xl font-bold">{assignments?.length || 0}</div>
-                    <div className="text-sm text-blue-100">Devoirs</div>
+                    <div className={compact ? 'text-lg font-bold tabular-nums' : 'text-2xl font-bold'}>
+                      {assignments?.length || 0}
+                    </div>
+                    <div className={compact ? 'text-xs text-blue-100' : 'text-sm text-blue-100'}>
+                      Devoirs
+                    </div>
                   </div>
                 )}
               </>
@@ -1051,13 +1111,17 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
+                className={`group relative flex items-center space-x-2 rounded-xl font-semibold transition-all duration-300 whitespace-nowrap ${
+                  compact ? 'px-3 py-2 text-xs' : 'px-6 py-3 text-sm'
+                } ${
                   isActive
-                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg transform scale-105`
+                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg ${compact ? '' : 'transform scale-105'}`
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
-                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <Icon
+                  className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}
+                />
                 <span>{tab.label}</span>
                 {tab.count !== null && tab.count > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
@@ -1076,17 +1140,19 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
       </Card>
       )}
 
-      {/* Filters */}
-      <Card>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
+      {/* Filters — z-index au-dessus du bloc « animate-slide-up » (transform = stacking context) pour les menus */}
+      <Card className={`relative z-30 ${filterCardClass}`}>
+        <div className={`flex flex-col md:flex-row md:items-end ${filterRowGap}`}>
+          <div className="flex-1 min-w-0">
             <SearchBar
+              compact={compact}
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder="Rechercher..."
             />
           </div>
           <FilterDropdown
+            compact={compact}
             label="Classe"
             value={selectedClass}
             onChange={setSelectedClass}
@@ -1096,6 +1162,7 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
             ]}
           />
           <FilterDropdown
+            compact={compact}
             label="Matière"
             value={selectedCourse}
             onChange={setSelectedCourse}
@@ -1163,73 +1230,89 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className={`w-full ${gradeTableText}`}>
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Élève</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Classe</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Matière</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Évaluation</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Note</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Enseignant</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                      <th className={gradeTh}>Élève</th>
+                      <th className={gradeTh}>Classe</th>
+                      <th className={gradeTh}>Matière</th>
+                      <th className={gradeTh}>Évaluation</th>
+                      <th className={gradeTh}>Note</th>
+                      <th className={gradeTh}>Date</th>
+                      <th className={gradeTh}>Enseignant</th>
+                      <th className={gradeTh}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredGrades.map((grade: any) => (
                       <tr key={grade.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <FiUser className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FiUser className={gradeIcon} />
+                            <span className={`font-medium truncate ${tightTable ? '' : 'text-sm'}`}>
                               {grade.student.user.firstName} {grade.student.user.lastName}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-blue-100 text-blue-800">
+                        <td className={gradeTd}>
+                          <Badge
+                            className={`bg-blue-100 text-blue-800 ${tightTable ? 'text-[10px] px-1.5 py-0' : ''}`}
+                          >
                             {grade.student.class.name}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <FiBook className="w-4 h-4 text-gray-400" />
-                            <span>{grade.course.name}</span>
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FiBook className={gradeIcon} />
+                            <span className="truncate">{grade.course.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm">{grade.title}</span>
+                        <td className={gradeTd}>
+                          <span
+                            className={
+                              tightTable ? 'text-[11px] leading-snug text-gray-700' : 'text-xs text-gray-800'
+                            }
+                          >
+                            {grade.title}
+                          </span>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge className={getGradeColor(grade.score, grade.maxScore)}>
+                        <td className={gradeTd}>
+                          <Badge
+                            className={`${getGradeColor(grade.score, grade.maxScore)} ${
+                              tightTable ? 'text-[10px] px-1.5 py-0 tabular-nums' : 'tabular-nums'
+                            }`}
+                          >
                             {grade.score.toFixed(2)} / {grade.maxScore}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
                           {format(new Date(grade.date), 'dd/MM/yyyy', { locale: fr })}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
                           {grade.teacher.user.firstName} {grade.teacher.user.lastName}
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleViewGrade(grade.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className={`text-blue-600 hover:bg-blue-50 rounded-lg transition-colors ${
+                                tightTable ? 'p-1' : 'p-2'
+                              }`}
                               title="Voir les détails"
                             >
-                              <FiEye className="w-4 h-4" />
+                              <FiEye className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                             </button>
                             <button
                               onClick={() => {
                                 setSelectedGradeId(grade.id);
                                 setIsAddGradeModalOpen(true);
                               }}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className={`text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ${
+                                tightTable ? 'p-1' : 'p-2'
+                              }`}
                               title="Modifier"
                             >
-                              <FiEdit className="w-4 h-4" />
+                              <FiEdit className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                             </button>
                           </div>
                         </td>
@@ -1386,86 +1469,101 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className={`w-full ${gradeTableText}`}>
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Élève</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Classe</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Matière</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Justifié</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Enseignant</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                      <th className={gradeTh}>Élève</th>
+                      <th className={gradeTh}>Classe</th>
+                      <th className={gradeTh}>Matière</th>
+                      <th className={gradeTh}>Date</th>
+                      <th className={gradeTh}>Statut</th>
+                      <th className={gradeTh}>Justifié</th>
+                      <th className={gradeTh}>Enseignant</th>
+                      <th className={gradeTh}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAbsences.map((absence: any) => (
                       <tr key={absence.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <FiUser className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FiUser className={gradeIcon} />
+                            <span className={`font-medium truncate ${tightTable ? '' : 'text-sm'}`}>
                               {absence.student.user.firstName} {absence.student.user.lastName}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-blue-100 text-blue-800">
+                        <td className={gradeTd}>
+                          <Badge
+                            className={`bg-blue-100 text-blue-800 ${tightTable ? 'text-[10px] px-1.5 py-0' : ''}`}
+                          >
                             {absence.student.class.name}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <FiBook className="w-4 h-4 text-gray-400" />
-                            <span>{absence.course.name}</span>
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FiBook className={gradeIcon} />
+                            <span className="truncate">{absence.course.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
                           {format(new Date(absence.date), 'dd/MM/yyyy', { locale: fr })}
                         </td>
-                        <td className="py-3 px-4">
-                          {getStatusBadge(absence.status)}
-                        </td>
-                        <td className="py-3 px-4">
+                        <td className={gradeTd}>{getStatusBadge(absence.status)}</td>
+                        <td className={gradeTd}>
                           {absence.excused ? (
-                            <Badge className="bg-green-100 text-green-800">
+                            <Badge
+                              className={`bg-green-100 text-green-800 ${tightTable ? 'text-[10px] px-1.5 py-0' : ''}`}
+                            >
                               <FiCheckCircle className="w-3 h-3 mr-1 inline" />
                               Oui
                             </Badge>
                           ) : (
-                            <Badge className="bg-red-100 text-red-800">
+                            <Badge
+                              className={`bg-red-100 text-red-800 ${tightTable ? 'text-[10px] px-1.5 py-0' : ''}`}
+                            >
                               <FiXCircle className="w-3 h-3 mr-1 inline" />
                               Non
                             </Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
                           {absence.teacher.user.firstName} {absence.teacher.user.lastName}
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
+                        <td className={gradeTd}>
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleViewAbsence(absence.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className={`text-blue-600 hover:bg-blue-50 rounded-lg transition-colors ${
+                                tightTable ? 'p-1' : 'p-2'
+                              }`}
                               title="Voir les détails"
                             >
-                              <FiEye className="w-4 h-4" />
+                              <FiEye className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                             </button>
                             <button
                               onClick={() => handleEditAbsence(absence.id)}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className={`text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ${
+                                tightTable ? 'p-1' : 'p-2'
+                              }`}
                               title="Modifier"
                             >
-                              <FiEdit className="w-4 h-4" />
+                              <FiEdit className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                             </button>
                             <button
-                              onClick={() => handleDeleteAbsence(absence.id, `${absence.student.user.firstName} ${absence.student.user.lastName}`)}
+                              onClick={() =>
+                                handleDeleteAbsence(
+                                  absence.id,
+                                  `${absence.student.user.firstName} ${absence.student.user.lastName}`
+                                )
+                              }
                               disabled={deleteAbsenceMutation.isPending}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              className={`text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 ${
+                                tightTable ? 'p-1' : 'p-2'
+                              }`}
                               title="Supprimer"
                             >
-                              <FiTrash2 className="w-4 h-4" />
+                              <FiTrash2 className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                             </button>
                           </div>
                         </td>

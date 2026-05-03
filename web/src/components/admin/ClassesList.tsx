@@ -31,6 +31,8 @@ declare module 'jspdf' {
 
 interface ClassesListProps {
   searchQuery?: string;
+  /** Typographie plus petite (ex. onglet Gestion académique) */
+  compact?: boolean;
 }
 
 const levelColors: Record<string, string> = {
@@ -43,7 +45,7 @@ const levelColors: Record<string, string> = {
   Terminale: 'bg-red-100 text-red-700',
 };
 
-const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
+const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = false }) => {
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -190,10 +192,14 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Classes</h1>
-          <p className="text-sm text-gray-500 mt-1">Chargement des classes...</p>
+          <h1 className={compact ? 'text-lg font-semibold text-gray-900' : 'text-xl font-semibold text-gray-900'}>
+            Classes
+          </h1>
+          <p className={compact ? 'text-xs text-gray-500 mt-1' : 'text-sm text-gray-500 mt-1'}>
+            Chargement des classes...
+          </p>
         </div>
         <Card className="p-8 border border-gray-200">
           <div className="flex justify-center">
@@ -205,10 +211,12 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-sm' : ''}`}>
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Classes</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className={compact ? 'text-lg font-semibold text-gray-900' : 'text-xl font-semibold text-gray-900'}>
+          Classes
+        </h1>
+        <p className={compact ? 'text-xs text-gray-500 mt-1' : 'text-sm text-gray-500 mt-1'}>
           Gérez les classes, niveaux, effectifs et professeurs principaux. Recherchez et exportez la liste.
         </p>
       </div>
@@ -221,7 +229,15 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.total}</p>
+              <p
+                className={
+                  compact
+                    ? 'text-lg font-bold text-gray-900 tabular-nums'
+                    : 'text-xl font-bold text-gray-900 tabular-nums'
+                }
+              >
+                {stats.total}
+              </p>
             </div>
           </div>
         </Card>
@@ -232,7 +248,15 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Élèves</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.students}</p>
+              <p
+                className={
+                  compact
+                    ? 'text-lg font-bold text-gray-900 tabular-nums'
+                    : 'text-xl font-bold text-gray-900 tabular-nums'
+                }
+              >
+                {stats.students}
+              </p>
             </div>
           </div>
         </Card>
@@ -243,7 +267,15 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Niveaux</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.levels}</p>
+              <p
+                className={
+                  compact
+                    ? 'text-lg font-bold text-gray-900 tabular-nums'
+                    : 'text-xl font-bold text-gray-900 tabular-nums'
+                }
+              >
+                {stats.levels}
+              </p>
             </div>
           </div>
         </Card>
@@ -254,7 +286,15 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Capacité</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">{stats.capacity}</p>
+              <p
+                className={
+                  compact
+                    ? 'text-lg font-bold text-gray-900 tabular-nums'
+                    : 'text-xl font-bold text-gray-900 tabular-nums'
+                }
+              >
+                {stats.capacity}
+              </p>
             </div>
           </div>
         </Card>
@@ -264,6 +304,7 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="flex-1 min-w-0">
             <SearchBar
+              compact={compact}
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Rechercher par nom, niveau, année ou salle..."
@@ -288,7 +329,13 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
       </Card>
 
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+        <h2
+          className={
+            compact
+              ? 'text-xs font-semibold text-gray-700 uppercase tracking-wider mb-4'
+              : 'text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4'
+          }
+        >
           Liste des classes ({filteredClasses.length})
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -305,7 +352,13 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
                 <div className="p-4 space-y-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{classItem.name}</h3>
+                      <h3
+                        className={
+                          compact ? 'text-sm font-semibold text-gray-900' : 'font-semibold text-gray-900'
+                        }
+                      >
+                        {classItem.name}
+                      </h3>
                       <Badge className={`mt-1 ${levelStyle}`} size="sm">
                         {classItem.level || '—'}
                       </Badge>
@@ -316,12 +369,18 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div
+                    className={
+                      compact
+                        ? 'flex items-center gap-2 text-xs text-gray-500'
+                        : 'flex items-center gap-2 text-sm text-gray-500'
+                    }
+                  >
                     <FiCalendar className="w-4 h-4 shrink-0" aria-hidden />
                     <span>{classItem.academicYear || '—'}</span>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
+                    <div className={compact ? 'flex justify-between text-xs' : 'flex justify-between text-sm'}>
                       <span className="text-gray-600">Élèves</span>
                       <span className="font-medium text-gray-900">
                         {count} / {classItem.capacity || 0}
@@ -343,7 +402,13 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '' }) => {
                           name={`${classItem.teacher.user.firstName} ${classItem.teacher.user.lastName}`}
                           size="sm"
                         />
-                        <span className="text-sm font-medium text-gray-900 truncate">
+                        <span
+                          className={
+                            compact
+                              ? 'text-xs font-medium text-gray-900 truncate'
+                              : 'text-sm font-medium text-gray-900 truncate'
+                          }
+                        >
                           {classItem.teacher.user.firstName} {classItem.teacher.user.lastName}
                         </span>
                       </div>

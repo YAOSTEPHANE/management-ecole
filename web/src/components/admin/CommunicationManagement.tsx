@@ -65,6 +65,8 @@ function isRequestsMessage(m: {
 export interface CommunicationManagementProps {
   /** Masque l’en-tête et la barre d’onglets (module Communication hub) */
   embedded?: boolean;
+  /** Filtres, listes et modales plus compacts (hub Communication) */
+  compact?: boolean;
   /** Onglet affiché en mode embedded */
   embeddedTab?: CommunicationTab;
   /** Sous-filtre annonces : circulaires (titre « Circulaire… ») vs actualités publiées */
@@ -75,6 +77,7 @@ export interface CommunicationManagementProps {
 
 const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
   embedded = false,
+  compact = false,
   embeddedTab = 'messages',
   announcementKind = 'all',
   messagesMode = 'all',
@@ -832,8 +835,12 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
     }
   };
 
+  const listTitleClass = compact
+    ? 'text-base font-bold text-gray-800 mb-3'
+    : 'text-xl font-bold text-gray-800 mb-6';
+
   return (
-    <div className="space-y-6">
+    <div className={compact ? 'space-y-4 text-sm' : 'space-y-6'}>
       {/* Header */}
       {!embedded && (
       <Card className="bg-gradient-to-r from-pink-600 to-rose-600 text-white">
@@ -914,13 +921,13 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       {embedded && (
         <div className="flex flex-wrap justify-end gap-2">
           {activeTab === 'messages' && (
-            <Button onClick={() => setIsMessageModalOpen(true)}>
+            <Button size={compact ? 'sm' : 'md'} onClick={() => setIsMessageModalOpen(true)}>
               <FiPlus className="w-4 h-4 mr-2" />
               Nouveau message
             </Button>
           )}
           {activeTab === 'announcements' && (
-            <Button onClick={() => setIsAnnouncementModalOpen(true)}>
+            <Button size={compact ? 'sm' : 'md'} onClick={() => setIsAnnouncementModalOpen(true)}>
               <FiPlus className="w-4 h-4 mr-2" />
               {announcementKind === 'circular' ? 'Nouvelle circulaire' : 'Nouvelle actualité'}
             </Button>
@@ -930,16 +937,17 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
 
       {/* Filters */}
       <Card>
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className={compact ? 'flex flex-col md:flex-row gap-3' : 'flex flex-col md:flex-row gap-4'}>
           <div className="flex-1">
             <SearchBar
+              compact={compact}
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder="Rechercher..."
             />
           </div>
           {activeTab === 'messages' && (
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               label="Statut"
               selected={messageStatusFilter}
               onChange={setMessageStatusFilter}
@@ -952,7 +960,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           )}
           {activeTab === 'announcements' && (
             <>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 label="Rôle cible"
                 selected={selectedRole}
                 onChange={setSelectedRole}
@@ -964,7 +972,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                   { value: 'PARENT', label: 'Parents' },
                 ]}
               />
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 label="Statut"
                 selected={announcementStatusFilter}
                 onChange={setAnnouncementStatusFilter}
@@ -974,7 +982,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                   { value: 'draft', label: 'Brouillons' },
                 ]}
               />
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 label="Priorité"
                 selected={announcementPriorityFilter}
                 onChange={setAnnouncementPriorityFilter}
@@ -989,7 +997,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             </>
           )}
           {activeTab === 'notifications' && (
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               label="Statut"
               selected={notificationStatusFilter}
               onChange={setNotificationStatusFilter}
@@ -1002,7 +1010,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           )}
           {/* Export buttons */}
           {activeTab === 'messages' && (
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               label="Exporter"
               selected=""
               onChange={(format) => {
@@ -1018,7 +1026,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             />
           )}
           {activeTab === 'announcements' && (
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               label="Exporter"
               selected=""
               onChange={(format) => {
@@ -1037,13 +1045,14 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             <>
             <Button
               variant="secondary"
+              size={compact ? 'sm' : 'md'}
               onClick={() => markAllNotificationsReadMutation.mutate()}
               disabled={markAllNotificationsReadMutation.isPending}
             >
               <FiCheckCircle className="w-4 h-4 mr-2" />
               Tout marquer comme lu
             </Button>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 label="Exporter"
                 selected=""
                 onChange={(format) => {
@@ -1066,7 +1075,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       <div className="animate-slide-up">
         {activeTab === 'messages' && (
           <Card>
-            <h3 className="text-xl font-bold text-gray-800 mb-6">
+            <h3 className={listTitleClass}>
               {messagesMode === 'requests'
                 ? `Demandes et réclamations (${filteredMessages.length})`
                 : `Messages (${filteredMessages.length})`}
@@ -1077,11 +1086,13 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                 <p className="text-gray-600">Aucun message trouvé</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className={compact ? 'space-y-3' : 'space-y-4'}>
                 {filteredMessages.map((message: any) => (
                   <div
                     key={message.id}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`rounded-lg border-2 transition-all ${
+                      compact ? 'p-3' : 'p-4'
+                    } ${
                       message.read
                         ? 'bg-gray-50 border-gray-200'
                         : 'bg-blue-50 border-blue-200'
@@ -1092,7 +1103,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                         <Avatar
                           src={message.sender.avatar}
                           name={`${message.sender.firstName} ${message.sender.lastName}`}
-                          size="md"
+                          size={compact ? 'sm' : 'md'}
                         />
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1 flex-wrap">
@@ -1159,7 +1170,11 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                           {message.subject && (
                             <h4 className="font-semibold text-gray-800 mb-1">{message.subject}</h4>
                           )}
-                          <p className="text-gray-600 text-sm mb-2 line-clamp-2">{message.content}</p>
+                          <p
+                            className={`text-gray-600 mb-2 line-clamp-2 ${compact ? 'text-xs' : 'text-sm'}`}
+                          >
+                            {message.content}
+                          </p>
                           <div className="flex items-center space-x-4 text-xs text-gray-500">
                             <div className="flex items-center">
                               <FiUser className="w-3 h-3 mr-1" />
@@ -1215,7 +1230,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
 
         {activeTab === 'announcements' && (
           <Card>
-            <h3 className="text-xl font-bold text-gray-800 mb-6">
+            <h3 className={listTitleClass}>
               {announcementKind === 'circular'
                 ? `Circulaires (${filteredAnnouncements.length})`
                 : announcementKind === 'news'
@@ -1228,7 +1243,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                 <p className="text-gray-600">Aucune annonce trouvée</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={compact ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
                 {filteredAnnouncements.map((announcement: any) => (
                   <Card
                     key={announcement.id}
@@ -1322,7 +1337,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
 
         {activeTab === 'notifications' && (
           <Card>
-            <h3 className="text-xl font-bold text-gray-800 mb-6">Notifications ({filteredNotifications.length})</h3>
+            <h3 className={listTitleClass}>Notifications ({filteredNotifications.length})</h3>
             {filteredNotifications.length === 0 ? (
               <div className="text-center py-12">
                 <FiCheckCircle className="w-16 h-16 text-green-300 mx-auto mb-4" />
@@ -1331,20 +1346,28 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className={compact ? 'space-y-2' : 'space-y-3'}>
                 {filteredNotifications.map((notification: any) => (
                   <div
                     key={notification.id}
-                    className={`p-4 border rounded-lg flex items-start space-x-3 transition-all ${
+                    className={`border rounded-lg flex items-start space-x-3 transition-all ${
+                      compact ? 'p-3' : 'p-4'
+                    } ${
                       notification.read
                         ? 'bg-gray-50 border-gray-200'
                         : 'bg-blue-50 border-blue-200'
                     }`}
                   >
-                    <FiBell className={`w-5 h-5 mt-0.5 ${notification.read ? 'text-gray-400' : 'text-blue-600'}`} />
+                    <FiBell
+                      className={`mt-0.5 ${notification.read ? 'text-gray-400' : 'text-blue-600'} ${
+                        compact ? 'w-4 h-4' : 'w-5 h-5'
+                      }`}
+                    />
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="font-semibold text-gray-800">{notification.title}</h4>
+                        <h4 className={`font-semibold text-gray-800 ${compact ? 'text-sm' : ''}`}>
+                          {notification.title}
+                        </h4>
                         {!notification.read && (
                           <Badge variant="info" size="sm">
                             Non lu
@@ -1356,7 +1379,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600">{notification.content}</p>
+                      <p className={`text-gray-600 ${compact ? 'text-xs' : 'text-sm'}`}>
+                        {notification.content}
+                      </p>
                       <div className="flex items-center text-xs text-gray-500 mt-2">
                         <FiClock className="w-3 h-3 mr-1" />
                         {format(new Date(notification.createdAt), 'dd/MM/yyyy à HH:mm', { locale: fr })}
@@ -1436,7 +1461,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Destinataire <span className="text-red-500">*</span>
             </label>
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               selected={messageForm.receiverId}
               onChange={(value) => setMessageForm({ ...messageForm, receiverId: value })}
               options={[
@@ -1473,7 +1498,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Catégorie <span className="text-red-500">*</span>
             </label>
-            <FilterDropdown
+            <FilterDropdown compact={compact}
               selected={messageForm.category}
               onChange={(value) => setMessageForm({ ...messageForm, category: value })}
               options={[
@@ -1636,7 +1661,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Rôle cible</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.targetRole}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, targetRole: value })}
                 options={[
@@ -1650,7 +1675,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Classe cible</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.targetClass}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, targetClass: value })}
                 options={[
@@ -1663,7 +1688,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Priorité</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.priority}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, priority: value })}
                 options={[
@@ -1765,7 +1790,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Rôle cible</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.targetRole}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, targetRole: value })}
                 options={[
@@ -1779,7 +1804,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Classe cible</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.targetClass}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, targetClass: value })}
                 options={[
@@ -1792,7 +1817,7 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Priorité</label>
-              <FilterDropdown
+              <FilterDropdown compact={compact}
                 selected={announcementForm.priority}
                 onChange={(value) => setAnnouncementForm({ ...announcementForm, priority: value })}
                 options={[

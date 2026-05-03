@@ -10,11 +10,21 @@ interface User {
   firstName: string;
   lastName: string;
   role: string;
+  phone?: string | null;
+  avatar?: string | null;
+  isActive?: boolean;
   studentProfile?: {
     enrollmentStatus?: 'ACTIVE' | 'SUSPENDED' | 'GRADUATED';
     [key: string]: unknown;
   };
 }
+
+export type ProfileUpdatePayload = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  avatar?: string | null;
+};
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +32,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ token: string; user: User }>;
   logout: () => void;
   loading: boolean;
+  /** Recharge le profil depuis l’API (sans message de succès). */
+  refreshUser: () => Promise<void>;
+  /** Met à jour le profil via PUT /auth/me puis recharge l’utilisateur. */
+  updateProfile: (data: ProfileUpdatePayload) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,6 +78,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const userData = await authApi.getMe();
+      if (userData) {
+        setUser(userData);
+      }
+    } catch (error: any) {
+      console.error('Erreur refreshUser:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+      }
+    }
+  };
+
+  const updateProfile = async (data: ProfileUpdatePayload) => {
+    try {
+      await authApi.updateMe(data);
+      await refreshUser();
+      toast.success('Profil mis à jour');
+    } catch (error: any) {
+      const msg =
+        error.response?.data?.error ||
+        error.message ||
+        'Impossible de mettre à jour le profil';
+      toast.error(typeof msg === 'string' ? msg : 'Impossible de mettre à jour le profil');
+      throw error;
     }
   };
 
@@ -132,7 +177,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, loading, refreshUser, updateProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

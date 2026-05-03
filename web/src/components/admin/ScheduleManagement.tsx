@@ -57,7 +57,11 @@ const TIME_SLOTS = [
   '17:00', '17:30', '18:00',
 ];
 
-const ScheduleManagement = () => {
+type ScheduleManagementProps = {
+  compact?: boolean;
+};
+
+const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedTeacher, setSelectedTeacher] = useState<string>('all');
   const [selectedRoom, setSelectedRoom] = useState<string>('all');
@@ -244,11 +248,15 @@ const ScheduleManagement = () => {
   }, {});
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${compact ? 'text-xs' : 'text-sm'}`}>
       {/* Header */}
-      <Card className="relative overflow-hidden bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 text-white transform-gpu perspective-1000">
+      <Card
+        className={`relative z-50 overflow-visible bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 text-white transform-gpu perspective-1000 ${
+          compact ? 'p-3 sm:p-4' : ''
+        }`}
+      >
         {/* Effet 3D de fond animé */}
-        <div className="absolute inset-0 opacity-30">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] opacity-30">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-300/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         </div>
@@ -262,10 +270,14 @@ const ScheduleManagement = () => {
           }}
         ></div>
         
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="transform-gpu" style={{ transform: 'translateZ(20px)' }}>
+        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="transform-gpu min-w-0" style={{ transform: 'translateZ(20px)' }}>
             <h2 
-              className="text-3xl font-black mb-2 relative"
+              className={
+                compact
+                  ? 'text-lg font-black mb-0.5 relative leading-tight'
+                  : 'text-2xl font-black mb-1.5 relative'
+              }
               style={{
                 textShadow: '0 4px 8px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.2)',
                 transform: 'perspective(500px) rotateX(2deg)',
@@ -273,14 +285,22 @@ const ScheduleManagement = () => {
             >
               Emploi du Temps
             </h2>
-            <p className="text-orange-100 text-lg" style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)' }}>
+            <p
+              className={
+                compact
+                  ? 'text-orange-100 text-[11px] leading-snug'
+                  : 'text-orange-100 text-sm'
+              }
+              style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)' }}
+            >
               Calendrier interactif et gestion intelligente des cours
             </p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className={`flex items-center shrink-0 ${compact ? 'gap-2' : 'space-x-3'}`}>
             <div className="relative">
               <Button
                 variant="outline"
+                size={compact ? 'sm' : 'md'}
                 className="bg-white/20 hover:bg-white/30 text-white border-white/30"
                 onClick={() => {
                   const menu = document.getElementById('export-schedule-menu');
@@ -292,16 +312,16 @@ const ScheduleManagement = () => {
               </Button>
               <div
                 id="export-schedule-menu"
-                className="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                className="hidden absolute right-0 top-full z-[60] mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg"
               >
                 <button
                   onClick={() => {
                     exportSchedulesToCSV();
                     document.getElementById('export-schedule-menu')?.classList.add('hidden');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  className="flex w-full items-center space-x-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100"
                 >
-                  <FiFileText className="w-4 h-4 text-green-600" />
+                  <FiFileText className="h-3.5 w-3.5 shrink-0 text-green-600" />
                   <span>Exporter en CSV</span>
                 </button>
                 <button
@@ -309,9 +329,9 @@ const ScheduleManagement = () => {
                     exportSchedulesToJSON();
                     document.getElementById('export-schedule-menu')?.classList.add('hidden');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  className="flex w-full items-center space-x-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100"
                 >
-                  <FiFileText className="w-4 h-4 text-blue-600" />
+                  <FiFileText className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                   <span>Exporter en JSON</span>
                 </button>
                 <button
@@ -319,14 +339,15 @@ const ScheduleManagement = () => {
                     exportSchedulesToPDF();
                     document.getElementById('export-schedule-menu')?.classList.add('hidden');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  className="flex w-full items-center space-x-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100"
                 >
-                  <FiFileText className="w-4 h-4 text-red-600" />
+                  <FiFileText className="h-3.5 w-3.5 shrink-0 text-red-600" />
                   <span>Exporter en PDF</span>
                 </button>
               </div>
             </div>
             <Button
+              size={compact ? 'sm' : 'md'}
               onClick={() => {
                 resetForm();
                 setEditingSchedule(null);
@@ -341,16 +362,18 @@ const ScheduleManagement = () => {
         </div>
       </Card>
 
-      {/* Filters */}
-      <Card>
+      {/* Filters — z-40 pour que les déroulants passent au-dessus du tableau (cartes suivantes en z-10) */}
+      <Card className="relative z-40">
         <div className="space-y-4">
           <SearchBar
+            compact={compact}
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Rechercher par matière, classe, enseignant ou salle..."
           />
           <div className="flex flex-col md:flex-row gap-4">
             <FilterDropdown
+              compact={compact}
               label="Classe"
               value={selectedClass}
               onChange={setSelectedClass}
@@ -360,6 +383,7 @@ const ScheduleManagement = () => {
               ]}
             />
             <FilterDropdown
+              compact={compact}
               label="Enseignant"
               value={selectedTeacher}
               onChange={setSelectedTeacher}
@@ -372,6 +396,7 @@ const ScheduleManagement = () => {
               ]}
             />
             <FilterDropdown
+              compact={compact}
               label="Salle"
               value={selectedRoom}
               onChange={setSelectedRoom}
@@ -389,14 +414,18 @@ const ScheduleManagement = () => {
         <Card>
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Chargement des emplois du temps...</p>
+            <p className={compact ? 'mt-4 text-xs text-gray-600' : 'mt-4 text-sm text-gray-600'}>
+              Chargement des emplois du temps...
+            </p>
           </div>
         </Card>
       ) : Object.keys(organizedSchedules).length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <FiCalendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">Aucun emploi du temps configuré</p>
+            <p className={compact ? 'text-xs text-gray-600' : 'text-sm text-gray-600'}>
+              Aucun emploi du temps configuré
+            </p>
             <Button
               onClick={() => {
                 resetForm();
@@ -414,7 +443,7 @@ const ScheduleManagement = () => {
           {Object.entries(organizedSchedules).map(([className, days]: [string, any]) => (
             <Card 
               key={className}
-              className="relative overflow-hidden group perspective-3d transform-gpu transition-all duration-300 hover:shadow-2xl"
+              className="relative z-10 overflow-hidden group perspective-3d transform-gpu transition-all duration-300 hover:shadow-2xl"
               style={{
                 transform: 'translateZ(0)',
                 transformStyle: 'preserve-3d',
@@ -434,9 +463,13 @@ const ScheduleManagement = () => {
               ></div>
               
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-4 flex items-center justify-between">
                   <h3 
-                    className="text-xl font-bold text-gray-800 relative"
+                    className={
+                      compact
+                        ? 'text-base font-bold text-gray-800 relative'
+                        : 'text-lg font-bold text-gray-800 relative'
+                    }
                     style={{
                       textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                       transform: 'perspective(300px) translateZ(10px)',
@@ -445,7 +478,7 @@ const ScheduleManagement = () => {
                     {className}
                   </h3>
                   <Badge 
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg transform-gpu transition-transform duration-300 hover:scale-110"
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 px-2 py-0.5 text-xs text-white shadow-lg transform-gpu transition-transform duration-300 hover:scale-110"
                     style={{
                       boxShadow: '0 4px 12px rgba(249, 115, 22, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                       transform: 'translateZ(10px)',
@@ -457,11 +490,11 @@ const ScheduleManagement = () => {
 
               {/* Weekly Schedule Grid */}
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className={compact ? 'w-full border-collapse text-[11px]' : 'w-full border-collapse text-xs'}>
                   <thead>
                     <tr>
                       <th 
-                        className="border border-gray-200 p-2 bg-gradient-to-br from-gray-100 to-gray-200 font-semibold text-gray-700 relative"
+                        className="relative border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 px-1.5 py-1.5 text-[11px] font-semibold text-gray-700 sm:text-xs"
                         style={{
                           boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(255, 255, 255, 0.5)',
                           transform: 'perspective(200px) rotateX(5deg)',
@@ -472,7 +505,7 @@ const ScheduleManagement = () => {
                       {DAYS.map((day) => (
                         <th
                           key={day.value}
-                          className="border border-gray-200 p-2 bg-gradient-to-br from-gray-100 to-gray-200 font-semibold text-gray-700 min-w-[150px] relative"
+                          className="relative min-w-[118px] border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 px-1.5 py-1.5 text-[11px] font-semibold text-gray-700 sm:min-w-[128px] sm:text-xs"
                           style={{
                             boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(255, 255, 255, 0.5)',
                             transform: 'perspective(200px) rotateX(5deg)',
@@ -489,7 +522,11 @@ const ScheduleManagement = () => {
                       return (
                         <tr key={time}>
                           <td 
-                            className="border border-gray-200 p-2 text-sm text-gray-600 font-medium bg-gradient-to-br from-gray-50 to-gray-100 relative"
+                            className={
+                              compact
+                                ? 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-[11px] font-medium text-gray-600'
+                                : 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-xs font-medium text-gray-600'
+                            }
                             style={{
                               boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)',
                             }}
@@ -506,11 +543,11 @@ const ScheduleManagement = () => {
                             return (
                               <td
                                 key={day.value}
-                                className="border border-gray-200 p-2 align-top"
+                                className="border border-gray-200 p-1 align-top sm:p-1.5"
                               >
                                 {scheduleForSlot ? (
                                   <div 
-                                    className="relative group/course bg-gradient-to-br from-orange-100 via-amber-50 to-orange-50 border-2 border-orange-300 rounded-lg p-2 mb-1 transform-gpu transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
+                                    className="relative mb-1 cursor-pointer rounded-lg border-2 border-orange-300 bg-gradient-to-br from-orange-100 via-amber-50 to-orange-50 p-1.5 transform-gpu transition-all duration-300 group/course hover:scale-[1.02] hover:shadow-xl sm:p-2"
                                     style={{
                                       boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
                                       transform: 'perspective(500px) translateZ(0) rotateX(2deg)',
@@ -545,7 +582,11 @@ const ScheduleManagement = () => {
                                     <div className="relative z-10 flex items-start justify-between">
                                       <div className="flex-1">
                                         <p 
-                                          className="font-bold text-sm text-gray-800 relative"
+                                          className={
+                                            compact
+                                              ? 'relative text-[11px] font-bold leading-snug text-gray-800'
+                                              : 'relative text-xs font-bold leading-snug text-gray-800 sm:text-[13px]'
+                                          }
                                           style={{
                                             textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
                                             transform: 'translateZ(5px)',
@@ -553,67 +594,73 @@ const ScheduleManagement = () => {
                                         >
                                           {scheduleForSlot.course?.name}
                                         </p>
-                                        <p className="text-xs text-gray-600 mt-1">
+                                        <p
+                                          className={
+                                            compact
+                                              ? 'mt-0.5 text-[10px] leading-snug text-gray-600'
+                                              : 'mt-0.5 text-[11px] leading-snug text-gray-600'
+                                          }
+                                        >
                                           {scheduleForSlot.course?.teacher?.user?.firstName}{' '}
                                           {scheduleForSlot.course?.teacher?.user?.lastName}
                                         </p>
                                         {scheduleForSlot.room && (
-                                          <div className="flex items-center text-xs text-gray-500 mt-1">
-                                            <FiMapPin className="w-3 h-3 mr-1" />
+                                          <div className="mt-0.5 flex items-center text-[10px] text-gray-500">
+                                            <FiMapPin className="mr-0.5 h-2.5 w-2.5 shrink-0" />
                                             {scheduleForSlot.room}
                                           </div>
                                         )}
-                                        <div className="flex items-center text-xs text-gray-500 mt-1">
-                                          <FiClock className="w-3 h-3 mr-1" />
+                                        <div className="mt-0.5 flex items-center text-[10px] text-gray-500">
+                                          <FiClock className="mr-0.5 h-2.5 w-2.5 shrink-0" />
                                           {scheduleForSlot.startTime} - {scheduleForSlot.endTime}
                                         </div>
                                       </div>
-                                      <div className="flex items-center space-x-1 ml-2">
+                                      <div className="ml-1 flex shrink-0 items-center space-x-0.5">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleView(scheduleForSlot);
                                           }}
-                                          className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-all duration-200 transform-gpu hover:scale-110 hover:shadow-md"
+                                          className="rounded-md p-1 text-green-600 transition-all duration-200 transform-gpu hover:scale-110 hover:bg-green-100 hover:shadow-md"
                                           style={{
                                             boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
                                           }}
                                           title="Voir les détails"
                                         >
-                                          <FiEye className="w-3.5 h-3.5" />
+                                          <FiEye className="h-3 w-3" />
                                         </button>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleEdit(scheduleForSlot);
                                           }}
-                                          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 transform-gpu hover:scale-110 hover:shadow-md"
+                                          className="rounded-md p-1 text-blue-600 transition-all duration-200 transform-gpu hover:scale-110 hover:bg-blue-100 hover:shadow-md"
                                           style={{
                                             boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)',
                                           }}
                                           title="Modifier"
                                         >
-                                          <FiEdit className="w-3.5 h-3.5" />
+                                          <FiEdit className="h-3 w-3" />
                                         </button>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDelete(scheduleForSlot.id);
                                           }}
-                                          className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 transform-gpu hover:scale-110 hover:shadow-md"
+                                          className="rounded-md p-1 text-red-600 transition-all duration-200 transform-gpu hover:scale-110 hover:bg-red-100 hover:shadow-md"
                                           style={{
                                             boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
                                           }}
                                           title="Supprimer"
                                         >
-                                          <FiTrash2 className="w-3.5 h-3.5" />
+                                          <FiTrash2 className="h-3 w-3" />
                                         </button>
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
                                   <div 
-                                    className="h-16 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50 opacity-50"
+                                    className="h-12 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-50 sm:h-14"
                                     style={{
                                       boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
                                     }}
@@ -671,9 +718,9 @@ const ScheduleManagement = () => {
         title={editingSchedule ? 'Modifier l\'horaire' : 'Nouvel horaire'}
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 text-sm">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700">
               Classe <span className="text-red-500">*</span>
             </label>
             <FilterDropdown
@@ -687,7 +734,7 @@ const ScheduleManagement = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700">
               Matière <span className="text-red-500">*</span>
             </label>
             <FilterDropdown
@@ -702,7 +749,7 @@ const ScheduleManagement = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Jour <span className="text-red-500">*</span>
               </label>
               <FilterDropdown
@@ -713,7 +760,7 @@ const ScheduleManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Salle</label>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">Salle</label>
               <Input
                 value={scheduleForm.room}
                 onChange={(e) => setScheduleForm({ ...scheduleForm, room: e.target.value })}
@@ -724,7 +771,7 @@ const ScheduleManagement = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Heure de début <span className="text-red-500">*</span>
               </label>
               <FilterDropdown
@@ -735,7 +782,7 @@ const ScheduleManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Heure de fin <span className="text-red-500">*</span>
               </label>
               <FilterDropdown

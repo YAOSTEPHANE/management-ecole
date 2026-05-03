@@ -212,10 +212,10 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
 
   if (isLoadingTeacher) {
     return (
-      <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="xl">
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">Chargement des données de l'enseignant...</p>
+      <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="lg" compact>
+        <div className="text-center py-6">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-amber-700/50 border-t-amber-900"></div>
+          <p className="mt-2 text-xs text-stone-600">Chargement des données de l&apos;enseignant...</p>
         </div>
       </Modal>
     );
@@ -223,21 +223,21 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
 
   if (!teacher) {
     return (
-      <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="xl">
-        <div className="text-center py-12">
-          <FiAlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">Enseignant non trouvé</h3>
-          <p className="text-gray-600">L'enseignant demandé n'existe pas ou a été supprimé.</p>
+      <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="lg" compact>
+        <div className="text-center py-6">
+          <FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
+          <h3 className="text-base font-bold text-stone-800 mb-0.5">Enseignant non trouvé</h3>
+          <p className="text-xs text-stone-600">L&apos;enseignant demandé n&apos;existe pas ou a été supprimé.</p>
         </div>
       </Modal>
     );
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="xl">
-      <div className="space-y-6">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Modifier un Enseignant" size="lg" compact>
+      <div className="space-y-2">
         {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-2">
           {steps.map((step, index) => {
             const StepIcon = step.icon;
             const isActive = currentStep === step.number;
@@ -247,29 +247,29 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
               <div key={step.number} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] transition-all duration-300 ${
                       isActive
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-110'
+                        ? 'bg-gradient-to-br from-stone-900 via-amber-900 to-stone-950 text-amber-50 ring-1 ring-amber-400/35 shadow-lg'
                         : isCompleted
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'bg-gradient-to-br from-emerald-800 to-teal-900 text-emerald-50 ring-1 ring-emerald-400/25'
+                        : 'bg-stone-200 text-stone-500'
                     }`}
                   >
                     {isCompleted ? (
-                      <FiCheck className="w-6 h-6" />
+                      <FiCheck className="w-4 h-4" />
                     ) : (
-                      <StepIcon className="w-6 h-6" />
+                      <StepIcon className="w-4 h-4" />
                     )}
                   </div>
-                  <p className={`mt-2 text-xs font-medium text-center ${
-                    isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                  <p className={`mt-1 text-[10px] font-medium text-center leading-tight px-0.5 ${
+                    isActive ? 'text-amber-800' : isCompleted ? 'text-emerald-800' : 'text-stone-500'
                   }`}>
                     {step.title}
                   </p>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${
-                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                  <div className={`flex-1 h-0.5 mx-1 transition-all duration-300 ${
+                    isCompleted ? 'bg-gradient-to-r from-emerald-700 to-teal-700' : 'bg-stone-200'
                   }`} />
                 )}
               </div>
@@ -277,108 +277,108 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
           })}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-2">
           {/* Step 1: Informations Personnelles */}
           {currentStep === 1 && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Prénom <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiUser className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiUser className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <input
                       type="text"
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                        errors.firstName ? 'border-red-500' : 'border-gray-200'
+                      className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                        errors.firstName ? 'border-red-500' : 'border-stone-200'
                       }`}
                       placeholder="Prénom"
                     />
                   </div>
                   {errors.firstName && (
-                    <p className="mt-1 text-sm text-red-500 flex items-center">
-                      <FiAlertCircle className="w-4 h-4 mr-1" />
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                       {errors.firstName}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Nom <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiUser className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiUser className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <input
                       type="text"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                        errors.lastName ? 'border-red-500' : 'border-gray-200'
+                      className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                        errors.lastName ? 'border-red-500' : 'border-stone-200'
                       }`}
                       placeholder="Nom"
                     />
                   </div>
                   {errors.lastName && (
-                    <p className="mt-1 text-sm text-red-500 flex items-center">
-                      <FiAlertCircle className="w-4 h-4 mr-1" />
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                       {errors.lastName}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiMail className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiMail className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                        errors.email ? 'border-red-500' : 'border-gray-200'
+                      className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                        errors.email ? 'border-red-500' : 'border-stone-200'
                       }`}
                       placeholder="email@exemple.com"
                     />
                   </div>
                   {errors.email && (
-                    <p className="mt-1 text-sm text-red-500 flex items-center">
-                      <FiAlertCircle className="w-4 h-4 mr-1" />
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                       {errors.email}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Téléphone
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiPhone className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiPhone className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <input
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                       placeholder="+33 6 12 34 56 78"
                     />
                   </div>
@@ -389,32 +389,32 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
 
           {/* Step 2: Informations Professionnelles */}
           {currentStep === 2 && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center space-x-2">
-                  <FiBriefcase className="w-5 h-5 text-blue-600" />
-                  <p className="text-sm font-semibold text-blue-900">
-                    ID Employé: <span className="font-mono">{teacher.employeeId}</span>
+            <div className="space-y-2 animate-fade-in">
+              <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 p-2.5 mb-2">
+                <div className="flex items-center gap-2">
+                  <FiBriefcase className="w-4 h-4 text-amber-900 shrink-0" />
+                  <p className="text-xs font-semibold text-stone-900">
+                    ID employé : <span className="font-mono">{teacher.employeeId}</span>
                   </p>
                 </div>
-                <p className="text-xs text-blue-700 mt-1">L'ID employé ne peut pas être modifié</p>
+                <p className="text-[10px] text-stone-600 mt-0.5">L&apos;ID employé ne peut pas être modifié</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Spécialisation <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiBook className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiBook className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <select
                       name="specialization"
                       value={formData.specialization}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                        errors.specialization ? 'border-red-500' : 'border-gray-200'
+                      className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                        errors.specialization ? 'border-red-500' : 'border-stone-200'
                       }`}
                     >
                       <option value="">Sélectionner une spécialisation</option>
@@ -426,23 +426,23 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                     </select>
                   </div>
                   {errors.specialization && (
-                    <p className="mt-1 text-sm text-red-500 flex items-center">
-                      <FiAlertCircle className="w-4 h-4 mr-1" />
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                       {errors.specialization}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Type de contrat <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="contractType"
                     value={formData.contractType}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                      errors.contractType ? 'border-red-500' : 'border-gray-200'
+                    className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                      errors.contractType ? 'border-red-500' : 'border-stone-200'
                     }`}
                   >
                     {contractTypes.map((type) => (
@@ -452,22 +452,22 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                     ))}
                   </select>
                   {errors.contractType && (
-                    <p className="mt-1 text-sm text-red-500 flex items-center">
-                      <FiAlertCircle className="w-4 h-4 mr-1" />
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
                       {errors.contractType}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Salaire (optionnel)
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiDollarSign className="text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                      <FiDollarSign className="h-3.5 w-3.5 text-stone-400" />
                     </div>
                     <input
                       type="number"
@@ -476,22 +476,22 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                       onChange={handleChange}
                       min="0"
                       step="0.01"
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
                       placeholder="Ex: 500000 (en FCFA)"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Montant en FCFA</p>
                   </div>
+                  <p className="mt-0.5 text-[10px] text-stone-500">Montant en FCFA</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Statut
                   </label>
                   <div className="flex items-center space-x-3">
                     <button
                       type="button"
                       onClick={handleToggleActive}
-                      className={`relative inline-flex h-11 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      className={`relative inline-flex h-11 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:ring-offset-1 focus:ring-offset-stone-50 ${
                         formData.isActive ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
@@ -511,12 +511,13 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-200/80">
             <div>
               {currentStep > 1 && (
                 <Button
                   type="button"
                   variant="secondary"
+                  size="sm"
                   onClick={handlePrevious}
                   disabled={updateTeacherMutation.isPending}
                 >
@@ -524,10 +525,11 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                 </Button>
               )}
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="secondary"
+                size="sm"
                 onClick={handleClose}
                 disabled={updateTeacherMutation.isPending}
               >
@@ -536,6 +538,7 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
               {currentStep < 2 ? (
                 <Button
                   type="button"
+                  size="sm"
                   onClick={handleNext}
                   disabled={updateTeacherMutation.isPending}
                 >
@@ -544,17 +547,18 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
               ) : (
                 <Button
                   type="submit"
+                  size="sm"
                   disabled={updateTeacherMutation.isPending}
-                  className="min-w-[140px]"
+                  className="min-w-[120px]"
                 >
                   {updateTeacherMutation.isPending ? (
                     <>
-                      <FiLoader className="w-5 h-5 mr-2 animate-spin inline" />
+                      <FiLoader className="w-4 h-4 mr-1.5 animate-spin inline" />
                       Modification...
                     </>
                   ) : (
                     <>
-                      <FiSave className="w-5 h-5 mr-2 inline" />
+                      <FiSave className="w-4 h-4 mr-1.5 inline" />
                       Enregistrer
                     </>
                   )}

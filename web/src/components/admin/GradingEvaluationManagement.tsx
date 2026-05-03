@@ -15,6 +15,7 @@ import {
   FiAward,
   FiBookOpen,
 } from 'react-icons/fi';
+import { ADM } from './adminModuleLayout';
 
 type GradingTab = 'overview' | 'notation' | 'averages' | 'reports';
 
@@ -44,16 +45,16 @@ const GradingEvaluationManagement: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={ADM.root}>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Notation et évaluation</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className={ADM.h2}>Notation et évaluation</h2>
+        <p className={ADM.intro}>
           Saisie des notes par matière, calcul des moyennes, bulletins, relevés PDF et rapports
           d’établissement.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      <div className={ADM.tabRow}>
         {subTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -62,13 +63,9 @@ const GradingEvaluationManagement: React.FC = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-violet-50 text-violet-900 ring-1 ring-violet-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={ADM.tabBtn(active, 'bg-violet-50 text-violet-900 ring-1 ring-violet-200')}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className={ADM.tabIcon} />
               {t.label}
             </button>
           );
@@ -76,23 +73,35 @@ const GradingEvaluationManagement: React.FC = () => {
       </div>
 
       {tab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Notes enregistrées</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{gradeCount}</p>
-              <p className="text-xs text-gray-500 mt-1">Évaluations saisies (toutes classes)</p>
-            </Card>
-            <Card className="p-4 border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 uppercase">Classes</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{classCount}</p>
-              <p className="text-xs text-gray-500 mt-1">Pour filtrer la saisie et les moyennes</p>
-            </Card>
-            <Card className="p-4 border border-violet-100 bg-violet-50/50">
-              <p className="text-xs font-medium text-violet-800 uppercase flex items-center gap-1">
-                <FiAward className="w-3.5 h-3.5" /> Parcours type
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Notes enregistrées
               </p>
-              <ol className="text-sm text-gray-700 mt-2 space-y-1 list-decimal list-inside">
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">
+                {gradeCount}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Évaluations saisies (toutes classes)
+              </p>
+            </Card>
+            <Card className="p-2.5 sm:p-3 border border-gray-200">
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight">
+                Classes
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none">
+                {classCount}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Pour filtrer la saisie et les moyennes
+              </p>
+            </Card>
+            <Card className="p-2.5 sm:p-3 border border-violet-100 bg-violet-50/50">
+              <p className="text-[10px] font-medium text-violet-800 uppercase flex items-center gap-1 tracking-wide leading-tight">
+                <FiAward className="w-3 h-3 shrink-0" /> Parcours type
+              </p>
+              <ol className="text-[11px] text-gray-700 mt-1.5 space-y-0.5 list-decimal list-inside leading-snug">
                 <li>Saisir les notes (onglet Notes & bulletins)</li>
                 <li>Contrôler les moyennes (onglet Moyennes)</li>
                 <li>Générer bulletins PDF (onglet Relevés & rapports)</li>
@@ -100,12 +109,12 @@ const GradingEvaluationManagement: React.FC = () => {
             </Card>
           </div>
 
-          <Card className="p-5 border border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <FiBookOpen className="w-5 h-5 text-violet-600" />
+          <Card className="p-4 border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1.5 flex items-center gap-2">
+              <FiBookOpen className="w-4 h-4 text-violet-600 shrink-0" />
               Rappels
             </h3>
-            <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
+            <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside leading-relaxed">
               <li>
                 Les <strong>moyennes par matière</strong> sur un trimestre figurent sur le{' '}
                 <strong>bulletin PDF</strong> (période et année scolaire à choisir).
@@ -123,33 +132,34 @@ const GradingEvaluationManagement: React.FC = () => {
         </div>
       )}
 
-      {tab === 'notation' && <CompleteManagement gradingModule />}
+      {tab === 'notation' && <CompleteManagement gradingModule compact />}
 
-      {tab === 'averages' && <GradeAveragesPanel />}
+      {tab === 'averages' && <GradeAveragesPanel compact />}
 
       {tab === 'reports' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Bulletins & relevés PDF</h3>
-              <p className="text-sm text-gray-600 mb-4">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4 border border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Bulletins & relevés PDF</h3>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
                 Génération par classe : moyennes par matière sur la période choisie, appréciations et
                 rang. Le document PDF sert de <strong>bulletin</strong> et de{' '}
                 <strong>relevé de notes</strong> officiel pour les familles.
               </p>
-              <Button onClick={() => setReportCardOpen(true)} className="w-full sm:w-auto">
+              <Button size="sm" onClick={() => setReportCardOpen(true)} className="w-full sm:w-auto">
                 <FiFileText className="w-4 h-4 mr-2 inline" />
                 Ouvrir la génération de bulletins PDF
               </Button>
             </Card>
-            <Card className="p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Rapports académiques</h3>
-              <p className="text-sm text-gray-600 mb-4">
+            <Card className="p-4 border border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Rapports académiques</h3>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
                 Exports synthétiques : listes d’élèves, classes, enseignants, notes ou absences selon
                 les filtres disponibles dans l’assistant.
               </p>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => setInstitutionalReportOpen(true)}
                 className="w-full sm:w-auto"
               >
