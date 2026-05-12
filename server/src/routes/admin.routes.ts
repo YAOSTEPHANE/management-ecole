@@ -26,6 +26,7 @@ import disciplineAdminRoutes from './admin-discipline.routes';
 import extracurricularAdminRoutes from './admin-extracurricular.routes';
 import orientationAdminRoutes from './admin-orientation.routes';
 import adminReportsRoutes from './admin-reports.routes';
+import adminAppBrandingRoutes from './admin-app-branding.routes';
 import {
   assignTuitionFeeInvoiceNumbers,
   autoReceiptUrl,
@@ -49,6 +50,7 @@ router.use(disciplineAdminRoutes);
 router.use(extracurricularAdminRoutes);
 router.use(orientationAdminRoutes);
 router.use(adminReportsRoutes);
+router.use(adminAppBrandingRoutes);
 
 // ========== GESTION DES ÉLÈVES ==========
 

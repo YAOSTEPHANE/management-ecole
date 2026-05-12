@@ -1696,4 +1696,21 @@ export const adminApi = {
     const response = await api.delete(`/admin/orientation/placements/${id}`);
     return response.data;
   },
+  getAppBranding: async () => {
+    const response = await api.get('/admin/app-branding');
+    return response.data;
+  },
+  updateAppBranding: async (data: Record<string, unknown>) => {
+    const response = await api.put('/admin/app-branding', data);
+    return response.data;
+  },
+  uploadAppBrandingFile: async (slot: 'navigation' | 'login' | 'favicon', file: File) => {
+    const formData = new FormData();
+    formData.append('branding', file);
+    const response = await api.post(
+      `/admin/app-branding/upload?slot=${encodeURIComponent(slot)}`,
+      formData
+    );
+    return response.data;
+  },
 };

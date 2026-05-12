@@ -27,6 +27,8 @@ const storage = multer.diskStorage({
       folder = 'identity-documents';
     } else if (file.fieldname === 'teacherAdminDocument') {
       folder = 'teacher-admin-documents';
+    } else if (file.fieldname === 'branding') {
+      folder = 'branding';
     }
     
     const dir = path.join(uploadsDir, folder);
@@ -61,6 +63,34 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter,
+});
+
+const brandingExtOk = (name: string) =>
+  /\.(jpeg|jpg|png|gif|webp|svg|ico|heic|heif)$/i.test(path.extname(name));
+
+const brandingFileFilter = (_req: unknown, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (file.fieldname !== 'branding') {
+    return fileFilter(_req as any, file, cb);
+  }
+  if (brandingExtOk(file.originalname)) {
+    return cb(null, true);
+  }
+  const mime = (file.mimetype || '').toLowerCase();
+  if (mime.startsWith('image/')) {
+    return cb(null, true);
+  }
+  return cb(
+    new Error('Format non autorisé pour le logo. Utilisez une image (PNG, JPG, WEBP, SVG, ICO, HEIC…).')
+  );
+};
+
+/** Logos / favicon établissement (champ fichier `branding`, max 5 Mo). */
+export const brandingUpload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: brandingFileFilter,
 });
 
 /** Pièces d’identité : fichiers un peu plus volumineux (PDF scannés) */

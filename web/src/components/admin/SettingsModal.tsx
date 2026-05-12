@@ -1,13 +1,12 @@
-import { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { authApi } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { useAppBranding } from '../../contexts/AppBrandingContext';
+import { authApi, adminApi } from '../../services/api';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Badge from '../ui/Badge';
 import toast from 'react-hot-toast';
 import { 
-  FiSettings, 
   FiBriefcase, 
   FiBook, 
   FiBell,
@@ -28,7 +27,8 @@ import {
   FiRefreshCw,
   FiTrash2,
   FiDownload,
-  FiUpload
+  FiUpload,
+  FiImage,
 } from 'react-icons/fi';
 
 interface SettingsModalProps {
@@ -46,9 +46,15 @@ interface TabOption {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user } = useAuth();
+  const { refreshBranding, branding, navigationLogoAbsolute, loginLogoAbsolute, faviconAbsolute } =
+    useAppBranding();
   const [activeTab, setActiveTab] = useState<SettingsTab>('school');
   const [isSaving, setIsSaving] = useState(false);
+  const [brandingUploading, setBrandingUploading] = useState<'navigation' | 'login' | 'favicon' | null>(
+    null
+  );
+  const [appTitleDraft, setAppTitleDraft] = useState('');
+  const [appTaglineDraft, setAppTaglineDraft] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -124,12 +130,87 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     { id: 'system', label: 'Système', icon: FiDatabase, color: 'from-gray-500 to-gray-600' },
   ];
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const b = await adminApi.getAppBranding();
+        if (!cancelled) {
+          setAppTitleDraft(typeof b.appTitle === 'string' ? b.appTitle : '');
+          setAppTaglineDraft(typeof b.appTagline === 'string' ? b.appTagline : '');
+        }
+      } catch {
+        if (!cancelled) {
+          setAppTitleDraft('');
+          setAppTaglineDraft('');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  const triggerBrandingUpload = (slot: 'navigation' | 'login' | 'favicon') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml,.ico';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Fichier trop volumineux (max 5 Mo)');
+        return;
+      }
+      setBrandingUploading(slot);
+      try {
+        await adminApi.uploadAppBrandingFile(slot, file);
+        await refreshBranding();
+        toast.success(
+          slot === 'navigation'
+            ? 'Logo barre de navigation mis à jour'
+            : slot === 'login'
+              ? 'Logo page de connexion mis à jour'
+              : 'Favicon mis à jour'
+        );
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string }; status?: number }; message?: string };
+        const detail =
+          err?.response?.data?.error ||
+          (err?.response?.status === 401
+            ? 'Session expirée — reconnectez-vous.'
+            : null) ||
+          err?.message;
+        toast.error(detail || "Erreur lors de l'envoi du fichier");
+      } finally {
+        setBrandingUploading(null);
+      }
+    };
+    input.click();
+  };
+
+  const clearBrandingAsset = async (field: 'navigationLogoUrl' | 'loginLogoUrl' | 'faviconUrl') => {
+    try {
+      await adminApi.updateAppBranding({ [field]: null });
+      await refreshBranding();
+      toast.success('Image réinitialisée');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err?.response?.data?.error || 'Impossible de supprimer');
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     
     try {
-      // Simuler une sauvegarde (dans une vraie app, on appellerait l'API)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await adminApi.updateAppBranding({
+        appTitle: appTitleDraft.trim() || null,
+        appTagline: appTaglineDraft.trim() || null,
+      });
+      await refreshBranding();
+      await new Promise((resolve) => setTimeout(resolve, 400));
       
       toast.success('Paramètres sauvegardés avec succès !');
       handleClose();
@@ -370,6 +451,170 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                         placeholder="M. Directeur"
                       />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <FiImage className="text-gray-600" aria-hidden />
+                  Identité visuelle (logos)
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Titres affichés dans la barre du haut pour tous les rôles, et images pour la navigation,
+                  la page de connexion et l’icône du navigateur (PNG, JPG, WEBP, SVG, ICO — max 5 Mo).
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Titre dans la barre (ex. nom court de l’établissement)
+                    </label>
+                    <input
+                      type="text"
+                      value={appTitleDraft}
+                      onChange={(e) => setAppTitleDraft(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      placeholder="Gestion scolaire"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Sous-titre (ligne secondaire)
+                    </label>
+                    <input
+                      type="text"
+                      value={appTaglineDraft}
+                      onChange={(e) => setAppTaglineDraft(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      placeholder="Espace sécurisé"
+                      maxLength={160}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200 overflow-hidden">
+                      {navigationLogoAbsolute ? (
+                        <img src={navigationLogoAbsolute} alt="" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <span className="text-xs text-gray-400 text-center px-1">Défaut</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">Logo barre de navigation</p>
+                      <p className="text-xs text-gray-500">Carré recommandé (ex. 256×256)</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => triggerBrandingUpload('navigation')}
+                        disabled={!!brandingUploading}
+                      >
+                        {brandingUploading === 'navigation' ? (
+                          <FiLoader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FiUpload className="w-4 h-4" />
+                        )}
+                        <span className="ml-1.5">Changer</span>
+                      </Button>
+                      {navigationLogoAbsolute ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => clearBrandingAsset('navigationLogoUrl')}
+                          disabled={!!brandingUploading}
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200 overflow-hidden">
+                      {loginLogoAbsolute ? (
+                        <img src={loginLogoAbsolute} alt="" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <span className="text-xs text-gray-400 text-center px-1">Défaut</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">Logo page de connexion</p>
+                      <p className="text-xs text-gray-500">Si vide, le logo navigation est réutilisé</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => triggerBrandingUpload('login')}
+                        disabled={!!brandingUploading}
+                      >
+                        {brandingUploading === 'login' ? (
+                          <FiLoader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FiUpload className="w-4 h-4" />
+                        )}
+                        <span className="ml-1.5">Changer</span>
+                      </Button>
+                      {loginLogoAbsolute && branding.loginLogoUrl ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => clearBrandingAsset('loginLogoUrl')}
+                          disabled={!!brandingUploading}
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200 overflow-hidden">
+                      {faviconAbsolute ? (
+                        <img src={faviconAbsolute} alt="" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <span className="text-xs text-gray-400 text-center px-1">Défaut</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">Favicon</p>
+                      <p className="text-xs text-gray-500">ICO ou PNG carré 32×32 recommandé</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => triggerBrandingUpload('favicon')}
+                        disabled={!!brandingUploading}
+                      >
+                        {brandingUploading === 'favicon' ? (
+                          <FiLoader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FiUpload className="w-4 h-4" />
+                        )}
+                        <span className="ml-1.5">Changer</span>
+                      </Button>
+                      {faviconAbsolute ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => clearBrandingAsset('faviconUrl')}
+                          disabled={!!brandingUploading}
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </div>

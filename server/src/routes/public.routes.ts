@@ -1,7 +1,48 @@
 import express from 'express';
 import prisma from '../utils/prisma';
+import { getAppBrandingDelegate, APP_BRANDING_ID } from '../utils/app-branding-prisma.util';
 
 const router = express.Router();
+
+router.get('/app-branding', async (_req, res) => {
+  try {
+    const appBranding = getAppBrandingDelegate();
+    if (!appBranding) {
+      console.error(
+        '[app-branding] Client Prisma sans modèle AppBranding — cd server && npx prisma generate && npx prisma db push'
+      );
+      return res.json({
+        navigationLogoUrl: null,
+        loginLogoUrl: null,
+        faviconUrl: null,
+        appTitle: null,
+        appTagline: null,
+      });
+    }
+
+    const row = await appBranding.findUnique({ where: { id: APP_BRANDING_ID } });
+    if (!row) {
+      return res.json({
+        navigationLogoUrl: null,
+        loginLogoUrl: null,
+        faviconUrl: null,
+        appTitle: null,
+        appTagline: null,
+      });
+    }
+    res.json({
+      navigationLogoUrl: row.navigationLogoUrl,
+      loginLogoUrl: row.loginLogoUrl,
+      faviconUrl: row.faviconUrl,
+      appTitle: row.appTitle,
+      appTagline: row.appTagline,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur serveur';
+    console.error('GET /public/app-branding:', error);
+    res.status(500).json({ error: message });
+  }
+});
 
 /**
  * Données minimales pour affichage de la carte étudiant (lien / QR public).

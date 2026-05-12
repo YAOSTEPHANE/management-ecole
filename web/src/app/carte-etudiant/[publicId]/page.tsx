@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { publicApi } from '@/services/api/public';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
+import { useAppBranding } from '@/contexts/AppBrandingContext';
 import {
   ENROLLMENT_STATUS_LABELS,
   enrollmentBadgeVariant,
@@ -26,6 +27,7 @@ type CardPayload = {
 export default function CarteEtudiantPage() {
   const params = useParams();
   const publicId = typeof params?.publicId === 'string' ? params.publicId : '';
+  const { branding, navigationLogoAbsolute } = useAppBranding();
   const [data, setData] = useState<CardPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -76,9 +78,20 @@ export default function CarteEtudiantPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.06] shadow-2xl backdrop-blur-md p-8 space-y-6">
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-3">
+          {navigationLogoAbsolute ? (
+            <div className="flex justify-center">
+              <img
+                src={navigationLogoAbsolute}
+                alt=""
+                className="h-12 w-auto max-w-[200px] object-contain mx-auto"
+              />
+            </div>
+          ) : null}
           <p className="text-[10px] uppercase tracking-[0.25em] text-amber-400/90">Carte étudiant</p>
-          <h1 className="text-xl font-semibold text-white">Gestion scolaire</h1>
+          <h1 className="text-xl font-semibold text-white">
+            {(branding.appTitle && branding.appTitle.trim()) || 'Gestion scolaire'}
+          </h1>
         </div>
         <div className="flex flex-col items-center gap-3">
           <Avatar

@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useAppBranding } from '@/contexts/AppBrandingContext';
 import {
   FiBook,
   FiUsers,
@@ -23,8 +26,15 @@ import {
   FiYoutube,
 } from 'react-icons/fi';
 
+const DEFAULT_TAGLINE =
+  'Centralisez administration, pédagogie et lien avec les familles — une base unique, sécurisée et pensée pour le terrain.';
+
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { branding, navigationLogoAbsolute } = useAppBranding();
+  const displayTitle = (branding.appTitle && branding.appTitle.trim()) || 'Gestion scolaire';
+  const tagline =
+    (branding.appTagline && branding.appTagline.trim()) || DEFAULT_TAGLINE;
 
   return (
     <footer className="relative overflow-hidden bg-gradient-to-b from-stone-950 via-stone-900 to-zinc-950 text-stone-400 ring-1 ring-amber-500/10">
@@ -41,14 +51,28 @@ const Footer = () => {
           {/* À propos */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-stone-800 to-stone-900 rounded-xl flex items-center justify-center text-amber-100 shadow-lg ring-2 ring-amber-500/25">
-                <FiBook className="w-5 h-5" aria-hidden />
+              <div
+                className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-amber-500/25 overflow-hidden ${
+                  navigationLogoAbsolute
+                    ? 'bg-white'
+                    : 'bg-gradient-to-br from-stone-800 to-stone-900 text-amber-100'
+                }`}
+              >
+                {navigationLogoAbsolute ? (
+                  <img
+                    src={navigationLogoAbsolute}
+                    alt=""
+                    className="h-full w-full object-contain p-1"
+                  />
+                ) : (
+                  <FiBook className="w-5 h-5" aria-hidden />
+                )}
               </div>
-              <span className="text-xl font-bold text-stone-100 font-display tracking-tight">Gestion Scolaire</span>
+              <span className="text-xl font-bold text-stone-100 font-display tracking-tight">
+                {displayTitle}
+              </span>
             </div>
-            <p className="text-sm text-stone-500 mb-4 leading-relaxed">
-              Centralisez administration, pédagogie et lien avec les familles — une base unique, sécurisée et pensée pour le terrain.
-            </p>
+            <p className="text-sm text-stone-500 mb-4 leading-relaxed">{tagline}</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href="#"
@@ -267,7 +291,7 @@ const Footer = () => {
         <div className="border-t border-stone-700/80 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 gap-4">
             <p className="text-sm text-stone-500 text-center md:text-left">
-              © {currentYear} Gestion Scolaire. Tous droits réservés.
+              © {currentYear} {displayTitle}. Tous droits réservés.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
               <Link

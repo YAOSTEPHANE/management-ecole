@@ -384,6 +384,214 @@
     }
   }
 
+  /** Accueil — barre de navigation plus « éditoriale » */
+  .home-header {
+    -webkit-backdrop-filter: blur(22px) saturate(1.45);
+    backdrop-filter: blur(22px) saturate(1.45);
+  }
+
+  /** Héros — halo bas + filtre de profondeur */
+  .home-hero-shell {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .home-hero-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, transparent 18%);
+  }
+
+  .home-hero-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background: radial-gradient(ellipse 130% 75% at 50% 100%, rgba(201, 162, 39, 0.16), transparent 58%);
+    mix-blend-mode: screen;
+  }
+
+  .home-hero-h1 {
+    text-shadow:
+      0 2px 48px rgba(0, 0, 0, 0.55),
+      0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .home-hero-h1 .home-hero-h1__line {
+    display: block;
+  }
+
+  @media (min-width: 1024px) {
+    .home-hero-h1 .home-hero-h1__line--tight {
+      letter-spacing: -0.02em;
+    }
+  }
+
+  /** Chiffres clés — chiffres en dégradé or */
+  .home-stat-num {
+    background: linear-gradient(135deg, #fefce8 0%, #fde68a 35%, #d97706 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.35));
+  }
+
+  /** Bandeau — libellés métallisés */
+  .home-marquee-text {
+    background: linear-gradient(92deg, #a8a29e 0%, #fef9c3 42%, #d6d3d1 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /** Bento piliers — cadre lumineux */
+  .home-bento-outer {
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(201, 162, 39, 0.14),
+      0 40px 80px -36px rgba(12, 10, 9, 0.28),
+      0 0 80px -24px rgba(201, 162, 39, 0.12);
+  }
+
+  .home-bento-outer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 1px rgba(251, 191, 36, 0.22),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.55);
+    pointer-events: none;
+    opacity: 0.75;
+  }
+
+  .home-bento-inner {
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.92),
+      inset 0 -40px 80px -48px rgba(254, 243, 199, 0.15);
+  }
+
+  .home-campus-split {
+    box-shadow:
+      0 0 0 1px rgba(201, 162, 39, 0.1),
+      0 28px 56px -24px rgba(12, 10, 9, 0.18);
+  }
+
+  .home-hero-frame-in--elevated {
+    box-shadow:
+      0 32px 64px -20px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(251, 191, 36, 0.14),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  }
+
+  /** Cartes rôles — survol type « vitrine » */
+  .home-role-card {
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.45s ease,
+      border-color 0.35s ease;
+    transform-style: preserve-3d;
+  }
+
+  .home-role-card:hover {
+    box-shadow:
+      0 28px 56px -20px rgba(12, 10, 9, 0.2),
+      0 0 0 1px rgba(251, 191, 36, 0.25),
+      0 0 48px -12px rgba(201, 162, 39, 0.18);
+  }
+
+  /** Citation — halo décoratif */
+  .home-quote-panel {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .home-quote-panel::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    width: min(42rem, 140%);
+    height: min(42rem, 140%);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, transparent 62%);
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  .home-quote-panel::after {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 42%, rgba(254, 243, 199, 0.25) 100%);
+    opacity: 0.65;
+  }
+
+  /** CTA final — anneau lumineux */
+  .home-cta-shell {
+    position: relative;
+    isolation: isolate;
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.2),
+      0 32px 64px -24px rgba(0, 0, 0, 0.55),
+      0 0 100px -30px rgba(201, 162, 39, 0.22);
+  }
+
+  .home-cta-shell::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(
+      125deg,
+      rgba(251, 191, 36, 0.35),
+      transparent 40%,
+      transparent 58%,
+      rgba(253, 230, 138, 0.2)
+    );
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes homeAccentPulse {
+    0%,
+    100% {
+      opacity: 0.95;
+      filter: brightness(1);
+    }
+    50% {
+      opacity: 1;
+      filter: brightness(1.08);
+    }
+  }
+
+  .home-section-accent--glow {
+    animation: homeAccentPulse 4.5s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-section-accent--glow {
+      animation: none;
+    }
+
+    .home-role-card:hover {
+      transform: none;
+    }
+  }
+
+  .home-page {
+    scroll-padding-top: 5rem;
+  }
+
   .premium-card-surface {
     @apply rounded-2xl border border-stone-200/90 backdrop-blur-xl;
     background-color: rgba(255, 255, 255, 0.92);
@@ -748,6 +956,10 @@
   }
 
   .home-marquee-track {
+    animation: none !important;
+  }
+
+  .home-section-accent--glow {
     animation: none !important;
   }
 

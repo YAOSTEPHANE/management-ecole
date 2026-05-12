@@ -2086,3 +2086,16 @@ model StudentTransfer {
   @@map("student_transfers")
 }
 
+/// Identité visuelle de l’application (document unique id = "default").
+model AppBranding {
+  id                String   @id @map("_id")
+  navigationLogoUrl String?
+  loginLogoUrl      String?
+  faviconUrl        String?
+  appTitle          String?
+  appTagline        String?
+  updatedAt         DateTime @updatedAt
+
+  @@map("app_branding")
+}
+

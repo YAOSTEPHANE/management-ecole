@@ -19,4 +19,9 @@ export const publicApi = {
     );
     return response.data;
   },
+  /** Logos et titres d’application (lecture publique pour la page de connexion et le layout). */
+  getAppBranding: async () => {
+    const response = await api.get('/public/app-branding');
+    return response.data;
+  },
 };

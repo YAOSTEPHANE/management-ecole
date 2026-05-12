@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 
 /**
  * Base URL sans slash final, toujours avec préfixe `/api` pour l’API Express locale.
@@ -65,7 +65,17 @@ function isPublicAuthRequest(url: string | undefined): boolean {
 }
 
 // Intercepteur : ne pas envoyer de Bearer sur login / register / reset (évite conflit avec un vieux token)
+// + multipart (FormData) : retirer Content-Type application/json pour que le boundary multipart soit défini
 api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const h = config.headers;
+    if (h instanceof AxiosHeaders) {
+      h.delete('Content-Type');
+    } else if (h && typeof h === 'object') {
+      delete (h as Record<string, unknown>)['Content-Type'];
+      delete (h as Record<string, unknown>)['content-type'];
+    }
+  }
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token && !isPublicAuthRequest(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -1818,6 +1828,23 @@ export const adminApi = {
   },
   deleteOrientationPlacement: async (id: string) => {
     const response = await api.delete(`/admin/orientation/placements/${id}`);
+    return response.data;
+  },
+  getAppBranding: async () => {
+    const response = await api.get('/admin/app-branding');
+    return response.data;
+  },
+  updateAppBranding: async (data: Record<string, unknown>) => {
+    const response = await api.put('/admin/app-branding', data);
+    return response.data;
+  },
+  uploadAppBrandingFile: async (slot: 'navigation' | 'login' | 'favicon', file: File) => {
+    const formData = new FormData();
+    formData.append('branding', file);
+    const response = await api.post(
+      `/admin/app-branding/upload?slot=${encodeURIComponent(slot)}`,
+      formData
+    );
     return response.data;
   },
 };

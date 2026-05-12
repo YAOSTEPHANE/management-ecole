@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import {
   persistSuccessfulGet,
@@ -33,9 +33,18 @@ const api = axios.create({
   },
 });
 
-// Intercepteur pour ajouter le token
+// Intercepteur : multipart (FormData) ne doit pas garder Content-Type: application/json
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const h = config.headers;
+    if (h instanceof AxiosHeaders) {
+      h.delete('Content-Type');
+    } else if (h && typeof h === 'object') {
+      delete (h as Record<string, unknown>)['Content-Type'];
+      delete (h as Record<string, unknown>)['content-type'];
+    }
+  }
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

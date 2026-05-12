@@ -3,6 +3,7 @@ import { useState } from 'react';
 import NotificationCenter from './NotificationCenter';
 import Avatar from './ui/Avatar';
 import ProfileEditModal from './ProfileEditModal';
+import { useAppBranding } from '@/contexts/AppBrandingContext';
 import {
   FiBook,
   FiBookOpen,
@@ -136,6 +137,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const accent = ROLE_ACCENTS[role] ?? ROLE_ACCENTS.ADMIN;
   const profileRows = buildProfileRows(user, role);
+  const { navigationLogoAbsolute, branding } = useAppBranding();
+  const headerTitle = (branding.appTitle && branding.appTitle.trim()) || 'Gestion scolaire';
+  const headerTagline =
+    (branding.appTagline && branding.appTagline.trim()) || 'Espace sécurisé';
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'Utilisateur';
 
@@ -173,9 +178,17 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                 className="flex items-center gap-2 sm:gap-2.5 min-w-0 group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fafaf9] -m-1 p-1"
               >
                 <div
-                  className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.logo} text-amber-50 shadow-lg shadow-black/25 ring-2 ring-amber-500/25 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-xl`}
+                  className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br ${navigationLogoAbsolute ? 'bg-white ring-2 ring-amber-500/25' : `${accent.logo} text-amber-50`} shadow-lg shadow-black/25 ring-2 ring-amber-500/25 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-xl`}
                 >
-                  <span className="font-display text-base font-semibold tracking-[0.12em]">É</span>
+                  {navigationLogoAbsolute ? (
+                    <img
+                      src={navigationLogoAbsolute}
+                      alt=""
+                      className="h-full w-full object-contain p-0.5"
+                    />
+                  ) : (
+                    <span className="font-display text-base font-semibold tracking-[0.12em]">É</span>
+                  )}
                   <span
                     className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/15"
                     aria-hidden
@@ -183,10 +196,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="font-display text-base sm:text-lg font-semibold tracking-[0.06em] text-stone-900 truncate">
-                    Gestion scolaire
+                    {headerTitle}
                   </p>
                   <p className="text-[9px] sm:text-[10px] font-medium uppercase tracking-[0.2em] text-stone-500 truncate">
-                    Espace sécurisé
+                    {headerTagline}
                   </p>
                 </div>
               </Link>
