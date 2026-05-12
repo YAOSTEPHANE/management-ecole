@@ -12,18 +12,8 @@ import pushRoutes from '../routes/push.routes';
 import admissionPublicRoutes from '../routes/admission.public.routes';
 import publicRoutes from '../routes/public.routes';
 import { getUploadsRootDir } from '../utils/uploads-path';
+import { getAllowedCorsOrigins } from '../utils/cors-origins.util';
 import { recordRequestMetric } from '../utils/performance-metrics.util';
-
-function getFrontendOrigins(): string[] {
-  const fromEnv = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:3001')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  if (process.env.VERCEL_URL) {
-    fromEnv.push(`https://${process.env.VERCEL_URL}`);
-  }
-  return fromEnv;
-}
 
 /**
  * Construit l’application Express (middlewares, routes, gestion d’erreurs).
@@ -36,9 +26,32 @@ export function createApp(): express.Express {
     app.set('trust proxy', 1);
   }
 
+  const corsAllowed = new Set(getAllowedCorsOrigins());
+
   app.use(
     cors({
-      origin: getFrontendOrigins(),
+      origin(origin, callback) {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        try {
+          const u = new URL(origin);
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+            callback(null, false);
+            return;
+          }
+          const key = u.origin;
+          if (corsAllowed.has(key)) {
+            callback(null, true);
+            return;
+          }
+        } catch {
+          callback(null, false);
+          return;
+        }
+        callback(null, false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
@@ -57,6 +70,9 @@ export function createApp(): express.Express {
 
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     next();
   });
 
@@ -74,7 +90,23 @@ export function createApp(): express.Express {
     next();
   });
 
-  app.use('/uploads', express.static(getUploadsRootDir()));
+  const uploadsRoot = getUploadsRootDir();
+  app.use(
+    '/uploads',
+    express.static(uploadsRoot, {
+      dotfiles: 'deny',
+      index: false,
+      fallthrough: false,
+      setHeaders(res, filePath) {
+        const posix = filePath.replace(/\\/g, '/');
+        if (posix.includes('/identity-documents/')) {
+          res.setHeader('Cache-Control', 'private, no-store, no-cache');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+      },
+    })
+  );
 
   const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
 

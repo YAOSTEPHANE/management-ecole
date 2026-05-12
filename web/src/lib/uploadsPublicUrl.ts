@@ -1,23 +1,48 @@
 /**
- * Construit une URL absolue pour un fichier servi sous `/uploads/...` sur l’API Express.
+ * Origine HTTP(S) du serveur qui expose `GET /uploads/...` (Express, même hôte que l’API en général).
+ *
+ * En production, si `NEXT_PUBLIC_API_URL` est **relatif** (`/api`), les images ne peuvent pas être
+ * résolues vers le bon hôte sans l’une des options suivantes :
+ * - **Même domaine** (reverse proxy) : `NEXT_PUBLIC_API_URL=/api`, pas de `NEXT_PUBLIC_UPLOADS_ORIGIN`
+ *   — le navigateur charge `https://votre-domaine/uploads/...` (nginx route vers Express).
+ * - **API sur un autre hôte** : `NEXT_PUBLIC_UPLOADS_ORIGIN` (ex. `https://api.votredomaine.com`) ;
+ * - ou **`NEXT_PUBLIC_API_URL`** en URL absolue (ex. `https://api.votredomaine.com/api`) ;
+ * - ou un **rewrite** Next (`next.config`) vers l’API si le front ne reçoit pas directement `/uploads`
+ *   (désactivable avec `NEXT_PUBLIC_DISABLE_UPLOADS_REWRITE=1` si même hôte que l’API).
  */
+
+function trimSlash(s: string): string {
+  return s.replace(/\/+$/, '').trim();
+}
+
 export function getApiOriginForUploads(): string {
-  const n = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
-  if (n?.startsWith('http')) {
-    const base = n.replace(/\/api\/?$/, '');
-    return base.replace(/\/+$/, '');
+  const uploadsOrigin = trimSlash(process.env.NEXT_PUBLIC_UPLOADS_ORIGIN || '');
+  if (uploadsOrigin.startsWith('http://') || uploadsOrigin.startsWith('https://')) {
+    return uploadsOrigin;
   }
+
+  const api = trimSlash(process.env.NEXT_PUBLIC_API_URL || '');
+  if (api.startsWith('http://') || api.startsWith('https://')) {
+    const withoutApi = api.replace(/\/api\/?$/i, '');
+    const base = trimSlash(withoutApi);
+    return base.length > 0 ? base : trimSlash(api);
+  }
+
   if (typeof window !== 'undefined') {
     const base =
-      n || (process.env.VERCEL ? `${window.location.origin}/api` : 'http://localhost:5000/api');
+      api ||
+      (process.env.VERCEL ? `${window.location.origin}/api` : 'http://localhost:5000/api');
     if (base.startsWith('/')) {
-      return window.location.origin.replace(/\/+$/, '');
+      // Même origine que le front : les fichiers passent par le rewrite `/uploads` → backend (next.config).
+      return trimSlash(window.location.origin);
     }
-    return base.replace(/\/api\/?$/, '').replace(/\/+$/, '') || window.location.origin;
+    if (base.startsWith('http://') || base.startsWith('https://')) {
+      return trimSlash(base.replace(/\/api\/?$/i, '')) || trimSlash(window.location.origin);
+    }
+    return trimSlash(window.location.origin);
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`.replace(/\/+$/, '');
-  }
+
+  // SSR / build : pas de `window` — exiger une URL absolue API ou NEXT_PUBLIC_UPLOADS_ORIGIN en prod.
   return 'http://localhost:5000';
 }
 

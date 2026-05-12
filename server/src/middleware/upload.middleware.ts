@@ -65,6 +65,19 @@ export const upload = multer({
   fileFilter,
 });
 
+const BRANDING_ALLOWED_MIMES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+  'image/heic',
+  'image/heif',
+]);
+
 const brandingExtOk = (name: string) =>
   /\.(jpeg|jpg|png|gif|webp|svg|ico|heic|heif)$/i.test(path.extname(name));
 
@@ -72,11 +85,13 @@ const brandingFileFilter = (_req: unknown, file: Express.Multer.File, cb: multer
   if (file.fieldname !== 'branding') {
     return fileFilter(_req as any, file, cb);
   }
-  if (brandingExtOk(file.originalname)) {
-    return cb(null, true);
+  if (!brandingExtOk(file.originalname)) {
+    return cb(
+      new Error('Format non autorisé pour le logo. Utilisez une image (PNG, JPG, WEBP, SVG, ICO, HEIC…).')
+    );
   }
-  const mime = (file.mimetype || '').toLowerCase();
-  if (mime.startsWith('image/')) {
+  const mime = (file.mimetype || '').toLowerCase().split(';')[0].trim();
+  if (BRANDING_ALLOWED_MIMES.has(mime)) {
     return cb(null, true);
   }
   return cb(
