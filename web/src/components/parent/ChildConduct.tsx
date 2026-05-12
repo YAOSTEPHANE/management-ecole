@@ -8,7 +8,8 @@ import {
   FiUser,
   FiCalendar,
   FiSearch,
-  FiFilter
+  FiFilter,
+  FiFileText,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -16,6 +17,17 @@ import fr from 'date-fns/locale/fr';
 interface ChildConductProps {
   studentId: string;
 }
+
+const DISC_CAT_FR: Record<string, string> = {
+  VERBAL_WARNING: 'Avertissement verbal',
+  WRITTEN_WARNING: 'Avertissement écrit',
+  REPRIMAND: 'Blâme',
+  TEMPORARY_EXCLUSION: 'Exclusion temporaire',
+  DISCIPLINE_COUNCIL_HEARING: 'Conseil de discipline (audition)',
+  DISCIPLINE_COUNCIL_DECISION: 'Conseil de discipline (décision)',
+  BEHAVIOR_CONTRACT: 'Contrat de comportement',
+  OTHER: 'Autre',
+};
 
 const ChildConduct = ({ studentId }: ChildConductProps) => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
@@ -27,6 +39,17 @@ const ChildConduct = ({ studentId }: ChildConductProps) => {
       ...(selectedPeriod !== 'all' && { period: selectedPeriod }),
       ...(academicYear !== 'all' && { academicYear }),
     }),
+  });
+
+  const { data: rulebook } = useQuery({
+    queryKey: ['parent-discipline-rulebook'],
+    queryFn: parentApi.getDisciplineRulebook,
+  });
+
+  const { data: disciplineRecords = [] } = useQuery({
+    queryKey: ['parent-child-discipline', studentId],
+    queryFn: () => parentApi.getChildDisciplineRecords(studentId),
+    enabled: Boolean(studentId),
   });
 
   const periods: string[] = Array.from(
@@ -51,6 +74,57 @@ const ChildConduct = ({ studentId }: ChildConductProps) => {
 
   return (
     <div className="space-y-6">
+      {rulebook &&
+      typeof rulebook === 'object' &&
+      rulebook !== null &&
+      'content' in rulebook &&
+      typeof (rulebook as { content?: unknown }).content === 'string' ? (
+        <Card>
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <FiFileText className="w-5 h-5 text-orange-600" aria-hidden />
+            {(rulebook as { title?: string }).title ?? 'Règlement intérieur'}
+          </h3>
+          <p className="text-xs text-gray-500 mb-2">
+            Mis à jour le{' '}
+            {format(new Date((rulebook as { updatedAt: string }).updatedAt), 'dd/MM/yyyy', {
+              locale: fr,
+            })}
+          </p>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-52 overflow-y-auto border border-orange-100 rounded-lg p-3 bg-orange-50/40">
+            {(rulebook as { content: string }).content}
+          </div>
+        </Card>
+      ) : null}
+
+      {(disciplineRecords as { id: string }[]).length > 0 ? (
+        <Card>
+          <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <FiShield className="w-5 h-5 text-orange-600" aria-hidden />
+            Suivi disciplinaire
+          </h3>
+          <ul className="space-y-2">
+            {(disciplineRecords as {
+              id: string;
+              category: string;
+              title: string;
+              description?: string | null;
+              incidentDate: string;
+              academicYear: string;
+            }[]).map((r) => (
+              <li key={r.id} className="border border-gray-200 rounded-lg p-3 text-sm bg-white">
+                <p className="font-semibold text-gray-900">
+                  {DISC_CAT_FR[r.category] ?? r.category} · {r.title}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {format(new Date(r.incidentDate), 'dd MMM yyyy', { locale: fr })} · {r.academicYear}
+                </p>
+                {r.description ? <p className="text-gray-700 mt-1">{r.description}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       {/* Filtres */}
       {conducts && conducts.length > 0 && (
         <Card>

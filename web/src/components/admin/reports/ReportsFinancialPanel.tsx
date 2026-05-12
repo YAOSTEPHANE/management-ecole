@@ -1,14 +1,19 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Card from '../../ui/Card';
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
-import { CHART_GRID, CHART_MARGIN_COMPACT } from '../../charts';
+import { CHART_GRID, CHART_MARGIN_COMPACT, chartBlueRed, CHART_BLUE, CHART_ANIMATION_MS } from '../../charts';
+import { adminApi } from '../../../services/api';
 
 type Props = {
   summary: any;
@@ -18,7 +23,76 @@ type Props = {
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
 
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente',
+  COMPLETED: 'Complété',
+  FAILED: 'Échoué',
+  CANCELLED: 'Annulé',
+  REFUNDED: 'Remboursé',
+};
+
+const FEE_TYPE_LABELS: Record<string, string> = {
+  ENROLLMENT: 'Inscription',
+  TUITION: 'Scolarité',
+  CANTEEN: 'Cantine',
+  TRANSPORT: 'Transport',
+  ACTIVITY: 'Activités',
+  MATERIAL: 'Matériel',
+  OTHER: 'Autre',
+};
+
+const EXPENSE_CAT_LABELS: Record<string, string> = {
+  SUPPLIES: 'Fournitures',
+  SERVICES: 'Services',
+  UTILITIES: 'Charges / utilities',
+  MAINTENANCE: 'Maintenance',
+  PAYROLL_AUX: 'Masse salariale aux.',
+  TRANSPORT: 'Transport',
+  CATERING: 'Restauration',
+  IT: 'Informatique',
+  OTHER: 'Autre',
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CARD: 'Carte',
+  MOBILE_MONEY: 'Mobile money',
+  BANK_TRANSFER: 'Virement',
+  CASH: 'Espèces',
+};
+
+function guessDefaultAcademicYear(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (m >= 8) return `${y}-${y + 1}`;
+  return `${y - 1}-${y}`;
+}
+
 const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
+  const [academicYear, setAcademicYear] = useState(guessDefaultAcademicYear);
+  const [useShortWindow, setUseShortWindow] = useState(false);
+
+  const { data: classes = [] } = useQuery({
+    queryKey: ['admin-classes'],
+    queryFn: () => adminApi.getClasses(),
+    staleTime: 120_000,
+  });
+
+  const academicYears = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of classes as { academicYear?: string }[]) {
+      if (c.academicYear) s.add(c.academicYear);
+    }
+    return [...s].sort((a, b) => b.localeCompare(a));
+  }, [classes]);
+
+  const { data: fin, isLoading: finLoading, isFetching: finFetching } = useQuery({
+    queryKey: ['admin-reports-financial', useShortWindow ? '' : academicYear],
+    queryFn: () =>
+      adminApi.getFinancialReports(useShortWindow ? {} : { academicYear: academicYear || undefined }),
+    staleTime: 30_000,
+  });
+
   if (isLoading || !summary) {
     return <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />;
   }
@@ -30,6 +104,29 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
     ...x,
     amountK: Math.round(x.amount / 1000),
   }));
+
+  const revFeeChart =
+    fin?.revenueBySource?.byFeeType?.map((x: { feeType: string; total: number }) => ({
+      name: FEE_TYPE_LABELS[x.feeType] ?? x.feeType,
+      montant: Math.round(x.total / 1000),
+      montantFull: x.total,
+    })) ?? [];
+
+  const expCatChart =
+    fin?.expensesByCategory?.map((x: { category: string; totalAmount: number }) => ({
+      name: EXPENSE_CAT_LABELS[x.category] ?? x.category,
+      montant: Math.round(x.totalAmount / 1000),
+      montantFull: x.totalAmount,
+    })) ?? [];
+
+  const budgetChart =
+    fin?.budgetVsActual?.lines?.slice(0, 14).map((x: { label: string; budgeted: number; realized: number }) => ({
+      name: x.label.length > 14 ? `${x.label.slice(0, 12)}…` : x.label,
+      budget: Math.round(x.budgeted / 1000),
+      realise: Math.round(x.realized / 1000),
+    })) ?? [];
+
+  const finBusy = finLoading || finFetching;
 
   return (
     <div className="space-y-6">
@@ -54,6 +151,299 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
         </Card>
       </div>
 
+      <Card className="p-5 border border-slate-200 bg-slate-50/50">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Rapport financier détaillé (3)</h3>
+            <p className="text-xs text-slate-600 mt-1">
+              Paiements, impayés, revenus par type de frais, dépenses, budget vs réalisé, prévisions.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex items-center gap-2 text-xs text-slate-700">
+              <input
+                type="checkbox"
+                checked={useShortWindow}
+                onChange={(e) => setUseShortWindow(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Fenêtre 90 j. (sans année)
+            </label>
+            <label className="block text-xs font-medium text-gray-700 min-w-[10rem]">
+              Année scolaire
+              <select
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-50"
+                value={academicYear}
+                disabled={useShortWindow}
+                onChange={(e) => setAcademicYear(e.target.value)}
+              >
+                {academicYear && !academicYears.includes(academicYear) && (
+                  <option value={academicYear}>{academicYear}</option>
+                )}
+                {academicYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        {fin?.filters?.note && (
+          <p className="text-[11px] text-slate-500 mt-3 border-t border-slate-200/80 pt-2">{fin.filters.note}</p>
+        )}
+        {finBusy && <p className="text-xs text-indigo-600 mt-2 animate-pulse">Chargement du détail…</p>}
+      </Card>
+
+      {fin && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="p-5 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase">Impayés (périmètre)</p>
+              <p className="text-2xl font-bold text-rose-800 mt-1">{fmtMoney(fin.unpaid.totalAmount)} FCFA</p>
+              <p className="text-xs text-gray-500 mt-1">{fin.unpaid.count} ligne(s)</p>
+            </Card>
+            <Card className="p-5 border border-amber-100 bg-amber-50/40">
+              <p className="text-xs font-medium text-amber-900 uppercase">Dont échus</p>
+              <p className="text-2xl font-bold text-amber-950 mt-1">{fmtMoney(fin.unpaid.overdueAmount)} FCFA</p>
+              <p className="text-xs text-amber-800 mt-1">{fin.unpaid.overdueCount} échéance(s)</p>
+            </Card>
+            <Card className="p-5 border border-emerald-100 bg-emerald-50/30">
+              <p className="text-xs font-medium text-emerald-900 uppercase">Encaissements (période)</p>
+              <p className="text-2xl font-bold text-emerald-950 mt-1">
+                {fmtMoney(fin.revenueBySource.periodCompletedTotal)} FCFA
+              </p>
+            </Card>
+            <Card className="p-5 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase">Petite caisse (période)</p>
+              <p className="text-sm text-gray-700 mt-1">
+                Entrées : {fmtMoney(fin.pettyCash.periodIn)} · Sorties : {fmtMoney(fin.pettyCash.periodOut)}
+              </p>
+              <p className="text-lg font-bold text-gray-900 mt-1">Net : {fmtMoney(fin.pettyCash.net)} FCFA</p>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="p-5 border border-gray-200 overflow-x-auto">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">État des paiements (tous dossiers)</h3>
+              <table className="w-full text-sm min-w-[280px]">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-gray-600">
+                    <th className="py-2 pr-4">Statut</th>
+                    <th className="py-2 pr-4 text-right">Nombre</th>
+                    <th className="py-2 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(fin.paymentStatus?.rows ?? []).map((row: { status: string; count: number; totalAmount: number }) => (
+                    <tr key={row.status} className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium text-gray-800">
+                        {PAYMENT_STATUS_LABELS[row.status] ?? row.status}
+                      </td>
+                      <td className="py-2 pr-4 text-right text-gray-600">{row.count}</td>
+                      <td className="py-2 text-right tabular-nums">{fmtMoney(row.totalAmount)} FCFA</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+
+            <Card className="p-5 border border-gray-200 overflow-x-auto">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Impayés par type de frais</h3>
+              <table className="w-full text-sm min-w-[280px]">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-gray-600">
+                    <th className="py-2 pr-4">Type</th>
+                    <th className="py-2 pr-4 text-right">Nb</th>
+                    <th className="py-2 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(fin.unpaid?.byFeeType ?? []).map(
+                    (row: { feeType: string; count: number; amount: number }) => (
+                      <tr key={row.feeType} className="border-b border-gray-100">
+                        <td className="py-2 pr-4">{FEE_TYPE_LABELS[row.feeType] ?? row.feeType}</td>
+                        <td className="py-2 pr-4 text-right">{row.count}</td>
+                        <td className="py-2 text-right tabular-nums">{fmtMoney(row.amount)} FCFA</td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {revFeeChart.length > 0 && (
+              <Card className="p-5 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Revenus par source (type de frais)</h3>
+                <p className="text-[11px] text-gray-500 mb-3">Paiements complétés sur la période filtrée.</p>
+                <div className="h-64 w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revFeeChart} layout="vertical" margin={{ ...CHART_MARGIN_COMPACT, left: 4 }}>
+                      <CartesianGrid {...CHART_GRID} />
+                      <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}k`} />
+                      <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        formatter={(v: number, _n, p) => {
+                          const full = p?.payload?.montantFull;
+                          return [`${fmtMoney(typeof full === 'number' ? full : v * 1000)} FCFA`, 'Montant'];
+                        }}
+                      />
+                      <Bar dataKey="montant" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={CHART_ANIMATION_MS}>
+                        {revFeeChart.map((_, i) => (
+                          <Cell key={i} fill={chartBlueRed(i)} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Axe horizontal : milliers de FCFA.</p>
+              </Card>
+            )}
+
+            <Card className="p-5 border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Revenus par moyen de paiement</h3>
+              <ul className="text-sm space-y-2">
+                {(fin.revenueBySource?.byPaymentMethod ?? []).map(
+                  (row: { paymentMethod: string; total: number; count: number }) => (
+                    <li
+                      key={row.paymentMethod}
+                      className="flex justify-between border-b border-gray-100 py-1.5"
+                    >
+                      <span>{PAYMENT_METHOD_LABELS[row.paymentMethod] ?? row.paymentMethod}</span>
+                      <span className="tabular-nums font-medium">
+                        {fmtMoney(row.total)} FCFA <span className="text-gray-400 font-normal">({row.count})</span>
+                      </span>
+                    </li>
+                  )
+                )}
+              </ul>
+            </Card>
+          </div>
+
+          {expCatChart.length > 0 && (
+            <Card className="p-5 border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Dépenses par catégorie (période)</h3>
+              <div className="h-72 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={expCatChart} margin={CHART_MARGIN_COMPACT}>
+                    <CartesianGrid {...CHART_GRID} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={70} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}k`} width={36} />
+                    <Tooltip
+                      formatter={(v: number, _n, p) => {
+                        const full = p?.payload?.montantFull;
+                        return [`${fmtMoney(typeof full === 'number' ? full : v * 1000)} FCFA`, 'Dépenses'];
+                      }}
+                    />
+                    <Bar dataKey="montant" fill={CHART_BLUE} radius={[4, 4, 0, 0]} isAnimationActive animationDuration={CHART_ANIMATION_MS} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {budgetChart.length > 0 && (
+            <Card className="p-5 border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Budget vs réalisé</h3>
+              <p className="text-[11px] text-gray-500 mb-3">
+                Année budgétaire : {fin.budgetVsActual.academicYear ?? '—'} — {fin.budgetVsActual.expenseScopeNote}
+              </p>
+              <div className="h-80 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={budgetChart} margin={{ ...CHART_MARGIN_COMPACT, bottom: 8 }}>
+                    <CartesianGrid {...CHART_GRID} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={80} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}k`} />
+                    <Tooltip formatter={(v: number) => [`${fmtMoney(v * 1000)} FCFA`, '']} />
+                    <Legend />
+                    <Bar
+                      dataKey="budget"
+                      name="Budget"
+                      fill="#6366f1"
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
+                    <Bar
+                      dataKey="realise"
+                      name="Réalisé"
+                      fill="#0d9488"
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-700">
+                <span>
+                  Total budget : <strong>{fmtMoney(fin.budgetVsActual.totals.budgeted)}</strong> FCFA
+                </span>
+                <span>
+                  Total réalisé : <strong>{fmtMoney(fin.budgetVsActual.totals.realized)}</strong> FCFA
+                </span>
+                <span>
+                  Écart : <strong>{fmtMoney(fin.budgetVsActual.totals.variance)}</strong> FCFA
+                </span>
+              </div>
+            </Card>
+          )}
+
+          <Card className="p-5 border border-violet-100 bg-violet-50/30">
+            <h3 className="text-sm font-semibold text-violet-950 mb-3">Prévisions (indicatif)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-lg bg-white/80 border border-violet-100 px-3 py-2">
+                <p className="text-[10px] uppercase text-violet-800">Moy. mensuelle encaissements (3 m.)</p>
+                <p className="text-lg font-bold text-violet-950">
+                  {fmtMoney(fin.forecasts.avgMonthlyCompletedRevenueLast3m)} FCFA
+                </p>
+              </div>
+              <div className="rounded-lg bg-white/80 border border-violet-100 px-3 py-2">
+                <p className="text-[10px] uppercase text-violet-800">Moy. mensuelle dépenses (90 j.)</p>
+                <p className="text-lg font-bold text-violet-950">
+                  {fmtMoney(fin.forecasts.avgMonthlyExpensesLast90d)} FCFA
+                </p>
+              </div>
+              <div className="rounded-lg bg-white/80 border border-violet-100 px-3 py-2">
+                <p className="text-[10px] uppercase text-violet-800">Reliquat impayé (brut)</p>
+                <p className="text-lg font-bold text-violet-950">
+                  {fmtMoney(fin.forecasts.uncollectedTuitionOutstanding)} FCFA
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
+              <p>
+                Tendance encaissements sur l’horizon :{' '}
+                <strong>
+                  {fin.forecasts.projectedCompletedRevenueIfTrendContinues != null
+                    ? `${fmtMoney(fin.forecasts.projectedCompletedRevenueIfTrendContinues)} FCFA`
+                    : '—'}
+                </strong>
+              </p>
+              <p>
+                Tendance dépenses sur l’horizon :{' '}
+                <strong>
+                  {fin.forecasts.projectedExpensesIfTrendContinues != null
+                    ? `${fmtMoney(fin.forecasts.projectedExpensesIfTrendContinues)} FCFA`
+                    : '—'}
+                </strong>
+              </p>
+              <p className="sm:col-span-2">
+                Scénario prudent (35 % du reliquat) :{' '}
+                <strong>{fmtMoney(fin.forecasts.prudentScenarioCollectionOnOutstanding)} FCFA</strong>
+              </p>
+            </div>
+            <ul className="mt-3 list-disc pl-5 text-[11px] text-gray-600 space-y-1">
+              {(fin.forecasts.notes ?? []).map((n: string, i: number) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
+          </Card>
+        </>
+      )}
+
       <Card className="p-5 border border-gray-200">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">Paiements complétés (6 derniers mois)</h3>
         <div className="h-72 w-full min-w-0">
@@ -66,7 +456,14 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
                 formatter={(value: number) => [`${fmtMoney(value * 1000)} FCFA`, 'Montant']}
                 labelFormatter={(label) => `Période ${label}`}
               />
-              <Bar dataKey="amountK" name="Montant (milliers FCFA)" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="amountK"
+                name="Montant (milliers FCFA)"
+                fill={CHART_BLUE}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive
+                animationDuration={CHART_ANIMATION_MS}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -74,7 +471,7 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
       </Card>
 
       <Card className="p-5 border border-gray-200 overflow-x-auto">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Synthèse par statut de paiement</h3>
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Synthèse par statut de paiement (vue globale)</h3>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-gray-600">
@@ -86,7 +483,9 @@ const ReportsFinancialPanel: React.FC<Props> = ({ summary, isLoading }) => {
           <tbody>
             {(pt.byStatus || []).map((row: any) => (
               <tr key={row.status} className="border-b border-gray-100">
-                <td className="py-2 pr-4 font-medium text-gray-800">{row.status}</td>
+                <td className="py-2 pr-4 font-medium text-gray-800">
+                  {PAYMENT_STATUS_LABELS[row.status] ?? row.status}
+                </td>
                 <td className="py-2 pr-4 text-right text-gray-600">{row.count}</td>
                 <td className="py-2 text-right">{fmtMoney(row.sum)} FCFA</td>
               </tr>

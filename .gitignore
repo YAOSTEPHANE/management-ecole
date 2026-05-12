@@ -10,6 +10,8 @@ node_modules/
 .next/
 out/
 dist/
+server/dist/
+web/.next/
 *.tsbuildinfo
 
 # Outils
@@ -17,3 +19,6 @@ dist/
 .DS_Store
 *.log
 .env*.local
+
+# Sauvegardes MongoDB locales (mongodump)
+server/backups/

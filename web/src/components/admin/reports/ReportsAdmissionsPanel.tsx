@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { CHART_GRID, CHART_MARGIN_COMPACT } from '../../charts';
+import { CHART_GRID, CHART_MARGIN_COMPACT, CHART_BLUE, CHART_ANIMATION_MS } from '../../charts';
 
 type Props = {
   summary: any;
@@ -61,7 +61,13 @@ const ReportsAdmissionsPanel: React.FC<Props> = ({ summary, isLoading }) => {
                 <XAxis dataKey="annee" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="dossiers" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="dossiers"
+                  fill={CHART_BLUE}
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

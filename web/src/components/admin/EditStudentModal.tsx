@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Modal from '../ui/Modal';
@@ -39,6 +39,8 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
   });
 
   // Form data
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     // Informations personnelles
     firstName: '',
@@ -50,7 +52,9 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
     
     // Informations académiques
     classId: '',
-    enrollmentStatus: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED',
+    classGroupId: '',
+    enrollmentStatus: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED' | 'ARCHIVED',
+    stateAssignment: 'NOT_STATE_ASSIGNED' as 'STATE_ASSIGNED' | 'NOT_STATE_ASSIGNED',
     isActive: true,
     
     // Informations de contact
@@ -58,6 +62,10 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
     emergencyContact: '',
     emergencyPhone: '',
     medicalInfo: '',
+    allergies: '',
+    specialNeeds: '',
+    emergencyContact2: '',
+    emergencyPhone2: '',
   });
 
   // Load student data into form
@@ -73,13 +81,20 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
           : '',
         gender: student.gender || 'MALE',
         classId: student.classId || '',
+        classGroupId: student.classGroup?.id || '',
         enrollmentStatus:
-          (student.enrollmentStatus as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED') || 'ACTIVE',
+          (student.enrollmentStatus as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED' | 'ARCHIVED') || 'ACTIVE',
+        stateAssignment:
+          student.stateAssignment === 'STATE_ASSIGNED' ? 'STATE_ASSIGNED' : 'NOT_STATE_ASSIGNED',
         isActive: student.isActive !== undefined ? student.isActive : true,
         address: student.address || '',
         emergencyContact: student.emergencyContact || '',
         emergencyPhone: student.emergencyPhone || '',
         medicalInfo: student.medicalInfo || '',
+        allergies: (student as any).allergies || '',
+        specialNeeds: (student as any).specialNeeds || '',
+        emergencyContact2: (student as any).emergencyContact2 || '',
+        emergencyPhone2: (student as any).emergencyPhone2 || '',
       });
     }
   }, [student]);
@@ -90,6 +105,46 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
     queryFn: adminApi.getClasses,
     enabled: isOpen,
   });
+
+  const { data: allSubjectOptions } = useQuery({
+    queryKey: ['subject-options'],
+    queryFn: () => adminApi.getSubjectOptions(),
+    enabled: isOpen,
+  });
+
+  const selectedClass = useMemo(
+    () => (classes as any[])?.find((c: any) => c.id === formData.classId),
+    [classes, formData.classId]
+  );
+  const trackIdForClass = selectedClass?.track?.id ?? selectedClass?.trackId;
+
+  const { data: trackOptionLinks } = useQuery({
+    queryKey: ['track-available-options', trackIdForClass, 'edit-student'],
+    queryFn: () => adminApi.getTrackAvailableOptions(trackIdForClass as string),
+    enabled: isOpen && !!trackIdForClass,
+  });
+
+  const pickableOptions = useMemo(() => {
+    const links = trackOptionLinks as any[] | undefined;
+    if (trackIdForClass && links && links.length > 0) {
+      return links.map((l) => l.option).filter(Boolean);
+    }
+    return (allSubjectOptions as any[]) ?? [];
+  }, [trackIdForClass, trackOptionLinks, allSubjectOptions]);
+
+  useEffect(() => {
+    if (!student) return;
+    const y = formData.classId
+      ? (classes as any[])?.find((c: any) => c.id === formData.classId)?.academicYear
+      : (student as any).class?.academicYear;
+    const raw = ((student as any).subjectOptions || []) as Array<{
+      optionId: string;
+      academicYear: string;
+    }>;
+    setSelectedOptionIds(
+      raw.filter((row) => !y || row.academicYear === y).map((row) => row.optionId)
+    );
+  }, [student, formData.classId, classes]);
 
   // Mutation pour mettre à jour l'élève
   const updateStudentMutation = useMutation({
@@ -116,10 +171,18 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (name === 'classId') {
+      setFormData((prev) => ({
+        ...prev,
+        classId: value,
+        classGroupId: '',
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
     
     // Clear error for this field
     if (errors[name]) {
@@ -187,20 +250,38 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
       dateOfBirth: formData.dateOfBirth,
       gender: formData.gender,
       classId: formData.classId || undefined,
+      classGroupId: formData.classId
+        ? formData.classGroupId
+          ? formData.classGroupId
+          : null
+        : null,
       enrollmentStatus: formData.enrollmentStatus,
+      stateAssignment: formData.stateAssignment,
       isActive: formData.isActive,
       address: formData.address || undefined,
       emergencyContact: formData.emergencyContact || undefined,
       emergencyPhone: formData.emergencyPhone || undefined,
+      emergencyContact2: formData.emergencyContact2 || undefined,
+      emergencyPhone2: formData.emergencyPhone2 || undefined,
       medicalInfo: formData.medicalInfo || undefined,
+      allergies: formData.allergies || undefined,
+      specialNeeds: formData.specialNeeds || undefined,
+      subjectOptionIds: selectedOptionIds,
     };
 
     updateStudentMutation.mutate(updateData);
   };
 
+  const toggleSubjectOption = (optionId: string) => {
+    setSelectedOptionIds((prev) =>
+      prev.includes(optionId) ? prev.filter((x) => x !== optionId) : [...prev, optionId]
+    );
+  };
+
   const handleClose = () => {
     setCurrentStep(1);
     setErrors({});
+    setSelectedOptionIds([]);
     onClose();
   };
 
@@ -467,10 +548,37 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
                     <option value="">Sélectionner une classe</option>
                     {classes?.map((cls: any) => (
                       <option key={cls.id} value={cls.id}>
-                        {cls.name} - {cls.level}
+                        {cls.level}
+                        {cls.section ? ` sect. ${cls.section}` : ''} — {cls.name}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Groupe <span className="text-stone-400 font-normal">(optionnel)</span>
+                  </label>
+                  <select
+                    name="classGroupId"
+                    value={formData.classGroupId}
+                    onChange={handleChange}
+                    disabled={!formData.classId}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all disabled:opacity-50"
+                  >
+                    <option value="">Aucun groupe</option>
+                    {(classes?.find((c: any) => c.id === formData.classId)?.groups || [])
+                      .slice()
+                      .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                      .map((g: any) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-[10px] text-stone-500 mt-0.5">
+                    Définissez les groupes depuis la liste des classes.
+                  </p>
                 </div>
 
                 <div>
@@ -487,11 +595,64 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
                     <option value="ACTIVE">Inscription active</option>
                     <option value="SUSPENDED">Inscription suspendue</option>
                     <option value="GRADUATED">Diplômé·e</option>
+                    <option value="ARCHIVED">Dossier archivé</option>
                   </select>
                   <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">
                     Suspendu : l&apos;élève ne peut plus se connecter à l&apos;espace élève.
                   </p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-2.5 space-y-2">
+                <p className="text-xs font-semibold text-stone-800">Options suivies</p>
+                <p className="text-[10px] text-stone-600 leading-snug">
+                  {trackIdForClass
+                    ? 'Liste limitée aux options rattachées à la filière de la classe sélectionnée.'
+                    : 'Catalogue complet : rattachez des options aux filières pour guider les choix.'}
+                </p>
+                {!formData.classId ? (
+                  <p className="text-[10px] text-amber-800">
+                    Affectez d’abord une classe pour enregistrer les options sur l’année scolaire de cette
+                    classe.
+                  </p>
+                ) : pickableOptions.length === 0 ? (
+                  <p className="text-[10px] text-stone-500">Aucune option à proposer pour l’instant.</p>
+                ) : (
+                  <ul className="max-h-36 overflow-y-auto space-y-1">
+                    {pickableOptions.map((o: any) => (
+                      <li key={o.id}>
+                        <label className="flex items-center gap-2 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedOptionIds.includes(o.id)}
+                            onChange={() => toggleSubjectOption(o.id)}
+                            className="rounded border-stone-300 text-amber-800 focus:ring-amber-500/40"
+                          />
+                          <span>
+                            {o.name}{' '}
+                            <span className="text-stone-400 font-mono text-[10px]">({o.code})</span>
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="edit-stateAssignment" className="block text-xs font-semibold text-stone-700 mb-1">
+                  Affectation État
+                </label>
+                <select
+                  id="edit-stateAssignment"
+                  name="stateAssignment"
+                  value={formData.stateAssignment}
+                  onChange={handleChange}
+                  className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
+                >
+                  <option value="STATE_ASSIGNED">Affecté de l&apos;État</option>
+                  <option value="NOT_STATE_ASSIGNED">Non affecté</option>
+                </select>
               </div>
 
               <div>
@@ -582,9 +743,69 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Allergies</label>
+                  <textarea
+                    name="allergies"
+                    value={formData.allergies}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 resize-none"
+                    placeholder="Ex. arachides, pénicilline…"
+                    aria-label="Allergies"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Conditions particulières
+                  </label>
+                  <textarea
+                    name="specialNeeds"
+                    value={formData.specialNeeds}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 resize-none"
+                    placeholder="Pédagogie adaptée, asthme, etc."
+                    aria-label="Conditions particulières"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Second contact d&apos;urgence
+                  </label>
+                  <input
+                    type="text"
+                    name="emergencyContact2"
+                    value={formData.emergencyContact2}
+                    onChange={handleChange}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg"
+                    placeholder="Nom"
+                    aria-label="Second contact d'urgence"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Téléphone (2e contact)
+                  </label>
+                  <input
+                    type="tel"
+                    name="emergencyPhone2"
+                    value={formData.emergencyPhone2}
+                    onChange={handleChange}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg"
+                    placeholder="+33…"
+                    aria-label="Téléphone second contact d'urgence"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Informations médicales
+                  Informations médicales (dossier)
                 </label>
                 <div className="relative">
                   <div className="absolute top-2 left-2.5 flex items-start pointer-events-none">
@@ -596,7 +817,7 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
                     onChange={handleChange}
                     rows={3}
                     className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all resize-none"
-                    placeholder="Allergies, conditions médicales, etc."
+                    placeholder="Suivi médical, traitements, consignes…"
                   />
                 </div>
               </div>

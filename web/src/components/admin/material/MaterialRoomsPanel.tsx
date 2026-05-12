@@ -102,6 +102,7 @@ const MaterialRoomsPanel: React.FC = () => {
                   <th className="py-3 px-4 font-semibold text-gray-700">Code</th>
                   <th className="py-3 px-4 font-semibold text-gray-700">Lieu</th>
                   <th className="py-3 px-4 font-semibold text-gray-700 text-right">Capacité</th>
+                  <th className="py-3 px-4 font-semibold text-gray-700 text-right">Équip.</th>
                   <th className="py-3 px-4 font-semibold text-gray-700">Actif</th>
                   <th className="py-3 px-4 font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -115,6 +116,9 @@ const MaterialRoomsPanel: React.FC = () => {
                       {[r.building, r.floor].filter(Boolean).join(' · ') || '—'}
                     </td>
                     <td className="py-3 px-4 text-right">{r.capacity ?? '—'}</td>
+                    <td className="py-3 px-4 text-right text-gray-600">
+                      {typeof r._count?.equipmentStored === 'number' ? r._count.equipmentStored : '—'}
+                    </td>
                     <td className="py-3 px-4">{r.isActive ? 'Oui' : 'Non'}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">

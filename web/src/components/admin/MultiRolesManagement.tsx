@@ -36,7 +36,8 @@ import {
   FiBarChart,
   FiTrash2,
   FiDownload,
-  FiFileText
+  FiFileText,
+  FiBriefcase,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { ADM } from './adminModuleLayout';
@@ -52,15 +53,19 @@ declare module 'jspdf' {
   }
 }
 
-type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'EDUCATOR' | 'all';
+type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'EDUCATOR' | 'STAFF' | 'all';
 
 /** Clés renvoyées par GET /admin/roles/stats (pluriel), alignées sur chaque rôle */
-const ROLE_STATS_API_KEY: Record<Exclude<Role, 'all'>, 'admins' | 'teachers' | 'students' | 'parents' | 'educators'> = {
+const ROLE_STATS_API_KEY: Record<
+  Exclude<Role, 'all'>,
+  'admins' | 'teachers' | 'students' | 'parents' | 'educators' | 'staff'
+> = {
   ADMIN: 'admins',
   TEACHER: 'teachers',
   STUDENT: 'students',
   PARENT: 'parents',
   EDUCATOR: 'educators',
+  STAFF: 'staff',
 };
 
 interface RoleConfig {
@@ -211,6 +216,17 @@ const MultiRolesManagement = () => {
         'Gestion du comportement',
         'Communication avec les élèves',
         'Rapports de conduite',
+      ],
+    },
+    {
+      id: 'STAFF',
+      label: 'Personnel administratif',
+      icon: FiBriefcase,
+      color: 'from-teal-500 to-teal-700',
+      description: 'Administration, soutien, sécurité (hors enseignement)',
+      permissions: [
+        'Espace personnel dédié',
+        'Compte géré depuis le module Personnel administratif',
       ],
     },
   ];
@@ -440,13 +456,17 @@ const MultiRolesManagement = () => {
                 <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{roleStats?.educators || 0}</div>
                 <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Éducateurs</div>
               </div>
+              <div className="text-center">
+                <div className={`text-indigo-50 ${ADM.heroStatNum}`}>{(roleStats as any)?.staff || 0}</div>
+                <div className={`text-indigo-100 ${ADM.heroStatLbl}`}>Personnel admin.</div>
+              </div>
             </div>
           )}
         </div>
       </Card>
 
       {/* Cartes des rôles */}
-      <div className={ADM.grid5}>
+      <div className={ADM.grid6}>
         {roles.map((role) => {
           const Icon = role.icon;
           const count = roleStats ? (roleStats as any)[ROLE_STATS_API_KEY[role.id]] ?? 0 : 0;
@@ -752,7 +772,9 @@ const MultiRolesManagement = () => {
                 Nouveau rôle <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {roles.filter((role) => role.id !== 'all').map((role) => {
+                {roles
+                  .filter((role) => ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'].includes(role.id))
+                  .map((role) => {
                   const Icon = role.icon;
                   const isSelected = newRole === role.id;
                   return (

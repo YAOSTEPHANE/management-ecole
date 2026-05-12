@@ -1,9 +1,10 @@
-export type EnrollmentStatusValue = 'ACTIVE' | 'SUSPENDED' | 'GRADUATED';
+export type EnrollmentStatusValue = 'ACTIVE' | 'SUSPENDED' | 'GRADUATED' | 'ARCHIVED';
 
 export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatusValue, string> = {
   ACTIVE: 'Inscription active',
   SUSPENDED: 'Inscription suspendue',
   GRADUATED: 'Diplômé·e',
+  ARCHIVED: 'Dossier archivé',
 };
 
 export function enrollmentBadgeVariant(
@@ -16,6 +17,8 @@ export function enrollmentBadgeVariant(
       return 'danger';
     case 'GRADUATED':
       return 'info';
+    case 'ARCHIVED':
+      return 'warning';
     default:
       return 'default';
   }

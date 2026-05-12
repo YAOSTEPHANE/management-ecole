@@ -380,17 +380,19 @@ const RecentActivity = () => {
 
   return (
     <>
-      <Card className="relative overflow-hidden group perspective-1000">
-        {/* 3D Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-        <div
-          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
-            transform: 'translateZ(-30px)',
-            filter: 'blur(30px)',
-          }}
-        ></div>
+      <Card className="relative overflow-visible group perspective-1000">
+        {/* Effets de fond (contenus pour ne pas couper les menus déroulants) */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+              transform: 'translateZ(-30px)',
+              filter: 'blur(30px)',
+            }}
+          />
+        </div>
 
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">

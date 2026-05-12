@@ -37,6 +37,7 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import GdprUserRightsPanel from '../gdpr/GdprUserRightsPanel';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
@@ -48,7 +49,14 @@ declare module 'jspdf' {
   }
 }
 
-type SecurityTab = 'overview' | 'login-logs' | 'security-events' | 'users' | 'privacy' | 'compliance';
+type SecurityTab =
+  | 'overview'
+  | 'login-logs'
+  | 'security-events'
+  | 'audit-trail'
+  | 'users'
+  | 'privacy'
+  | 'compliance';
 
 const SecurityPrivacyManagement = () => {
   const [activeTab, setActiveTab] = useState<SecurityTab>('overview');
@@ -62,17 +70,23 @@ const SecurityPrivacyManagement = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isLogDetailsModalOpen, setIsLogDetailsModalOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [auditSkip, setAuditSkip] = useState(0);
+  const auditPageSize = 50;
   const queryClient = useQueryClient();
 
   // Fetch data
   const { data: securityStats } = useQuery({
     queryKey: ['admin-security-stats'],
     queryFn: adminApi.getSecurityStats,
+    staleTime: 60_000,
   });
 
   const { data: loginLogs } = useQuery({
     queryKey: ['admin-login-logs'],
     queryFn: () => adminApi.getLoginLogs({ limit: 50 }),
+    enabled: activeTab === 'login-logs' || activeTab === 'overview',
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: securityEvents } = useQuery({
@@ -82,11 +96,51 @@ const SecurityPrivacyManagement = () => {
         ...(selectedSeverity !== 'all' && { severity: selectedSeverity }),
         limit: 50,
       }),
+    enabled:
+      activeTab === 'security-events' ||
+      activeTab === 'overview' ||
+      activeTab === 'privacy' ||
+      activeTab === 'compliance',
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: users } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => adminApi.getAllUsers(),
+    enabled: activeTab === 'users',
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: auditData, isLoading: auditLoading } = useQuery({
+    queryKey: ['admin-audit-logs', auditSkip],
+    queryFn: () => adminApi.getAuditLogs({ limit: auditPageSize, skip: auditSkip }),
+    enabled: activeTab === 'audit-trail',
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const { data: dataProtection, refetch: refetchDataProtection, isFetching: isFetchingDataProtection } = useQuery({
+    queryKey: ['admin-data-protection-summary'],
+    queryFn: () => adminApi.getDataProtectionSummary(),
+    enabled: activeTab === 'privacy' || activeTab === 'compliance',
+  });
+  const { data: rolePermissions } = useQuery({
+    queryKey: ['admin-role-permissions'],
+    queryFn: () => adminApi.getRolePermissionsOverview(),
+    enabled: activeTab === 'compliance',
+  });
+  const { data: twoFactorUsers } = useQuery({
+    queryKey: ['admin-two-factor-users'],
+    queryFn: () => adminApi.getTwoFactorUsers(),
+    enabled: activeTab === 'compliance' || activeTab === 'users',
+  });
+  const { data: slowEndpoints, refetch: refetchSlowEndpoints, isFetching: isFetchingSlowEndpoints } = useQuery({
+    queryKey: ['admin-slow-endpoints'],
+    queryFn: () => adminApi.getSlowEndpoints({ limit: 5 }),
+    enabled: activeTab === 'compliance' || activeTab === 'overview',
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   // Mutations
@@ -117,11 +171,38 @@ const SecurityPrivacyManagement = () => {
       toast.error(error.response?.data?.error || 'Erreur lors de la modification du statut');
     },
   });
+  const runBackupMutation = useMutation({
+    mutationFn: () => adminApi.runMongoBackupNow(),
+    onSuccess: (resp: any) => {
+      toast.success(resp?.ok ? 'Sauvegarde lancée avec succès' : 'Sauvegarde terminée');
+      queryClient.invalidateQueries({ queryKey: ['admin-data-protection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-security-events'] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Échec de la sauvegarde');
+    },
+  });
+  const disableUser2FAMutation = useMutation({
+    mutationFn: (userId: string) => adminApi.setUserTwoFactorEnabled(userId, false),
+    onSuccess: () => {
+      toast.success('2FA désactivée pour le compte');
+      queryClient.invalidateQueries({ queryKey: ['admin-two-factor-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-security-events'] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Erreur 2FA');
+    },
+  });
 
   const tabs = [
     { id: 'overview' as SecurityTab, label: 'Vue d\'ensemble', icon: FiBarChart },
     { id: 'login-logs' as SecurityTab, label: 'Logs de Connexion', icon: FiActivity },
     { id: 'security-events' as SecurityTab, label: 'Événements Sécurité', icon: FiShield },
+    {
+      id: 'audit-trail' as SecurityTab,
+      label: 'Traçabilité',
+      icon: FiFileText,
+    },
     { id: 'users' as SecurityTab, label: 'Gestion Utilisateurs', icon: FiUser },
     { id: 'privacy' as SecurityTab, label: 'Confidentialité', icon: FiLock },
     { id: 'compliance' as SecurityTab, label: 'Conformité', icon: FiCheckCircle },
@@ -155,6 +236,19 @@ const SecurityPrivacyManagement = () => {
       user.lastName.toLowerCase().includes(searchLower)
     );
   }) || [];
+
+  const filteredAuditItems =
+    auditData?.items.filter((row) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        row.summary.toLowerCase().includes(q) ||
+        row.entityType.toLowerCase().includes(q) ||
+        row.entityId.toLowerCase().includes(q) ||
+        (row.actorEmail?.toLowerCase().includes(q) ?? false) ||
+        row.action.toLowerCase().includes(q)
+      );
+    }) ?? [];
 
   const getSeverityBadge = (severity: string) => {
     const severityMap: Record<string, { label: string; color: string }> = {
@@ -613,7 +707,10 @@ const SecurityPrivacyManagement = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === 'audit-trail') setAuditSkip(0);
+                }}
                 className={ADM.bigTabBtn(isActive, 'bg-gradient-to-r from-red-600 to-rose-600')}
               >
                 <Icon className={ADM.bigTabIcon} />
@@ -625,7 +722,10 @@ const SecurityPrivacyManagement = () => {
       </Card>
 
       {/* Filters */}
-      {(activeTab === 'login-logs' || activeTab === 'security-events' || activeTab === 'users') && (
+      {(activeTab === 'login-logs' ||
+        activeTab === 'security-events' ||
+        activeTab === 'users' ||
+        activeTab === 'audit-trail') && (
         <Card className="p-3 sm:p-4">
           <div className="flex flex-col gap-2 md:flex-row md:gap-3">
             <div className="flex-1">
@@ -934,6 +1034,116 @@ const SecurityPrivacyManagement = () => {
           </Card>
         )}
 
+        {activeTab === 'audit-trail' && (
+          <Card className="p-3 sm:p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className={`${ADM.h2} text-gray-800`}>Traçabilité des modifications</h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Créations, mises à jour et suppressions enregistrées (élèves, utilisateurs, etc.).
+                  {auditData != null && (
+                    <span className="ml-1">
+                      {auditData.total} entrée{auditData.total !== 1 ? 's' : ''} au total.
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={auditSkip === 0}
+                  onClick={() => setAuditSkip((s) => Math.max(0, s - auditPageSize))}
+                >
+                  Précédent
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={
+                    !auditData || auditSkip + auditData.items.length >= auditData.total
+                  }
+                  onClick={() => setAuditSkip((s) => s + auditPageSize)}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </div>
+            {auditLoading ? (
+              <div className="py-10 text-center text-sm text-gray-500">Chargement…</div>
+            ) : filteredAuditItems.length === 0 ? (
+              <div className="py-8 text-center">
+                <FiFileText className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                <p className="text-sm text-gray-600">Aucune entrée sur cette page</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Date</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Action</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Entité</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Auteur</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Résumé</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Détails</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAuditItems.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-100 align-top hover:bg-gray-50">
+                        <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">
+                          {format(new Date(row.createdAt), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            className={
+                              row.action === 'DELETE'
+                                ? 'bg-red-100 text-red-800'
+                                : row.action === 'CREATE'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }
+                          >
+                            {row.action}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-800">
+                          <span className="font-medium">{row.entityType}</span>
+                          <span className="mt-0.5 block truncate max-w-[120px] text-[10px] text-gray-500" title={row.entityId}>
+                            {row.entityId}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600">
+                          {row.actorEmail || '—'}
+                          {row.actorRole && (
+                            <span className="mt-0.5 block text-[10px] text-gray-400">{row.actorRole}</span>
+                          )}
+                        </td>
+                        <td className="max-w-[280px] px-3 py-2 text-xs text-gray-700">{row.summary}</td>
+                        <td className="px-3 py-2">
+                          {row.changes && Object.keys(row.changes).length > 0 ? (
+                            <details className="text-xs">
+                              <summary className="cursor-pointer text-blue-600 hover:underline">
+                                Champs modifiés
+                              </summary>
+                              <pre className="mt-2 max-h-40 max-w-[320px] overflow-auto rounded bg-gray-100 p-2 text-[10px]">
+                                {JSON.stringify(row.changes, null, 2)}
+                              </pre>
+                            </details>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
         {activeTab === 'users' && (
           <Card className="p-3 sm:p-4">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1046,6 +1256,7 @@ const SecurityPrivacyManagement = () => {
         )}
 
         {activeTab === 'privacy' && (
+          <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="p-3 sm:p-4">
               <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Protection des données</h3>
@@ -1056,7 +1267,9 @@ const SecurityPrivacyManagement = () => {
                     <h4 className="text-sm font-semibold text-gray-800">Chiffrement des données</h4>
                   </div>
                   <p className="text-xs text-gray-600">
-                    Toutes les données sensibles sont chiffrées en transit et au repos.
+                    {dataProtection?.sensitiveEncryptionConfigured
+                      ? 'Clé de chiffrement des champs sensibles configurée (SENSITIVE_FIELD_ENCRYPTION_KEY).'
+                      : 'Clé de chiffrement absente: configurez SENSITIVE_FIELD_ENCRYPTION_KEY pour protéger les champs sensibles.'}
                   </p>
                 </div>
                 <div className="rounded-lg border border-green-200 bg-green-50 p-3">
@@ -1107,11 +1320,50 @@ const SecurityPrivacyManagement = () => {
                     <h4 className="text-sm font-semibold text-gray-800">Sauvegarde automatique</h4>
                   </div>
                   <p className="text-xs text-gray-600">
-                    Sauvegardes régulières pour protéger contre la perte de données.
+                    {dataProtection?.scheduledBackupsEnabled
+                      ? `Activée (cron: ${dataProtection?.backupCron || '0 3 * * *'}, rétention: ${dataProtection?.backupRetentionDays ?? 14} jours).`
+                      : 'Non activée: définissez ENABLE_SCHEDULED_MONGODB_BACKUPS=true pour activer les sauvegardes planifiées.'}
                   </p>
                 </div>
               </div>
             </Card>
+          </div>
+          <Card className="p-3 sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className={`${ADM.h2} text-gray-800`}>Sauvegardes & restauration</h3>
+                <p className="text-xs text-gray-600">
+                  Archives MongoDB disponibles: {dataProtection?.backupArchiveCount ?? 0}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => refetchDataProtection()}
+                  disabled={isFetchingDataProtection}
+                >
+                  <FiRefreshCw className="mr-2 h-4 w-4" />
+                  Actualiser
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => runBackupMutation.mutate()}
+                  disabled={runBackupMutation.isPending}
+                >
+                  <FiDownload className="mr-2 h-4 w-4" />
+                  Lancer une sauvegarde
+                </Button>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-gray-600">
+              Dernier événement sauvegarde:{' '}
+              {dataProtection?.lastBackupEvent
+                ? `${dataProtection.lastBackupEvent.type} (${format(new Date(dataProtection.lastBackupEvent.createdAt), 'dd/MM/yyyy HH:mm', { locale: fr })})`
+                : 'Aucun'}
+            </p>
+          </Card>
+          <GdprUserRightsPanel />
           </div>
         )}
 
@@ -1129,23 +1381,109 @@ const SecurityPrivacyManagement = () => {
                   </p>
                   <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
                     <div className="rounded-lg bg-white p-2.5">
-                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Droit à l&apos;oubli</h4>
-                      <p className="text-[11px] text-gray-600 sm:text-xs">Suppression des données à la demande</p>
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Effacement / limitation</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">
+                        Demande enregistrée (événement sécurité + e-mail au contact GDPR_CONTACT_EMAIL si configuré)
+                      </p>
                     </div>
                     <div className="rounded-lg bg-white p-2.5">
-                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Portabilité des données</h4>
-                      <p className="text-[11px] text-gray-600 sm:text-xs">Export des données personnelles</p>
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Portabilité</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">
+                        Export JSON côté utilisateur (GET /auth/gdpr/export) et politique /privacy
+                      </p>
                     </div>
                     <div className="rounded-lg bg-white p-2.5">
-                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Consentement</h4>
-                      <p className="text-[11px] text-gray-600 sm:text-xs">Gestion des consentements utilisateurs</p>
+                      <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Traçabilité</h4>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">
+                        Journal d&apos;audit admin et trace des exports RGPD (événements sécurité)
+                      </p>
                     </div>
                     <div className="rounded-lg bg-white p-2.5">
                       <h4 className="mb-0.5 text-xs font-semibold text-gray-800 sm:text-sm">Transparence</h4>
-                      <p className="text-[11px] text-gray-600 sm:text-xs">Information claire sur l&apos;utilisation des données</p>
+                      <p className="text-[11px] text-gray-600 sm:text-xs">
+                        Politique de confidentialité: {dataProtection?.privacyPolicyUrl || '/privacy'} et droits CNIL
+                      </p>
                     </div>
                   </div>
                 </div>
+              </div>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Consentements & droit à l’oubli</h3>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-600">Consentements total</p>
+                  <p className="text-lg font-bold text-gray-900">{dataProtection?.consent?.total ?? 0}</p>
+                </div>
+                <div className="rounded-lg bg-green-50 p-3">
+                  <p className="text-xs text-gray-600">Consentements accordés</p>
+                  <p className="text-lg font-bold text-green-700">{dataProtection?.consent?.granted ?? 0}</p>
+                </div>
+                <div className="rounded-lg bg-amber-50 p-3">
+                  <p className="text-xs text-gray-600">Refus / en attente</p>
+                  <p className="text-lg font-bold text-amber-700">{dataProtection?.consent?.deniedOrPending ?? 0}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-600">
+                Demandes RGPD tracées (export + effacement): {dataProtection?.gdprRequestsTracked ?? 0}
+              </p>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <h3 className={`${ADM.h2} mb-3 text-gray-800`}>Contrôle des permissions par rôle</h3>
+              <div className="space-y-2">
+                {((rolePermissions?.roles as any[]) || []).length === 0 ? (
+                  <p className="text-xs text-gray-600">Aucun rôle trouvé.</p>
+                ) : (
+                  (rolePermissions?.roles as any[]).map((r: any) => (
+                    <div key={r.role} className="rounded-lg border border-gray-200 p-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">{r.role}</p>
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">{r.users} utilisateur(s)</Badge>
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-600">{(r.permissions || []).join(' · ') || '—'}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className={`${ADM.h2} text-gray-800`}>Authentification forte (2FA)</h3>
+                <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                  {Math.round(Number(twoFactorUsers?.summary?.rate || 0))}% activé
+                </Badge>
+              </div>
+              <p className="mt-2 text-xs text-gray-600">
+                Comptes protégés: {twoFactorUsers?.summary?.enabled2FA ?? 0} / {twoFactorUsers?.summary?.totalUsers ?? 0}
+              </p>
+              <div className="mt-3 space-y-2 max-h-56 overflow-y-auto">
+                {((twoFactorUsers?.users as any[]) || [])
+                  .filter((u: any) => u.twoFactorSettings?.enabled)
+                  .slice(0, 30)
+                  .map((u: any) => (
+                    <div key={u.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {u.firstName} {u.lastName}
+                        </p>
+                        <p className="text-[11px] text-gray-600">
+                          {u.email} · {u.role} ·
+                          {' '}
+                          {u.twoFactorSettings?.lastVerifiedAt
+                            ? `vérifié le ${format(new Date(u.twoFactorSettings.lastVerifiedAt), 'dd/MM/yyyy HH:mm', { locale: fr })}`
+                            : 'jamais vérifié'}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => disableUser2FAMutation.mutate(u.id)}
+                        disabled={disableUser2FAMutation.isPending}
+                      >
+                        Désactiver
+                      </Button>
+                    </div>
+                  ))}
               </div>
             </Card>
 
@@ -1166,6 +1504,37 @@ const SecurityPrivacyManagement = () => {
                   </div>
                   <Badge className="bg-blue-100 text-xs text-blue-800">Planifiée</Badge>
                 </div>
+              </div>
+            </Card>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className={`${ADM.h2} text-gray-800`}>Performance API (Top endpoints lents)</h3>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => refetchSlowEndpoints()}
+                  disabled={isFetchingSlowEndpoints}
+                >
+                  <FiRefreshCw className="mr-2 h-4 w-4" />
+                  Actualiser
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-gray-600">
+                Endpoints suivis: {slowEndpoints?.summary?.endpointsTracked ?? 0} · Requêtes observées: {slowEndpoints?.summary?.requestsTracked ?? 0}
+              </p>
+              <div className="mt-3 space-y-2">
+                {((slowEndpoints?.topSlowEndpoints as any[]) || []).length === 0 ? (
+                  <p className="text-xs text-gray-600">Pas assez de trafic mesuré pour établir un top.</p>
+                ) : (
+                  ((slowEndpoints?.topSlowEndpoints as any[]) || []).map((e: any) => (
+                    <div key={e.endpoint} className="rounded-lg border border-gray-200 p-2.5">
+                      <p className="text-sm font-semibold text-gray-800">{e.endpoint}</p>
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        avg {e.avgMs} ms · p95 {e.p95Ms} ms · max {e.maxMs} ms · volume {e.count} · erreurs {e.errorRate}%
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>

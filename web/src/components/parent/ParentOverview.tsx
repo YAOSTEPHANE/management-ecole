@@ -4,7 +4,20 @@ import { parentApi } from '../../services/api';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import Avatar from '../ui/Avatar';
-import { FiCalendar, FiClipboard, FiAward, FiUsers, FiAlertCircle } from 'react-icons/fi';
+import { FiCalendar, FiClipboard, FiAward, FiUsers, FiAlertCircle, FiBell, FiClock, FiCreditCard } from 'react-icons/fi';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import { CHART_GRID, CHART_MARGIN_COMPACT, chartBlueRed, CHART_ANIMATION_MS } from '../charts';
+import GdprUserRightsPanel from '../gdpr/GdprUserRightsPanel';
+import PortalSchoolFeed from '../portal/PortalSchoolFeed';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 
@@ -26,6 +39,13 @@ const ParentOverview = () => {
     queryKey: ['parent-absences', selectedChild],
     queryFn: () => parentApi.getChildAbsences(selectedChild!),
     enabled: !!selectedChild,
+  });
+
+  const { data: parentKpi } = useQuery({
+    queryKey: ['parent-dashboard-kpis'],
+    queryFn: () => parentApi.getDashboardKpis(),
+    staleTime: 60_000,
+    enabled: !!children && children.length > 0,
   });
 
   // Sélectionner automatiquement le premier enfant si aucun n'est sélectionné (TOUJOURS avant tout return)
@@ -118,6 +138,8 @@ const ParentOverview = () => {
         </div>
       </div>
 
+      <PortalSchoolFeed role="parent" compact />
+
       {/* Sélection d'enfant */}
       {children && children.length > 1 && (
         <Card variant="premium" className="ring-1 ring-slate-900/5">
@@ -189,6 +211,74 @@ const ParentOverview = () => {
             })}
           </div>
 
+          {parentKpi?.cards && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card variant="premium" className="p-4 ring-1 ring-slate-900/5">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase">Impayés (famille)</p>
+                <p className="text-xl font-bold text-rose-800 mt-1 tabular-nums">
+                  {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(
+                    parentKpi.cards.tuitionUnpaidAmount ?? 0
+                  )}{' '}
+                  <span className="text-xs font-normal text-slate-600">FCFA</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{parentKpi.cards.tuitionUnpaidCount} ligne(s)</p>
+              </Card>
+              <Card variant="premium" className="p-4 ring-1 ring-slate-900/5">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase flex items-center gap-1">
+                  <FiClock className="w-3.5 h-3.5" /> RDV en attente
+                </p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{parentKpi.cards.pendingAppointments}</p>
+              </Card>
+              <Card variant="premium" className="p-4 ring-1 ring-slate-900/5">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase flex items-center gap-1">
+                  <FiBell className="w-3.5 h-3.5" /> Notifications
+                </p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{parentKpi.cards.unreadNotifications}</p>
+                <p className="text-xs text-slate-500 mt-0.5">non lues</p>
+              </Card>
+              <Card variant="premium" className="p-4 ring-1 ring-slate-900/5">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase flex items-center gap-1">
+                  <FiCreditCard className="w-3.5 h-3.5" /> KPI
+                </p>
+                <p className="text-xs text-slate-600 mt-2 leading-snug">
+                  Visualisation des moyennes récentes par enfant (120 j.).
+                </p>
+              </Card>
+            </div>
+          )}
+
+          {parentKpi?.charts?.averageByChild && parentKpi.charts.averageByChild.some((x: { average20: number | null }) => x.average20 != null) && (
+            <Card variant="premium" className="p-5 ring-1 ring-slate-900/5">
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Moyennes par enfant (KPI)</h3>
+              <p className="text-xs text-slate-600 mb-4">Basé sur les notes des 120 derniers jours.</p>
+              <div className="h-56 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={parentKpi.charts.averageByChild
+                      .filter((x: { average20: number | null }) => x.average20 != null)
+                      .map((x: { name: string; average20: number }) => ({
+                        name: x.name.length > 14 ? `${x.name.slice(0, 12)}…` : x.name,
+                        moyenne: x.average20,
+                      }))}
+                    margin={CHART_MARGIN_COMPACT}
+                  >
+                    <CartesianGrid {...CHART_GRID} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis domain={[0, 20]} width={28} tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(v: number) => [`${v} / 20`, 'Moyenne']} />
+                    <Bar dataKey="moyenne" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={CHART_ANIMATION_MS}>
+                      {parentKpi.charts.averageByChild
+                        .filter((x: { average20: number | null }) => x.average20 != null)
+                        .map((_: unknown, i: number) => (
+                          <Cell key={i} fill={chartBlueRed(i)} />
+                        ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
           {/* Informations de l'enfant sélectionné */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card variant="premium" className="ring-1 ring-slate-900/5">
@@ -242,6 +332,8 @@ const ParentOverview = () => {
           </div>
         </Card>
       )}
+
+      <GdprUserRightsPanel />
     </div>
   );
 };

@@ -13,6 +13,9 @@ import TeacherScheduleTab from '../../components/teacher/TeacherScheduleTab';
 import TeacherSubjectsTab from '../../components/teacher/TeacherSubjectsTab';
 import TeacherEvaluationsTab from '../../components/teacher/TeacherEvaluationsTab';
 import TeacherLeavesTab from '../../components/teacher/TeacherLeavesTab';
+import TeacherSelfAttendance from '../../components/teacher/TeacherSelfAttendance';
+import TeacherAppointmentsPanel from '../../components/teacher/TeacherAppointmentsPanel';
+import TeacherInternalMessaging from '../../components/teacher/TeacherInternalMessaging';
 import {
   FiLayout,
   FiBook,
@@ -28,6 +31,8 @@ import {
   FiStar,
   FiSun,
   FiCommand,
+  FiClock,
+  FiMessageCircle,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -35,6 +40,7 @@ import { inactiveModuleIconClass } from '../../lib/navModuleIconClass';
 
 const VALID_TAB_IDS = [
   'overview',
+  'appointments',
   'profile',
   'schedule',
   'subjects',
@@ -45,6 +51,7 @@ const VALID_TAB_IDS = [
   'attendance',
   'assignments',
   'conduct',
+  'messaging',
 ] as const;
 
 type TabId = (typeof VALID_TAB_IDS)[number];
@@ -67,6 +74,7 @@ const TeacherDashboard = () => {
   const tabs: TabDef[] = useMemo(
     () => [
       { id: 'overview', label: 'Vue d’ensemble', icon: FiLayout, color: 'from-emerald-500 to-teal-600', description: 'Synthèse pédagogique et charges de travail' },
+      { id: 'appointments', label: 'Rendez-vous parents', icon: FiClock, color: 'from-teal-500 to-emerald-600', description: 'Demandes d’entretien et rendez-vous confirmés' },
       { id: 'profile', label: 'Profil & infos', icon: FiUser, color: 'from-teal-500 to-cyan-600', description: 'Coordonnées et informations professionnelles' },
       { id: 'schedule', label: 'Emploi du temps', icon: FiCalendar, color: 'from-green-500 to-emerald-600', description: 'Planning des cours et créneaux' },
       { id: 'subjects', label: 'Matières', icon: FiLayers, color: 'from-lime-500 to-green-600', description: 'Matières enseignées et rattachements' },
@@ -77,6 +85,13 @@ const TeacherDashboard = () => {
       { id: 'attendance', label: 'Présences', icon: FiUserCheck, color: 'from-cyan-500 to-teal-600', description: 'Appels et assiduité' },
       { id: 'assignments', label: 'Devoirs', icon: FiFileText, color: 'from-indigo-500 to-blue-600', description: 'Travaux donnés et rendus' },
       { id: 'conduct', label: 'Conduite', icon: FiShield, color: 'from-rose-500 to-pink-600', description: 'Appréciations de comportement' },
+      {
+        id: 'messaging',
+        label: 'Messagerie interne',
+        icon: FiMessageCircle,
+        color: 'from-sky-500 to-indigo-600',
+        description: 'Échanges avec l’administration, les collègues, les familles et messages groupés par classe',
+      },
     ],
     []
   );
@@ -107,13 +122,13 @@ const TeacherDashboard = () => {
 
   return (
     <Layout user={user} onLogout={logout} role="TEACHER">
-      <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-emerald-50/50">
-        <aside className="hidden lg:flex w-64 flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] bg-white/75 backdrop-blur-xl border-r border-slate-200/80 shadow-sm">
-          <div className="p-2 flex flex-col flex-1 min-h-0">
-            <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1 shrink-0">
+      <div className="min-h-screen flex premium-body">
+        <aside className="hidden lg:flex w-64 flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] bg-white/92 backdrop-blur-xl border-r border-stone-200/90 shadow-[0_12px_40px_-20px_rgba(12,10,9,0.12)]">
+          <div className="p-2.5 flex flex-col flex-1 min-h-0">
+            <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider px-2 py-1.5 shrink-0">
               Enseignant
             </p>
-            <nav className="space-y-0.5 flex-1 overflow-y-auto min-h-0 pr-0.5 text-[10px] leading-tight">
+            <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 pr-0.5 text-xs leading-snug">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -122,10 +137,10 @@ const TeacherDashboard = () => {
                     key={tab.id}
                     type="button"
                     onClick={() => changeTab(tab.id)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md font-medium transition-all ${
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 ${
                       isActive
-                        ? `bg-gradient-to-r ${tab.color} text-white shadow-sm`
-                        : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
+                        ? `bg-gradient-to-r ${tab.color} text-white shadow-md ring-1 ring-white/20`
+                        : 'text-stone-600 hover:bg-stone-100/90 hover:text-stone-900'
                     }`}
                   >
                     <Icon
@@ -142,28 +157,28 @@ const TeacherDashboard = () => {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-16 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shadow-slate-900/5 shrink-0">
-            <div className="max-w-[1200px] mx-auto px-2.5 sm:px-5 lg:px-6 py-1.5 sm:py-2">
-              <div className="flex flex-col gap-1.5 sm:gap-2">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-2">
+          <header className="sticky top-16 z-20 glass-nav shadow-[0_8px_30px_-12px_rgba(12,10,9,0.08)] shrink-0">
+            <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-2 sm:py-2.5">
+              <div className="flex flex-col gap-2 sm:gap-3">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
                   <div className="min-w-0">
-                    <h1 className="font-display text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight leading-tight">
+                    <h1 className="font-display text-base sm:text-lg md:text-xl font-bold text-stone-900 tracking-tight leading-snug">
                       {getGreeting()}, {user?.firstName}
                     </h1>
-                    <p className="text-slate-500 text-[9px] sm:text-[10px] mt-0 line-clamp-1">
+                    <p className="text-stone-600 text-xs mt-0.5 line-clamp-2 sm:line-clamp-1 max-w-md">
                       Pédagogie, emploi du temps, RH
                     </p>
-                    <p className="text-[8px] sm:text-[9px] text-slate-400 mt-0 tabular-nums">
+                    <p className="text-[11px] sm:text-xs text-stone-500 mt-1 tabular-nums">
                       {format(new Date(), "EEE d MMM yyyy", { locale: fr })}
                     </p>
                   </div>
-                  <div className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-[9px] font-semibold shrink-0">
-                    <FiTrendingUp className="w-3 h-3" />
+                  <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-xs font-semibold shrink-0 ring-1 ring-emerald-900/5">
+                    <FiTrendingUp className="w-3.5 h-3.5 text-emerald-700" aria-hidden />
                     Enseignant
                   </div>
                 </div>
 
-                <div className="lg:hidden flex gap-1 overflow-x-auto scrollbar-hide pb-0.5 -mx-1 px-1 snap-x snap-mandatory scroll-pl-2 touch-pan-x overscroll-x-contain">
+                <div className="lg:hidden flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 snap-x snap-mandatory scroll-pl-2 touch-pan-x overscroll-x-contain">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -172,10 +187,10 @@ const TeacherDashboard = () => {
                         key={tab.id}
                         type="button"
                         onClick={() => changeTab(tab.id)}
-                        className={`shrink-0 snap-start inline-flex items-center gap-1 px-2 py-1.5 min-h-[34px] rounded-md text-[9px] font-semibold ${
+                        className={`shrink-0 snap-start inline-flex items-center gap-1.5 px-2.5 py-2 min-h-[40px] rounded-xl text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 ${
                           isActive
                             ? `bg-gradient-to-r ${tab.color} text-white shadow-md`
-                            : 'bg-slate-100 text-slate-700'
+                            : 'bg-stone-100 text-stone-700'
                         }`}
                       >
                         <Icon
@@ -190,15 +205,15 @@ const TeacherDashboard = () => {
                 </div>
 
                 <div className="relative w-full max-w-xl">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-slate-400">
-                    <FiSearch className="w-3.5 h-3.5" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
+                    <FiSearch className="w-4 h-4" aria-hidden />
                   </div>
                   <input
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Rechercher cours, élèves, devoirs…"
-                    className="w-full pl-8 pr-2.5 py-1 sm:py-1.5 bg-white/90 border border-slate-200 rounded-md text-[10px] sm:text-xs focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-400"
+                    className="w-full pl-10 pr-3 py-2 sm:py-2.5 bg-white/95 border border-stone-200/90 rounded-xl text-sm text-stone-900 placeholder:text-stone-400 shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-amber-500/35 focus:border-amber-400/50 hover:border-stone-300"
                     aria-label="Recherche dans l’espace enseignant"
                   />
                 </div>
@@ -206,22 +221,25 @@ const TeacherDashboard = () => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 sm:px-5 lg:px-6 py-3 sm:py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <div className="max-w-[1200px] mx-auto space-y-3 sm:space-y-4">
-              <div className={`rounded-xl bg-gradient-to-r ${activeMeta.color} p-px shadow-sm`}>
-                <div className="rounded-[11px] bg-white/95 backdrop-blur-xl px-3 py-2 sm:px-4 sm:py-2.5">
-                  <div className="flex items-start gap-2">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 py-4 sm:py-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] scroll-smooth">
+            <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-5">
+              <TeacherSelfAttendance />
+              <div
+                className={`rounded-2xl bg-gradient-to-r ${activeMeta.color} p-[1px] shadow-[0_20px_40px_-18px_rgba(12,10,9,0.18)] ring-1 ring-amber-900/10`}
+              >
+                <div className="rounded-[15px] bg-white/95 backdrop-blur-xl px-3 py-3 sm:px-5 sm:py-4 border border-white/60">
+                  <div className="flex items-start gap-3">
                     <div
-                      className={`w-8 h-8 rounded-lg bg-gradient-to-r ${activeMeta.color} text-white flex items-center justify-center shadow-sm shrink-0`}
+                      className={`w-10 h-10 rounded-xl bg-gradient-to-br ${activeMeta.color} text-white flex items-center justify-center shadow-md ring-1 ring-white/25 shrink-0`}
                     >
-                      <ActiveTabIcon className="w-4 h-4" />
+                      <ActiveTabIcon className="w-5 h-5" aria-hidden />
                     </div>
-                    <div className="min-w-0">
-                      <h2 className="text-sm sm:text-base font-bold text-slate-900">{activeMeta.label}</h2>
-                      <p className="text-[9px] sm:text-xs text-slate-500 mt-0 line-clamp-2">{activeMeta.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-base sm:text-lg font-bold text-stone-900 tracking-tight">{activeMeta.label}</h2>
+                      <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-2 leading-relaxed">{activeMeta.description}</p>
                     </div>
-                    <span className="hidden sm:inline-flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-100 text-slate-700 shrink-0">
-                      <FiCommand className="w-3 h-3" />
+                    <span className="hidden sm:inline-flex items-center gap-1.5 ml-auto px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 shrink-0 ring-1 ring-stone-200/80">
+                      <FiCommand className="w-3.5 h-3.5 text-amber-700/90" aria-hidden />
                       Enseignant
                     </span>
                   </div>
@@ -230,6 +248,7 @@ const TeacherDashboard = () => {
 
               <div className="animate-slide-up">
                 {activeTab === 'overview' && <TeacherOverview />}
+                {activeTab === 'appointments' && <TeacherAppointmentsPanel />}
                 {activeTab === 'profile' && <TeacherPersonalProfile />}
                 {activeTab === 'schedule' && <TeacherScheduleTab />}
                 {activeTab === 'subjects' && <TeacherSubjectsTab />}
@@ -240,6 +259,7 @@ const TeacherDashboard = () => {
                 {activeTab === 'attendance' && <AttendanceManager searchQuery={searchQuery} />}
                 {activeTab === 'assignments' && <AssignmentsManager searchQuery={searchQuery} />}
                 {activeTab === 'conduct' && <TeacherConduct />}
+                {activeTab === 'messaging' && <TeacherInternalMessaging />}
               </div>
             </div>
           </main>

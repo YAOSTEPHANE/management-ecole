@@ -154,7 +154,10 @@ const NFCStudentScanner: React.FC = () => {
                       </h4>
                       <p className="text-sm text-gray-600">ID Étudiant: {student.studentId}</p>
                       {student.nfcId && (
-                        <p className="text-xs text-gray-500 font-mono mt-1">NFC ID: {student.nfcId}</p>
+                        <p className="text-xs text-gray-500 font-mono mt-1">Carte NFC : {student.nfcId}</p>
+                      )}
+                      {student.biometricId && (
+                        <p className="text-xs text-gray-500 font-mono mt-1">Empreinte : {student.biometricId}</p>
                       )}
                     </div>
                     <Badge variant={student.isActive ? 'success' : 'danger'}>

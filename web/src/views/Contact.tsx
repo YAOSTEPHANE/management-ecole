@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import Footer from '../components/Footer';
+import UltraPremiumPageShell from '../components/public/UltraPremiumPageShell';
 import toast from 'react-hot-toast';
 import {
   FiMail,
@@ -29,7 +29,6 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simuler l'envoi du formulaire
     setTimeout(() => {
       toast.success('Message envoyé avec succès ! Nous vous répondrons dans les plus brefs délais.');
       setFormData({ name: '', email: '', subject: '', message: '' });
@@ -44,73 +43,73 @@ const Contact = () => {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-black mb-4">Contactez-nous</h1>
-          <p className="text-xl text-blue-100">
-            Nous sommes là pour vous aider. N'hésitez pas à nous contacter !
-          </p>
-        </div>
-      </div>
+  const textareaClass =
+    'w-full px-4 py-3 border-2 border-stone-200/90 rounded-xl bg-white/95 text-stone-900 placeholder:text-stone-400 shadow-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/55 hover:border-stone-300';
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Informations de contact */}
+  return (
+    <UltraPremiumPageShell
+      navLabel="Contact"
+      title="Contactez-nous"
+      description="Une question sur la plateforme ou votre établissement ? Écrivez-nous, nous revenons vers vous rapidement."
+    >
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-6">
-            <Card>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Informations de contact</h2>
+            <Card variant="premium" className="!p-6 sm:!p-7">
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-stone-900">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900">
+                  <FiMail className="h-4 w-4" aria-hidden />
+                </span>
+                Coordonnées
+              </h2>
               <div className="space-y-6">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FiMail className="w-6 h-6 text-blue-600" />
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 ring-1 ring-amber-200/60">
+                    <FiMail className="h-6 w-6 text-amber-800" aria-hidden />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Email</h3>
+                  <div className="min-w-0">
+                    <h3 className="mb-1 font-semibold text-stone-900">E-mail</h3>
                     <a
                       href="mailto:contact@schoolmanager.com"
-                      className="text-blue-600 hover:text-blue-700 transition-colors"
+                      className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
                     >
                       contact@schoolmanager.com
                     </a>
                     <br />
                     <a
                       href="mailto:support@schoolmanager.com"
-                      className="text-blue-600 hover:text-blue-700 transition-colors"
+                      className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
                     >
                       support@schoolmanager.com
                     </a>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FiPhone className="w-6 h-6 text-green-600" />
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 ring-1 ring-emerald-200/60">
+                    <FiPhone className="h-6 w-6 text-emerald-800" aria-hidden />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Téléphone</h3>
+                    <h3 className="mb-1 font-semibold text-stone-900">Téléphone</h3>
                     <a
                       href="tel:+33123456789"
-                      className="text-gray-700 hover:text-blue-600 transition-colors"
+                      className="tabular-nums text-stone-700 transition-colors hover:text-amber-900"
                     >
                       +33 1 23 45 67 89
                     </a>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Lundi - Vendredi : 9h - 18h
-                    </p>
+                    <p className="mt-1 text-sm text-stone-500">Lundi – vendredi : 9h – 18h</p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FiMapPin className="w-6 h-6 text-purple-600" />
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 ring-1 ring-violet-200/60">
+                    <FiMapPin className="h-6 w-6 text-violet-800" aria-hidden />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">Adresse</h3>
-                    <p className="text-gray-700">
-                      123 Rue de l'Éducation<br />
+                    <h3 className="mb-1 font-semibold text-stone-900">Adresse</h3>
+                    <p className="leading-relaxed text-stone-700">
+                      123 Rue de l&apos;Éducation
+                      <br />
                       75001 Paris, France
                     </p>
                   </div>
@@ -118,56 +117,66 @@ const Contact = () => {
               </div>
             </Card>
 
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
-              <h3 className="font-bold text-gray-800 mb-3">Besoin d'aide rapide ?</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Consultez notre FAQ pour trouver rapidement des réponses aux questions fréquentes.
+            <Card className="border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-stone-50/50 !p-6 ring-1 ring-amber-900/5">
+              <h3 className="mb-2 font-bold text-stone-900">Besoin d&apos;aide rapide ?</h3>
+              <p className="mb-4 text-sm leading-relaxed text-stone-600">
+                Consultez la FAQ pour des réponses aux questions fréquentes.
               </p>
               <Link href="/faq">
-                <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50">
-                  <FiMessageSquare className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="w-full border-stone-300 text-stone-900 hover:bg-amber-50/50"
+                >
+                  <FiMessageSquare className="mr-2 h-4 w-4 shrink-0" aria-hidden />
                   Voir la FAQ
                 </Button>
               </Link>
             </Card>
           </div>
 
-          {/* Formulaire de contact */}
           <div className="lg:col-span-2">
-            <Card>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Envoyez-nous un message</h2>
+            <Card variant="premium" className="!p-6 sm:!p-8">
+              <h2 className="mb-6 text-2xl font-bold text-stone-900">Envoyez-nous un message</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Nom complet <span className="text-red-500">*</span>
+                    <label htmlFor="contact-name" className="mb-2 block text-sm font-semibold text-stone-800">
+                      Nom complet <span className="text-red-600">*</span>
                     </label>
                     <div className="relative">
-                      <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <FiUser
+                        className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400"
+                        aria-hidden
+                      />
                       <Input
+                        id="contact-name"
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
                         required
-                        className="pl-10"
+                        className="!pl-10"
                         placeholder="Votre nom"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email <span className="text-red-500">*</span>
+                    <label htmlFor="contact-email" className="mb-2 block text-sm font-semibold text-stone-800">
+                      E-mail <span className="text-red-600">*</span>
                     </label>
                     <div className="relative">
-                      <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <FiMail
+                        className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400"
+                        aria-hidden
+                      />
                       <Input
+                        id="contact-email"
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
                         required
-                        className="pl-10"
+                        className="!pl-10"
                         placeholder="votre@email.com"
                       />
                     </div>
@@ -175,51 +184,47 @@ const Contact = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Sujet <span className="text-red-500">*</span>
+                  <label htmlFor="contact-subject" className="mb-2 block text-sm font-semibold text-stone-800">
+                    Sujet <span className="text-red-600">*</span>
                   </label>
                   <div className="relative">
-                    <FiFileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <FiFileText
+                      className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400"
+                      aria-hidden
+                    />
                     <Input
+                      id="contact-subject"
                       type="text"
                       name="subject"
                       value={formData.subject}
                       onChange={handleChange}
                       required
-                      className="pl-10"
+                      className="!pl-10"
                       placeholder="Sujet de votre message"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Message <span className="text-red-500">*</span>
+                  <label htmlFor="contact-message" className="mb-2 block text-sm font-semibold text-stone-800">
+                    Message <span className="text-red-600">*</span>
                   </label>
                   <textarea
+                    id="contact-message"
                     name="message"
                     value={formData.message}
                     onChange={handleChange}
                     required
                     rows={8}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    placeholder="Décrivez votre demande ou votre question..."
+                    className={textareaClass}
+                    placeholder="Décrivez votre demande ou votre question…"
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isSubmitting ? (
+                <Button type="submit" disabled={isSubmitting} isLoading={isSubmitting} className="w-full" size="lg">
+                  {!isSubmitting && (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Envoi en cours...
-                    </>
-                  ) : (
-                    <>
-                      <FiSend className="w-4 h-4 mr-2" />
+                      <FiSend className="mr-2 h-4 w-4 shrink-0" aria-hidden />
                       Envoyer le message
                     </>
                   )}
@@ -229,16 +234,8 @@ const Contact = () => {
           </div>
         </div>
       </div>
-
-      <Footer />
-    </div>
+    </UltraPremiumPageShell>
   );
 };
 
 export default Contact;
-
-
-
-
-
-

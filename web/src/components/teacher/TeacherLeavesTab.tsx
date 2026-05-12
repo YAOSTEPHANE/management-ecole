@@ -8,7 +8,7 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import toast from 'react-hot-toast';
 import { FiCalendar, FiPlus, FiInfo } from 'react-icons/fi';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import {
   TEACHER_LEAVE_TYPE_LABELS,
@@ -29,6 +29,15 @@ const TeacherLeavesTab = () => {
   const { data: leaves, isLoading } = useQuery({
     queryKey: ['teacher-leaves'],
     queryFn: teacherApi.getLeaves,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (leaveId: string) => teacherApi.cancelLeave(leaveId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-leaves'] });
+      toast.success('Demande annulée');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Annulation impossible'),
   });
 
   const createMutation = useMutation({
@@ -52,6 +61,12 @@ const TeacherLeavesTab = () => {
     e.preventDefault();
     if (!form.startDate || !form.endDate) {
       toast.error('Indiquez les dates de début et de fin');
+      return;
+    }
+    const start = new Date(form.startDate);
+    const end = new Date(form.endDate);
+    if (end < start) {
+      toast.error('La date de fin doit être le même jour ou après la date de début');
       return;
     }
     createMutation.mutate();
@@ -137,6 +152,15 @@ const TeacherLeavesTab = () => {
                 />
               </div>
             </div>
+            {form.startDate && form.endDate && new Date(form.endDate) >= new Date(form.startDate) && (
+              <p className="text-xs text-gray-600">
+                Durée :{' '}
+                <strong>
+                  {differenceInCalendarDays(new Date(form.endDate), new Date(form.startDate)) + 1}
+                </strong>{' '}
+                jour(s) calendaires
+              </p>
+            )}
             <div>
               <label htmlFor="leave-reason" className="block text-sm font-medium text-gray-700 mb-1">
                 Motif (optionnel)
@@ -188,10 +212,36 @@ const TeacherLeavesTab = () => {
                       {lv.adminComment}
                     </p>
                   )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {differenceInCalendarDays(new Date(lv.endDate), new Date(lv.startDate)) + 1} jour(s)
+                    calendaires
+                  </p>
                 </div>
-                <Badge variant={leaveStatusBadgeVariant(lv.status)}>
-                  {TEACHER_LEAVE_STATUS_LABELS[lv.status] ?? lv.status}
-                </Badge>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <Badge variant={leaveStatusBadgeVariant(lv.status)}>
+                    {TEACHER_LEAVE_STATUS_LABELS[lv.status] ?? lv.status}
+                  </Badge>
+                  {lv.status === 'PENDING' && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="text-red-700 border-red-200 hover:bg-red-50"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => {
+                        if (
+                          typeof window !== 'undefined' &&
+                          !window.confirm('Annuler cette demande ?')
+                        ) {
+                          return;
+                        }
+                        cancelMutation.mutate(lv.id);
+                      }}
+                    >
+                      Annuler la demande
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

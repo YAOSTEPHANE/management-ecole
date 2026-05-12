@@ -1,0 +1,185 @@
+import { startOfDay, addDays } from 'date-fns';
+import prisma from './prisma';
+import { notifyUsersImportant } from './notify-important.util';
+import { sendSMS, formatPhoneNumber, isValidPhoneNumber } from './sms.util';
+
+function sanitizeYearSlug(academicYear: string): string {
+  return String(academicYear).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'AN';
+}
+
+function parseInvoiceSeq(num: string | null | undefined, prefix: string, slug: string): number {
+  if (!num || !num.startsWith(`${prefix}-${slug}-`)) return 0;
+  const tail = num.slice(`${prefix}-${slug}-`.length);
+  const n = parseInt(tail, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export type AssignInvoicesResult = { updated: number; numbers: string[] };
+
+/**
+ * Attribue des numéros de facture aux lignes de frais sans numéro (ordre chronologique).
+ * Format : {prefix}-{annéeSanitisée}-{000001}
+ */
+export async function assignTuitionFeeInvoiceNumbers(options: {
+  prefix?: string;
+  academicYear?: string | null;
+  limit?: number;
+}): Promise<AssignInvoicesResult> {
+  const prefix = (options.prefix ?? 'FAC').trim().toUpperCase() || 'FAC';
+  const limit = Math.min(Math.max(options.limit ?? 5000, 1), 20000);
+
+  const where: Record<string, unknown> = {
+    OR: [{ invoiceNumber: null }, { invoiceNumber: '' }],
+  };
+  if (options.academicYear && String(options.academicYear).trim()) {
+    where.academicYear = String(options.academicYear).trim();
+  }
+
+  const fees = await prisma.tuitionFee.findMany({
+    where,
+    orderBy: [{ academicYear: 'asc' }, { createdAt: 'asc' }],
+    take: limit,
+    select: { id: true, academicYear: true, invoiceNumber: true },
+  });
+
+  if (fees.length === 0) return { updated: 0, numbers: [] };
+
+  const byYear = new Map<string, typeof fees>();
+  for (const f of fees) {
+    const y = f.academicYear || 'default';
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y)!.push(f);
+  }
+
+  const numbers: string[] = [];
+  let updated = 0;
+
+  for (const [academicYear, group] of byYear) {
+    const slug = sanitizeYearSlug(academicYear);
+    const existingMax = await prisma.tuitionFee.findMany({
+      where: {
+        academicYear,
+        invoiceNumber: { startsWith: `${prefix}-${slug}-` },
+      },
+      select: { invoiceNumber: true },
+    });
+    let seq = existingMax.reduce((m, r) => Math.max(m, parseInvoiceSeq(r.invoiceNumber, prefix, slug)), 0);
+
+    for (const row of group) {
+      seq += 1;
+      const invoiceNumber = `${prefix}-${slug}-${String(seq).padStart(6, '0')}`;
+      await prisma.tuitionFee.update({
+        where: { id: row.id },
+        data: { invoiceNumber, invoiceIssuedAt: new Date() },
+      });
+      numbers.push(invoiceNumber);
+      updated += 1;
+    }
+  }
+
+  return { updated, numbers };
+}
+
+export type AutoReminderResult = { notifiedFees: number; parentNotifications: number };
+
+/**
+ * Notifications in-app (+ e-mail si configuré) pour échéances dépassées ou sous 7 jours.
+ * Respecte un intervalle minimum entre deux envois par ligne de frais.
+ */
+export async function runAutomaticTuitionReminders(options?: {
+  minIntervalDays?: number;
+  upcomingDays?: number;
+}): Promise<AutoReminderResult> {
+  const minDays = Math.max(1, options?.minIntervalDays ?? 7);
+  const upcomingDays = Math.max(0, options?.upcomingDays ?? 7);
+  const today = startOfDay(new Date());
+  const horizon = addDays(today, upcomingDays);
+  const intervalMs = minDays * 24 * 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - intervalMs);
+
+  const fees = await prisma.tuitionFee.findMany({
+    where: {
+      isPaid: false,
+      OR: [{ dueDate: { lt: today } }, { dueDate: { lte: horizon, gte: today } }],
+    },
+    include: {
+      student: {
+        select: {
+          userId: true,
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  let notifiedFees = 0;
+  let parentNotifications = 0;
+
+  for (const fee of fees) {
+    if (fee.lastAutoReminderAt && fee.lastAutoReminderAt > cutoff) {
+      continue;
+    }
+
+    const links = await prisma.studentParent.findMany({
+      where: { studentId: fee.studentId },
+      select: {
+        parent: {
+          select: {
+            userId: true,
+            notifySms: true,
+            user: { select: { phone: true } },
+          },
+        },
+      },
+    });
+    const userIds = new Set<string>();
+    userIds.add(fee.student.userId);
+    for (const l of links) {
+      userIds.add(l.parent.userId);
+    }
+
+    const name = `${fee.student.user.firstName} ${fee.student.user.lastName}`;
+    const dueStr = fee.dueDate.toISOString().slice(0, 10);
+    const title = 'Échéance de paiement scolaire';
+    const content =
+      `Rappel : frais « ${fee.period} » (${fee.academicYear}) pour ${name} — ` +
+      `montant ${Math.round(fee.amount)} FCFA, échéance ${dueStr}. ` +
+      `Merci de régulariser depuis votre espace parent ou élève.`;
+
+    await notifyUsersImportant([...userIds], {
+      type: 'payment_reminder',
+      title,
+      content,
+      link: undefined,
+      email: undefined,
+    });
+
+    const smsOverdueEnabled = process.env.TUITION_REMINDER_SMS_OVERDUE?.trim() === 'true';
+    if (smsOverdueEnabled && fee.dueDate < today) {
+      const smsLine = `${title}: ${content}`.slice(0, 300);
+      await Promise.allSettled(
+        links
+          .filter((l) => l.parent.notifySms && l.parent.user.phone?.trim())
+          .map((l) => {
+            const raw = l.parent.user.phone!.replace(/\s/g, '');
+            if (!isValidPhoneNumber(raw)) return Promise.resolve();
+            return sendSMS(formatPhoneNumber(raw), smsLine);
+          })
+      );
+    }
+
+    await prisma.tuitionFee.update({
+      where: { id: fee.id },
+      data: { lastAutoReminderAt: new Date() },
+    });
+    notifiedFees += 1;
+    parentNotifications += links.length;
+  }
+
+  return { notifiedFees, parentNotifications };
+}
+
+/** Marque un reçu « disponible » côté client PDF (référence stable). */
+export function autoReceiptUrl(paymentReference: string): string {
+  return `auto:pdf:${paymentReference}`;
+}

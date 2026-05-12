@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
+import toast from 'react-hot-toast';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
@@ -32,10 +33,21 @@ const AbsenceDetailsModal: React.FC<AbsenceDetailsModalProps> = ({
   absenceId,
   onEdit,
 }) => {
+  const queryClient = useQueryClient();
   const { data: absence, isLoading } = useQuery({
     queryKey: ['absence', absenceId],
     queryFn: () => adminApi.getAbsence(absenceId),
     enabled: isOpen && !!absenceId,
+  });
+
+  const notifyMutation = useMutation({
+    mutationFn: () => adminApi.notifyAbsenceParents(absenceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['absence', absenceId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-absences'] });
+      toast.success('Notification envoyée aux parents');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Envoi impossible'),
   });
 
   if (!isOpen) return null;
@@ -180,6 +192,56 @@ const AbsenceDetailsModal: React.FC<AbsenceDetailsModalProps> = ({
           </div>
         )}
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 className="font-semibold text-gray-800 mb-2">Pointage & retard</h4>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">Source :</span>{' '}
+              {absence.attendanceSource === 'BIOMETRIC'
+                ? 'Biométrie'
+                : absence.attendanceSource === 'NFC'
+                  ? 'NFC'
+                  : absence.attendanceSource === 'MANUAL'
+                    ? 'Manuel'
+                    : absence.attendanceSource || '—'}
+            </p>
+            {absence.status === 'LATE' && absence.minutesLate != null && (
+              <p className="text-sm text-gray-700 mt-1">
+                <span className="font-medium">Retard :</span> ~{absence.minutesLate} min
+              </p>
+            )}
+            {absence.parentNotifiedAt && (
+              <p className="text-xs text-green-700 mt-2">
+                Parents notifiés le{' '}
+                {format(new Date(absence.parentNotifiedAt), 'dd/MM/yyyy HH:mm', { locale: fr })}
+              </p>
+            )}
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 className="font-semibold text-gray-800 mb-2">Justificatifs & suite</h4>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">Certificat médical :</span>{' '}
+              {absence.hasMedicalCertificate ? 'Oui' : 'Non'}
+            </p>
+            {Array.isArray(absence.justificationDocuments) && absence.justificationDocuments.length > 0 && (
+              <ul className="mt-2 text-xs text-blue-700 list-disc list-inside space-y-1">
+                {absence.justificationDocuments.map((url: string, i: number) => (
+                  <li key={i}>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="underline break-all">
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {absence.sanctionNote && (
+              <p className="text-sm text-gray-700 mt-2">
+                <span className="font-medium">Sanction / mesure :</span> {absence.sanctionNote}
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Timestamps */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
           <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
@@ -198,7 +260,16 @@ const AbsenceDetailsModal: React.FC<AbsenceDetailsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+        <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-gray-200">
+          <Button
+            type="button"
+            variant="primary"
+            className="bg-teal-600 hover:bg-teal-700"
+            onClick={() => notifyMutation.mutate()}
+            disabled={notifyMutation.isPending}
+          >
+            {notifyMutation.isPending ? 'Envoi…' : 'Renvoyer alerte aux parents'}
+          </Button>
           <Button onClick={onClose} variant="secondary">
             Fermer
           </Button>

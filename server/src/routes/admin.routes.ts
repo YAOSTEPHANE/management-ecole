@@ -1,15 +1,54 @@
 import express from 'express';
+import type { Prisma, MessageCategory, MessageChannel } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { hashPassword } from '../utils/password.util';
 import prisma from '../utils/prisma';
 import { deleteUploadedFileByPublicUrl } from '../utils/deleteUpload.util';
+import { computeClassBulletinRanks } from '../utils/report-card.util';
+import {
+  assertScheduleConstraints,
+  autoGenerateTimetableForClass,
+  normalizeRoomKey,
+} from '../utils/timetable-constraints.util';
+import {
+  notifyParentsOfAttendanceChange,
+  notifyParentsForAbsenceById,
+  shouldNotifyParentsOnAttendanceChange,
+} from '../utils/attendance-parent-notify.util';
+import QRCode from 'qrcode';
+import { generateDigitalCardPublicId } from '../utils/digital-card.util';
+import staffAdminRoutes from './admin-staff.routes';
+import parentAdminRoutes from './admin-parent.routes';
+import tuitionCatalogRoutes from './admin-tuition-catalog.routes';
+import accountingRoutes from './admin-accounting.routes';
+import disciplineAdminRoutes from './admin-discipline.routes';
+import extracurricularAdminRoutes from './admin-extracurricular.routes';
+import orientationAdminRoutes from './admin-orientation.routes';
+import adminReportsRoutes from './admin-reports.routes';
+import {
+  assignTuitionFeeInvoiceNumbers,
+  autoReceiptUrl,
+  runAutomaticTuitionReminders,
+} from '../utils/tuition-financial-automation.util';
+import { runMongoBackup } from '../utils/mongodb-backup.util';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { getMetricsSummary, getSlowEndpoints } from '../utils/performance-metrics.util';
 
 const router = express.Router();
 
 // Toutes les routes nécessitent une authentification et le rôle ADMIN
 router.use(authenticate);
 router.use(authorize('ADMIN'));
+router.use(staffAdminRoutes);
+router.use(parentAdminRoutes);
+router.use(tuitionCatalogRoutes);
+router.use(accountingRoutes);
+router.use(disciplineAdminRoutes);
+router.use(extracurricularAdminRoutes);
+router.use(orientationAdminRoutes);
+router.use(adminReportsRoutes);
 
 // ========== GESTION DES ÉLÈVES ==========
 
@@ -78,7 +117,11 @@ router.get('/students', async (req, res) => {
         ...(isActive !== undefined && { isActive: isActive === 'true' }),
         ...(enrollmentStatus &&
           typeof enrollmentStatus === 'string' && {
-            enrollmentStatus: enrollmentStatus as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED',
+            enrollmentStatus: enrollmentStatus as
+              | 'ACTIVE'
+              | 'SUSPENDED'
+              | 'GRADUATED'
+              | 'ARCHIVED',
           }),
       },
       include: {
@@ -156,7 +199,11 @@ router.post(
         address,
         emergencyContact,
         emergencyPhone,
+        emergencyContact2,
+        emergencyPhone2,
         medicalInfo,
+        allergies,
+        specialNeeds,
         classId,
         enrollmentStatus,
       } = req.body;
@@ -198,10 +245,15 @@ router.post(
               address,
               emergencyContact,
               emergencyPhone,
+              emergencyContact2,
+              emergencyPhone2,
               medicalInfo,
+              allergies,
+              specialNeeds,
+              digitalCardPublicId: generateDigitalCardPublicId(),
               classId,
               ...(enrollmentStatus &&
-              ['ACTIVE', 'SUSPENDED', 'GRADUATED'].includes(enrollmentStatus) && {
+              ['ACTIVE', 'SUSPENDED', 'GRADUATED', 'ARCHIVED'].includes(enrollmentStatus) && {
                 enrollmentStatus,
               }),
             },
@@ -286,6 +338,13 @@ router.get('/students/:id', async (req, res) => {
             course: true,
           },
         },
+        schoolHistory: {
+          orderBy: { createdAt: 'desc' },
+        },
+        transfers: {
+          orderBy: { createdAt: 'desc' },
+          take: 80,
+        },
       },
     });
 
@@ -296,6 +355,230 @@ router.get('/students/:id', async (req, res) => {
     res.json(student);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Carte étudiant numérique (QR + lien public)
+router.get('/students/:id/digital-card', async (req, res) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, digitalCardPublicId: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    let publicId = student.digitalCardPublicId;
+    if (!publicId) {
+      publicId = generateDigitalCardPublicId();
+      await prisma.student.update({
+        where: { id: student.id },
+        data: { digitalCardPublicId: publicId },
+      });
+    }
+
+    const frontendBase =
+      (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim() || 'http://localhost:3000';
+    const cardPageUrl = `${frontendBase.replace(/\/+$/, '')}/carte-etudiant/${encodeURIComponent(publicId)}`;
+    const qrDataUrl = await QRCode.toDataURL(cardPageUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' });
+
+    res.json({ publicId, cardPageUrl, qrDataUrl });
+  } catch (error: any) {
+    console.error('GET /admin/students/:id/digital-card:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Historique scolaire (ligne manuelle)
+router.post('/students/:id/school-history', async (req, res) => {
+  try {
+    const { academicYear, className, classLevel, establishment, notes, classId } = req.body;
+    if (!academicYear || typeof academicYear !== 'string') {
+      return res.status(400).json({ error: 'Année scolaire requise' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const row = await prisma.studentSchoolHistory.create({
+      data: {
+        studentId: student.id,
+        academicYear: String(academicYear).trim(),
+        className: className != null ? String(className) : undefined,
+        classLevel: classLevel != null ? String(classLevel) : undefined,
+        establishment: establishment != null ? String(establishment) : undefined,
+        notes: notes != null ? String(notes) : undefined,
+        classId: typeof classId === 'string' && classId.length > 0 ? classId : undefined,
+      },
+    });
+
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /admin/students/:id/school-history:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/students/:studentId/school-history/:historyId', async (req, res) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.studentId },
+      select: { id: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const row = await prisma.studentSchoolHistory.findFirst({
+      where: { id: req.params.historyId, studentId: student.id },
+    });
+    if (!row) {
+      return res.status(404).json({ error: 'Entrée introuvable' });
+    }
+
+    await prisma.studentSchoolHistory.delete({ where: { id: row.id } });
+    res.json({ message: 'Entrée supprimée' });
+  } catch (error: any) {
+    console.error('DELETE school-history:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Transfert / mutation / réinscription / départ de classe
+router.post('/students/:id/transfer', async (req, res) => {
+  try {
+    const { effectiveDate, reason, notes, transferType, toClassId } = req.body;
+    const typeRaw = typeof transferType === 'string' ? transferType : 'CLASS_CHANGE';
+    if (!['CLASS_CHANGE', 'REENROLLMENT', 'MUTATION', 'DEPARTURE'].includes(typeRaw)) {
+      return res.status(400).json({ error: 'Type de mouvement invalide' });
+    }
+    if (!effectiveDate) {
+      return res.status(400).json({ error: 'Date effective requise' });
+    }
+
+    const eff = new Date(effectiveDate);
+    if (Number.isNaN(eff.getTime())) {
+      return res.status(400).json({ error: 'Date invalide' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, classId: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const adminUser = (req as { user?: { id?: string } }).user;
+    const fromClassId = student.classId;
+
+    if (typeRaw === 'DEPARTURE') {
+      await prisma.studentTransfer.create({
+        data: {
+          studentId: student.id,
+          fromClassId,
+          toClassId: null,
+          effectiveDate: eff,
+          transferType: 'DEPARTURE',
+          reason: reason != null ? String(reason) : undefined,
+          notes: notes != null ? String(notes) : undefined,
+          createdById: adminUser?.id,
+        },
+      });
+      const updated = await prisma.student.update({
+        where: { id: student.id },
+        data: { classId: null },
+        include: {
+          user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+          class: true,
+        },
+      });
+      return res.status(201).json({ transfer: true, student: updated });
+    }
+
+    if (!toClassId || typeof toClassId !== 'string') {
+      return res.status(400).json({ error: 'Classe de destination requise' });
+    }
+
+    const targetClass = await prisma.class.findUnique({ where: { id: toClassId } });
+    if (!targetClass) {
+      return res.status(400).json({ error: 'Classe de destination introuvable' });
+    }
+
+    await prisma.studentTransfer.create({
+      data: {
+        studentId: student.id,
+        fromClassId,
+        toClassId,
+        effectiveDate: eff,
+        transferType: typeRaw as 'CLASS_CHANGE' | 'REENROLLMENT' | 'MUTATION' | 'DEPARTURE',
+        reason: reason != null ? String(reason) : undefined,
+        notes: notes != null ? String(notes) : undefined,
+        createdById: adminUser?.id,
+      },
+    });
+
+    const extra: {
+      classId: string;
+      enrollmentStatus?: 'ACTIVE';
+      lastReenrollmentAt?: Date;
+    } = { classId: toClassId };
+
+    if (typeRaw === 'REENROLLMENT') {
+      extra.enrollmentStatus = 'ACTIVE';
+      extra.lastReenrollmentAt = new Date();
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: student.id },
+      data: extra,
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        class: true,
+      },
+    });
+
+    res.status(201).json({ transfer: true, student: updated });
+  } catch (error: any) {
+    console.error('POST /admin/students/:id/transfer:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Archivage dossier (ancien élève)
+router.post('/students/:id/archive', async (req, res) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        enrollmentStatus: 'ARCHIVED',
+        isActive: false,
+        archivedAt: new Date(),
+      },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        class: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    console.error('POST /admin/students/:id/archive:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
 
@@ -357,6 +640,7 @@ router.delete('/students/:studentId/identity-documents/:docId', async (req, res)
 // Mettre à jour un élève
 router.put('/students/:id', async (req, res) => {
   try {
+    const body = req.body as Record<string, unknown>;
     const {
       firstName,
       lastName,
@@ -364,12 +648,24 @@ router.put('/students/:id', async (req, res) => {
       address,
       emergencyContact,
       emergencyPhone,
+      emergencyContact2,
+      emergencyPhone2,
       medicalInfo,
+      allergies,
+      specialNeeds,
       classId,
       isActive,
       nfcId,
       enrollmentStatus,
-    } = req.body;
+    } = body;
+
+    const emptyToNull = (v: unknown): string | null | undefined => {
+      if (v === undefined) return undefined;
+      if (v === null) return null;
+      if (typeof v !== 'string') return undefined;
+      const t = v.trim();
+      return t.length === 0 ? null : t;
+    };
 
     const student = await prisma.student.findUnique({
       where: { id: req.params.id },
@@ -382,38 +678,56 @@ router.put('/students/:id', async (req, res) => {
 
     if (
       enrollmentStatus !== undefined &&
-      !['ACTIVE', 'SUSPENDED', 'GRADUATED'].includes(enrollmentStatus)
+      typeof enrollmentStatus === 'string' &&
+      !['ACTIVE', 'SUSPENDED', 'GRADUATED', 'ARCHIVED'].includes(enrollmentStatus)
     ) {
       return res.status(400).json({ error: 'Statut d\'inscription invalide' });
     }
 
     // Mettre à jour l'utilisateur
-    if (firstName || lastName || phone) {
+    if (firstName || lastName || phone !== undefined) {
       await prisma.user.update({
         where: { id: student.userId },
         data: {
-          ...(firstName && { firstName }),
-          ...(lastName && { lastName }),
-          ...(phone && { phone }),
+          ...(typeof firstName === 'string' && firstName.trim() && { firstName: firstName.trim() }),
+          ...(typeof lastName === 'string' && lastName.trim() && { lastName: lastName.trim() }),
+          ...(phone !== undefined && {
+            phone: typeof phone === 'string' && phone.trim() ? phone.trim() : null,
+          }),
         },
       });
     }
 
-    // Mettre à jour le profil élève
+    const studentData: Prisma.StudentUncheckedUpdateInput = {};
+
+    if (address !== undefined) studentData.address = emptyToNull(address) ?? null;
+    if (emergencyContact !== undefined) studentData.emergencyContact = emptyToNull(emergencyContact) ?? null;
+    if (emergencyPhone !== undefined) studentData.emergencyPhone = emptyToNull(emergencyPhone) ?? null;
+    if (emergencyContact2 !== undefined) studentData.emergencyContact2 = emptyToNull(emergencyContact2) ?? null;
+    if (emergencyPhone2 !== undefined) studentData.emergencyPhone2 = emptyToNull(emergencyPhone2) ?? null;
+    if (medicalInfo !== undefined) studentData.medicalInfo = emptyToNull(medicalInfo) ?? null;
+    if (allergies !== undefined) studentData.allergies = emptyToNull(allergies) ?? null;
+    if (specialNeeds !== undefined) studentData.specialNeeds = emptyToNull(specialNeeds) ?? null;
+
+    if (classId !== undefined) {
+      studentData.classId =
+        typeof classId === 'string' && classId.trim().length > 0 ? classId.trim() : null;
+    }
+    if (isActive !== undefined) studentData.isActive = Boolean(isActive);
+    if (nfcId !== undefined) {
+      studentData.nfcId = typeof nfcId === 'string' && nfcId.trim() ? nfcId.trim() : null;
+    }
+    if (enrollmentStatus !== undefined && typeof enrollmentStatus === 'string') {
+      studentData.enrollmentStatus = enrollmentStatus as
+        | 'ACTIVE'
+        | 'SUSPENDED'
+        | 'GRADUATED'
+        | 'ARCHIVED';
+    }
+
     const updatedStudent = await prisma.student.update({
       where: { id: req.params.id },
-      data: {
-        ...(address && { address }),
-        ...(emergencyContact && { emergencyContact }),
-        ...(emergencyPhone && { emergencyPhone }),
-        ...(medicalInfo && { medicalInfo }),
-        ...(classId && { classId }),
-        ...(isActive !== undefined && { isActive }),
-        ...(nfcId !== undefined && { nfcId: nfcId || null }),
-        ...(enrollmentStatus !== undefined && {
-          enrollmentStatus: enrollmentStatus as 'ACTIVE' | 'SUSPENDED' | 'GRADUATED',
-        }),
-      },
+      data: studentData,
       include: {
         user: {
           select: {
@@ -422,9 +736,12 @@ router.put('/students/:id', async (req, res) => {
             firstName: true,
             lastName: true,
             phone: true,
+            avatar: true,
           },
         },
         class: true,
+        schoolHistory: { orderBy: { createdAt: 'desc' } },
+        transfers: { orderBy: { createdAt: 'desc' }, take: 80 },
       },
     });
 
@@ -453,6 +770,14 @@ router.delete('/students/:id', async (req, res) => {
         where: { studentId: req.params.id },
       });
 
+      await tx.studentPickupAuthorization.deleteMany({
+        where: { studentId: req.params.id },
+      });
+
+      await tx.parentConsent.deleteMany({
+        where: { studentId: req.params.id },
+      });
+
       // 2. Supprimer les absences associées
       await tx.absence.deleteMany({
         where: { studentId: req.params.id },
@@ -465,6 +790,18 @@ router.delete('/students/:id', async (req, res) => {
 
       // 4. Supprimer les assignments associés
       await tx.studentAssignment.deleteMany({
+        where: { studentId: req.params.id },
+      });
+
+      await tx.identityDocument.deleteMany({
+        where: { studentId: req.params.id },
+      });
+
+      await tx.studentSchoolHistory.deleteMany({
+        where: { studentId: req.params.id },
+      });
+
+      await tx.studentTransfer.deleteMany({
         where: { studentId: req.params.id },
       });
 
@@ -729,6 +1066,8 @@ router.post(
         hireDate,
         contractType,
         salary,
+        bio,
+        maxWeeklyHours,
       } = req.body;
 
       const existingUser = await prisma.user.findUnique({
@@ -764,6 +1103,14 @@ router.post(
               hireDate: new Date(hireDate),
               contractType: contractType || 'CDI',
               salary,
+              ...(bio !== undefined && typeof bio === 'string' && bio.trim()
+                ? { bio: bio.trim().slice(0, 4000) }
+                : {}),
+              ...(maxWeeklyHours !== undefined &&
+              maxWeeklyHours !== '' &&
+              !Number.isNaN(parseFloat(String(maxWeeklyHours)))
+                ? { maxWeeklyHours: parseFloat(String(maxWeeklyHours)) }
+                : {}),
             },
           },
         },
@@ -815,6 +1162,17 @@ router.get('/teachers/:id', async (req, res) => {
             },
           },
         },
+        qualifications: { orderBy: { createdAt: 'desc' } },
+        careerHistory: { orderBy: { startDate: 'desc' } },
+        professionalTrainings: { orderBy: { createdAt: 'desc' } },
+        administrativeDocuments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: { select: { firstName: true, lastName: true, role: true } },
+          },
+        },
+        performanceReviews: { orderBy: { createdAt: 'desc' }, take: 50 },
+        scheduleAvailabilitySlots: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
       },
     });
 
@@ -822,7 +1180,19 @@ router.get('/teachers/:id', async (req, res) => {
       return res.status(404).json({ error: 'Enseignant non trouvé' });
     }
 
-    res.json(teacher);
+    const programmedWeeklyHours = teacher.courses.reduce(
+      (sum, c) => sum + (c.weeklyHours ?? 0),
+      0
+    );
+
+    res.json({
+      ...teacher,
+      workloadSummary: {
+        programmedWeeklyHours,
+        courseCount: teacher.courses.length,
+        maxWeeklyHours: teacher.maxWeeklyHours ?? null,
+      },
+    });
   } catch (error: any) {
     console.error('Erreur dans /admin/teachers/:id:', error);
     res.status(500).json({ 
@@ -844,6 +1214,9 @@ router.put('/teachers/:id', async (req, res) => {
       salary,
       isActive,
       nfcId,
+      biometricId,
+      bio,
+      maxWeeklyHours,
     } = req.body;
 
     const teacher = await prisma.teacher.findUnique({
@@ -855,28 +1228,63 @@ router.put('/teachers/:id', async (req, res) => {
       return res.status(404).json({ error: 'Enseignant non trouvé' });
     }
 
-    // Mettre à jour l'utilisateur
-    if (firstName || lastName || phone) {
+    if (
+      firstName ||
+      lastName ||
+      phone !== undefined ||
+      isActive !== undefined
+    ) {
       await prisma.user.update({
         where: { id: teacher.userId },
         data: {
-          ...(firstName && { firstName }),
-          ...(lastName && { lastName }),
-          ...(phone !== undefined && { phone }),
+          ...(typeof firstName === 'string' && firstName.trim() && { firstName: firstName.trim() }),
+          ...(typeof lastName === 'string' && lastName.trim() && { lastName: lastName.trim() }),
+          ...(phone !== undefined && {
+            phone: typeof phone === 'string' && phone.trim() ? phone.trim() : null,
+          }),
+          ...(isActive !== undefined && { isActive: Boolean(isActive) }),
         },
       });
     }
 
-    // Mettre à jour le profil enseignant
+    const data: Prisma.TeacherUncheckedUpdateInput = {};
+    if (specialization !== undefined && typeof specialization === 'string' && specialization.trim()) {
+      data.specialization = specialization.trim();
+    }
+    if (contractType !== undefined && typeof contractType === 'string' && contractType.trim()) {
+      data.contractType = contractType.trim();
+    }
+    if (salary !== undefined) {
+      data.salary =
+        salary === null || salary === ''
+          ? null
+          : !Number.isNaN(parseFloat(String(salary)))
+            ? parseFloat(String(salary))
+            : null;
+    }
+    if (nfcId !== undefined) {
+      data.nfcId = typeof nfcId === 'string' && nfcId.trim() ? nfcId.trim() : null;
+    }
+    if (biometricId !== undefined) {
+      data.biometricId =
+        typeof biometricId === 'string' && biometricId.trim() ? biometricId.trim() : null;
+    }
+    if (bio !== undefined) {
+      data.bio =
+        typeof bio === 'string' && bio.trim().length > 0 ? bio.trim().slice(0, 4000) : null;
+    }
+    if (maxWeeklyHours !== undefined) {
+      if (maxWeeklyHours === null || maxWeeklyHours === '') {
+        data.maxWeeklyHours = null;
+      } else {
+        const n = parseFloat(String(maxWeeklyHours));
+        data.maxWeeklyHours = Number.isNaN(n) ? null : n;
+      }
+    }
+
     const updatedTeacher = await prisma.teacher.update({
       where: { id: req.params.id },
-      data: {
-        ...(specialization && { specialization }),
-        ...(contractType && { contractType }),
-        ...(salary !== undefined && { salary: salary ? parseFloat(salary) : null }),
-        ...(isActive !== undefined && { isActive }),
-        ...(nfcId !== undefined && { nfcId: nfcId || null }),
-      },
+      data,
       include: {
         user: {
           select: {
@@ -891,10 +1299,33 @@ router.put('/teachers/:id', async (req, res) => {
         },
         classes: true,
         courses: true,
+        qualifications: { orderBy: { createdAt: 'desc' } },
+        careerHistory: { orderBy: { startDate: 'desc' } },
+        professionalTrainings: { orderBy: { createdAt: 'desc' } },
+        administrativeDocuments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: { select: { firstName: true, lastName: true, role: true } },
+          },
+        },
+        performanceReviews: { orderBy: { createdAt: 'desc' }, take: 50 },
+        scheduleAvailabilitySlots: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
       },
     });
 
-    res.json(updatedTeacher);
+    const programmedWeeklyHours = updatedTeacher.courses.reduce(
+      (sum, c) => sum + (c.weeklyHours ?? 0),
+      0
+    );
+
+    res.json({
+      ...updatedTeacher,
+      workloadSummary: {
+        programmedWeeklyHours,
+        courseCount: updatedTeacher.courses.length,
+        maxWeeklyHours: updatedTeacher.maxWeeklyHours ?? null,
+      },
+    });
   } catch (error: any) {
     console.error('Erreur dans /admin/teachers/:id PUT:', error);
     res.status(500).json({ 
@@ -942,6 +1373,343 @@ router.get('/teachers/:id/leaves', async (req, res) => {
     res.json(leaves);
   } catch (error: any) {
     console.error('GET admin teacher leaves:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Disponibilités hebdomadaires d'un enseignant (emplois du temps)
+router.get('/teachers/:id/schedule-availability', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!teacher) return res.status(404).json({ error: 'Enseignant non trouvé' });
+
+    const slots = await prisma.teacherScheduleAvailabilitySlot.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json(slots);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/teachers/:id/schedule-availability', async (req, res) => {
+  try {
+    const { dayOfWeek, startTime, endTime, label } = req.body;
+    if (dayOfWeek === undefined || !startTime || !endTime) {
+      return res.status(400).json({ error: 'dayOfWeek, startTime et endTime sont requis' });
+    }
+    const teacher = await prisma.teacher.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!teacher) return res.status(404).json({ error: 'Enseignant non trouvé' });
+
+    const created = await prisma.teacherScheduleAvailabilitySlot.create({
+      data: {
+        teacherId: teacher.id,
+        dayOfWeek: parseInt(String(dayOfWeek), 10),
+        startTime: String(startTime).trim(),
+        endTime: String(endTime).trim(),
+        label: label ? String(label).trim() : null,
+      },
+    });
+    res.status(201).json(created);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/teachers/:id/schedule-availability/:slotId', async (req, res) => {
+  try {
+    const found = await prisma.teacherScheduleAvailabilitySlot.findFirst({
+      where: { id: req.params.slotId, teacherId: req.params.id },
+      select: { id: true },
+    });
+    if (!found) return res.status(404).json({ error: 'Créneau non trouvé' });
+
+    await prisma.teacherScheduleAvailabilitySlot.delete({ where: { id: found.id } });
+    res.json({ message: 'Créneau supprimé' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// --- Dossier enseignant : documents administratifs ---
+router.get('/teachers/:id/administrative-documents', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const docs = await prisma.teacherAdministrativeDocument.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        uploadedBy: { select: { firstName: true, lastName: true, role: true, email: true } },
+      },
+    });
+    res.json(docs);
+  } catch (error: any) {
+    console.error('GET teacher administrative-documents:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/teachers/:teacherId/administrative-documents/:docId', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.teacherId },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const doc = await prisma.teacherAdministrativeDocument.findFirst({
+      where: { id: req.params.docId, teacherId: teacher.id },
+    });
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable' });
+    }
+    await prisma.teacherAdministrativeDocument.delete({ where: { id: doc.id } });
+    deleteUploadedFileByPublicUrl(doc.fileUrl);
+    res.json({ message: 'Document supprimé' });
+  } catch (error: any) {
+    console.error('DELETE teacher administrative-document:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Qualifications / diplômes
+router.post('/teachers/:id/qualifications', async (req, res) => {
+  try {
+    const { title, institution, field, obtainedAt, notes } = req.body;
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Intitulé du diplôme requis' });
+    }
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    let obt: Date | null = null;
+    if (obtainedAt) {
+      const d = new Date(String(obtainedAt));
+      obt = Number.isNaN(d.getTime()) ? null : d;
+    }
+    const row = await prisma.teacherQualification.create({
+      data: {
+        teacherId: teacher.id,
+        title: title.trim().slice(0, 200),
+        institution: institution ? String(institution).trim().slice(0, 200) : null,
+        field: field ? String(field).trim().slice(0, 200) : null,
+        obtainedAt: obt,
+        notes: notes ? String(notes).trim().slice(0, 2000) : null,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST teacher qualification:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/teachers/:teacherId/qualifications/:qualId', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.teacherId },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const row = await prisma.teacherQualification.findFirst({
+      where: { id: req.params.qualId, teacherId: teacher.id },
+    });
+    if (!row) {
+      return res.status(404).json({ error: 'Entrée introuvable' });
+    }
+    await prisma.teacherQualification.delete({ where: { id: row.id } });
+    res.json({ message: 'Qualification supprimée' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Historique professionnel
+router.post('/teachers/:id/career-history', async (req, res) => {
+  try {
+    const { institution, role, startDate, endDate, country, notes } = req.body;
+    if (!institution || typeof institution !== 'string' || !institution.trim()) {
+      return res.status(400).json({ error: 'Établissement requis' });
+    }
+    if (!role || typeof role !== 'string' || !role.trim()) {
+      return res.status(400).json({ error: 'Fonction / poste requis' });
+    }
+    if (!startDate) {
+      return res.status(400).json({ error: 'Date de début requise' });
+    }
+    const sd = new Date(String(startDate));
+    if (Number.isNaN(sd.getTime())) {
+      return res.status(400).json({ error: 'Date de début invalide' });
+    }
+    let ed: Date | null = null;
+    if (endDate) {
+      const e = new Date(String(endDate));
+      ed = Number.isNaN(e.getTime()) ? null : e;
+    }
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const row = await prisma.teacherCareerHistory.create({
+      data: {
+        teacherId: teacher.id,
+        institution: institution.trim().slice(0, 200),
+        role: role.trim().slice(0, 200),
+        startDate: sd,
+        endDate: ed,
+        country: country ? String(country).trim().slice(0, 120) : null,
+        notes: notes ? String(notes).trim().slice(0, 2000) : null,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST teacher career-history:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/teachers/:teacherId/career-history/:entryId', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.teacherId },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const row = await prisma.teacherCareerHistory.findFirst({
+      where: { id: req.params.entryId, teacherId: teacher.id },
+    });
+    if (!row) {
+      return res.status(404).json({ error: 'Entrée introuvable' });
+    }
+    await prisma.teacherCareerHistory.delete({ where: { id: row.id } });
+    res.json({ message: 'Entrée supprimée' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Formation continue
+router.post('/teachers/:id/professional-trainings', async (req, res) => {
+  try {
+    const { title, organization, hours, completedAt, notes } = req.body;
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Intitulé de la formation requis' });
+    }
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    let comp: Date | null = null;
+    if (completedAt) {
+      const c = new Date(String(completedAt));
+      comp = Number.isNaN(c.getTime()) ? null : c;
+    }
+    let hrs: number | null = null;
+    if (hours !== undefined && hours !== null && hours !== '') {
+      const h = parseFloat(String(hours));
+      hrs = Number.isNaN(h) ? null : h;
+    }
+    const row = await prisma.teacherProfessionalTraining.create({
+      data: {
+        teacherId: teacher.id,
+        title: title.trim().slice(0, 200),
+        organization: organization ? String(organization).trim().slice(0, 200) : null,
+        hours: hrs,
+        completedAt: comp,
+        notes: notes ? String(notes).trim().slice(0, 2000) : null,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST teacher professional-training:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/teachers/:teacherId/professional-trainings/:trainingId', async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.params.teacherId },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+    const row = await prisma.teacherProfessionalTraining.findFirst({
+      where: { id: req.params.trainingId, teacherId: teacher.id },
+    });
+    if (!row) {
+      return res.status(404).json({ error: 'Entrée introuvable' });
+    }
+    await prisma.teacherProfessionalTraining.delete({ where: { id: row.id } });
+    res.json({ message: 'Formation supprimée' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Indisponibilités de salles (emplois du temps)
+router.get('/schedule-room-blocks', async (_req, res) => {
+  try {
+    const blocks = await prisma.roomScheduleUnavailableSlot.findMany({
+      orderBy: [{ roomKey: 'asc' }, { dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json(blocks);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/schedule-room-blocks', async (req, res) => {
+  try {
+    const { room, dayOfWeek, startTime, endTime, reason } = req.body;
+    const roomKey = normalizeRoomKey(room);
+    if (!roomKey || dayOfWeek === undefined || !startTime || !endTime) {
+      return res.status(400).json({ error: 'room, dayOfWeek, startTime et endTime sont requis' });
+    }
+    const created = await prisma.roomScheduleUnavailableSlot.create({
+      data: {
+        roomKey,
+        dayOfWeek: parseInt(String(dayOfWeek), 10),
+        startTime: String(startTime).trim(),
+        endTime: String(endTime).trim(),
+        reason: reason ? String(reason).trim() : null,
+      },
+    });
+    res.status(201).json(created);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/schedule-room-blocks/:blockId', async (req, res) => {
+  try {
+    await prisma.roomScheduleUnavailableSlot.delete({ where: { id: req.params.blockId } });
+    res.json({ message: 'Bloc salle supprimé' });
+  } catch (error: any) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Bloc non trouvé' });
     res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
@@ -1168,6 +1936,38 @@ router.delete('/teachers/:id', async (req, res) => {
         where: { teacherId: req.params.id },
       });
       await tx.teacherPerformanceReview.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      await tx.parentTeacherAppointment.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      await tx.teacherAttendance.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      await tx.teacherScheduleAvailabilitySlot.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      const adminDocs = await tx.teacherAdministrativeDocument.findMany({
+        where: { teacherId: req.params.id },
+      });
+      for (const d of adminDocs) {
+        deleteUploadedFileByPublicUrl(d.fileUrl);
+      }
+      await tx.teacherAdministrativeDocument.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      await tx.teacherQualification.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+      await tx.teacherCareerHistory.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+      await tx.teacherProfessionalTraining.deleteMany({
         where: { teacherId: req.params.id },
       });
 
@@ -1602,6 +2402,105 @@ router.get('/absences', async (req, res) => {
   }
 });
 
+// Statistiques d’assiduité (agrégats sur une période)
+router.get('/absences/stats', async (req, res) => {
+  try {
+    const { classId, from, to } = req.query as { classId?: string; from?: string; to?: string };
+    const where: Record<string, unknown> = {};
+    if (classId) {
+      where.student = { classId };
+    }
+    if (from || to) {
+      const d: { gte?: Date; lte?: Date } = {};
+      if (from) d.gte = new Date(from);
+      if (to) {
+        const t = new Date(to);
+        t.setHours(23, 59, 59, 999);
+        d.lte = t;
+      }
+      where.date = d;
+    }
+
+    const rows = await prisma.absence.findMany({
+      where,
+      select: {
+        status: true,
+        excused: true,
+        minutesLate: true,
+        hasMedicalCertificate: true,
+        sanctionNote: true,
+        studentId: true,
+      },
+    });
+
+    let present = 0;
+    let absentUnexcused = 0;
+    let late = 0;
+    let excusedAbsent = 0;
+    let medicalCerts = 0;
+    let withSanction = 0;
+    let lateMinutesSum = 0;
+    let lateMinutesCount = 0;
+    const lateByStudent = new Map<string, number>();
+
+    for (const r of rows) {
+      if (r.status === 'PRESENT') present++;
+      else if (r.status === 'LATE') {
+        late++;
+        if (r.minutesLate != null && r.minutesLate > 0) {
+          lateMinutesSum += r.minutesLate;
+          lateMinutesCount++;
+          lateByStudent.set(r.studentId, (lateByStudent.get(r.studentId) || 0) + 1);
+        }
+      } else if (r.status === 'ABSENT') {
+        if (r.excused) excusedAbsent++;
+        else absentUnexcused++;
+      } else if (r.status === 'EXCUSED') {
+        excusedAbsent++;
+      }
+      if (r.hasMedicalCertificate) medicalCerts++;
+      if (r.sanctionNote && String(r.sanctionNote).trim()) withSanction++;
+    }
+
+    const topLateStudents = [...lateByStudent.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([studentId, count]) => ({ studentId, lateSessions: count }));
+
+    const total = rows.length;
+    const punctualityRate =
+      total > 0 ? Math.round(((present + late) / total) * 1000) / 10 : 0;
+
+    res.json({
+      total,
+      present,
+      absentUnexcused,
+      late,
+      excusedAbsent,
+      medicalCertificates: medicalCerts,
+      sanctionsRecorded: withSanction,
+      avgLateMinutes:
+        lateMinutesCount > 0 ? Math.round((lateMinutesSum / lateMinutesCount) * 10) / 10 : null,
+      punctualityRate,
+      topLateStudents,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/absences/:id/notify-parents', async (req, res) => {
+  try {
+    const result = await notifyParentsForAbsenceById(req.params.id);
+    if (!result.notified) {
+      return res.status(404).json({ error: 'Absence ou cours introuvable' });
+    }
+    res.json({ ok: true, message: 'Notification envoyée aux parents' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
 // Obtenir tous les devoirs
 router.get('/assignments', async (req, res) => {
   try {
@@ -2000,6 +2899,88 @@ router.delete('/school-calendar-events/:id', async (req, res) => {
   }
 });
 
+// ========== GALERIE PHOTOS (fil portail) ==========
+
+router.get('/school-gallery-items', async (_req, res) => {
+  try {
+    const items = await prisma.schoolGalleryItem.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
+    });
+    res.json(items);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/school-gallery-items', async (req, res) => {
+  try {
+    const { title, caption, imageUrl, sortOrder, published } = req.body;
+    if (!imageUrl || !String(imageUrl).trim()) {
+      return res.status(400).json({ error: 'imageUrl est requis' });
+    }
+    const pub = Boolean(published);
+    const item = await prisma.schoolGalleryItem.create({
+      data: {
+        title: title != null && String(title).trim() ? String(title).trim() : null,
+        caption: caption != null && String(caption).trim() ? String(caption).trim() : null,
+        imageUrl: String(imageUrl).trim(),
+        sortOrder: Number.isFinite(Number(sortOrder)) ? Math.trunc(Number(sortOrder)) : 0,
+        published: pub,
+        publishedAt: pub ? new Date() : null,
+      },
+    });
+    res.status(201).json(item);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/school-gallery-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, caption, imageUrl, sortOrder, published } = req.body;
+    const existing = await prisma.schoolGalleryItem.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Élément introuvable' });
+
+    const pub = published !== undefined ? Boolean(published) : existing.published;
+    const item = await prisma.schoolGalleryItem.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && {
+          title: title != null && String(title).trim() ? String(title).trim() : null,
+        }),
+        ...(caption !== undefined && {
+          caption: caption != null && String(caption).trim() ? String(caption).trim() : null,
+        }),
+        ...(imageUrl !== undefined && { imageUrl: String(imageUrl).trim() }),
+        ...(sortOrder !== undefined && {
+          sortOrder: Number.isFinite(Number(sortOrder)) ? Math.trunc(Number(sortOrder)) : existing.sortOrder,
+        }),
+        ...(published !== undefined && {
+          published: pub,
+          publishedAt: pub && !existing.published ? new Date() : !pub ? null : existing.publishedAt,
+        }),
+      },
+    });
+    res.json(item);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/school-gallery-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.schoolGalleryItem.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ error: 'Élément introuvable' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Pointage des élèves (admin) : enregistrer les présences pour un cours/date
 router.post(
   '/absences/take-attendance',
@@ -2013,11 +2994,12 @@ router.post(
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-      const { courseId, date, attendance } = req.body;
+      const { courseId, date, attendance, notifyParentsOnSave = true, attendanceSource = 'MANUAL' } =
+        req.body;
 
       const course = await prisma.course.findUnique({
         where: { id: courseId },
-        select: { id: true, teacherId: true },
+        select: { id: true, teacherId: true, name: true, code: true },
       });
       if (!course) return res.status(404).json({ error: 'Cours non trouvé' });
 
@@ -2035,20 +3017,52 @@ router.post(
       });
 
       const absences = await Promise.all(
-        attendance.map((att: any) =>
-          prisma.absence.create({
+        attendance.map((att: any) => {
+          const status = att.status || 'ABSENT';
+          const minutesLate =
+            status === 'LATE' && att.minutesLate != null && att.minutesLate !== ''
+              ? Math.max(0, Math.min(480, Number(att.minutesLate)))
+              : null;
+          return prisma.absence.create({
             data: {
               studentId: att.studentId,
               courseId,
               teacherId: course.teacherId,
               date: attendanceDate,
-              status: att.status || 'ABSENT',
+              status,
               reason: att.reason ?? undefined,
               excused: att.excused || false,
+              justificationDocuments: Array.isArray(att.justificationDocuments)
+                ? att.justificationDocuments
+                : [],
+              hasMedicalCertificate: !!att.hasMedicalCertificate,
+              sanctionNote: att.sanctionNote ? String(att.sanctionNote).trim() : undefined,
+              minutesLate: minutesLate ?? undefined,
+              attendanceSource: att.attendanceSource || attendanceSource || 'MANUAL',
             },
-          })
-        )
+          });
+        })
       );
+
+      if (notifyParentsOnSave !== false) {
+        await Promise.allSettled(
+          absences.map(async (a) => {
+            if (!shouldNotifyParentsOnAttendanceChange(a.status, a.excused)) return;
+            await notifyParentsOfAttendanceChange({
+              studentId: a.studentId,
+              status: a.status,
+              date: a.date,
+              courseName: course.name,
+              courseCode: course.code,
+              minutesLate: a.minutesLate,
+            });
+            await prisma.absence.update({
+              where: { id: a.id },
+              data: { parentNotifiedAt: new Date() },
+            });
+          })
+        );
+      }
 
       res.status(201).json(absences);
     } catch (error: any) {
@@ -2296,6 +3310,8 @@ router.post(
               date: attendanceDate,
               status: 'ABSENT',
               excused: false,
+              justificationDocuments: [],
+              attendanceSource: 'MANUAL',
             },
           })
         )
@@ -2324,11 +3340,19 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-      const { courseId, studentId, date, status = 'PRESENT' } = req.body;
+      const {
+        courseId,
+        studentId,
+        date,
+        status = 'PRESENT',
+        minutesLate,
+        attendanceSource = 'NFC',
+        notifyParentsOnSave = true,
+      } = req.body;
 
       const course = await prisma.course.findUnique({
         where: { id: courseId },
-        select: { id: true, teacherId: true },
+        select: { id: true, teacherId: true, name: true, code: true },
       });
       if (!course) return res.status(404).json({ error: 'Cours non trouvé' });
 
@@ -2337,6 +3361,12 @@ router.post(
       startOfDay.setUTCHours(0, 0, 0, 0);
       const endOfDay = new Date(startOfDay);
       endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+      const resolvedStatus = status || 'PRESENT';
+      const lateMins =
+        resolvedStatus === 'LATE' && minutesLate != null && minutesLate !== ''
+          ? Math.max(0, Math.min(480, Number(minutesLate)))
+          : null;
 
       const existing = await prisma.absence.findFirst({
         where: {
@@ -2350,7 +3380,12 @@ router.post(
       if (existing) {
         absence = await prisma.absence.update({
           where: { id: existing.id },
-          data: { status: status || 'PRESENT', updatedAt: new Date() },
+          data: {
+            status: resolvedStatus,
+            minutesLate: lateMins ?? undefined,
+            attendanceSource: attendanceSource || 'NFC',
+            updatedAt: new Date(),
+          },
           include: {
             student: {
               include: {
@@ -2366,8 +3401,11 @@ router.post(
             courseId,
             teacherId: course.teacherId,
             date: attendanceDate,
-            status: status || 'PRESENT',
+            status: resolvedStatus,
             excused: false,
+            justificationDocuments: [],
+            minutesLate: lateMins ?? undefined,
+            attendanceSource: attendanceSource || 'NFC',
           },
           include: {
             student: {
@@ -2377,6 +3415,22 @@ router.post(
             },
           },
         });
+      }
+
+      if (notifyParentsOnSave !== false && shouldNotifyParentsOnAttendanceChange(absence.status, absence.excused)) {
+        void notifyParentsOfAttendanceChange({
+          studentId: absence.studentId,
+          status: absence.status,
+          date: absence.date,
+          courseName: course.name,
+          courseCode: course.code,
+          minutesLate: absence.minutesLate,
+        }).then(() =>
+          prisma.absence.update({
+            where: { id: absence.id },
+            data: { parentNotifiedAt: new Date() },
+          })
+        );
       }
 
       res.status(201).json(absence);
@@ -2411,7 +3465,18 @@ router.post(
         status,
         excused,
         reason,
+        justificationDocuments,
+        hasMedicalCertificate,
+        minutesLate,
+        sanctionNote,
+        attendanceSource,
+        notifyParents: notifyParentsBody = true,
       } = req.body;
+
+      const lateMins =
+        status === 'LATE' && minutesLate != null && minutesLate !== ''
+          ? Math.max(0, Math.min(480, Number(minutesLate)))
+          : undefined;
 
       const absence = await prisma.absence.create({
         data: {
@@ -2422,6 +3487,11 @@ router.post(
           status,
           excused: excused || false,
           reason,
+          justificationDocuments: Array.isArray(justificationDocuments) ? justificationDocuments : [],
+          hasMedicalCertificate: !!hasMedicalCertificate,
+          minutesLate: lateMins,
+          sanctionNote: sanctionNote ? String(sanctionNote).trim() : undefined,
+          attendanceSource: attendanceSource ? String(attendanceSource) : 'MANUAL',
         },
         include: {
           student: {
@@ -2460,6 +3530,31 @@ router.post(
         },
       });
 
+      if (
+        notifyParentsBody !== false &&
+        shouldNotifyParentsOnAttendanceChange(absence.status, absence.excused)
+      ) {
+        const c = await prisma.course.findUnique({
+          where: { id: courseId },
+          select: { name: true, code: true },
+        });
+        if (c) {
+          void notifyParentsOfAttendanceChange({
+            studentId: absence.studentId,
+            status: absence.status,
+            date: absence.date,
+            courseName: c.name,
+            courseCode: c.code,
+            minutesLate: absence.minutesLate,
+          }).then(() =>
+            prisma.absence.update({
+              where: { id: absence.id },
+              data: { parentNotifiedAt: new Date() },
+            })
+          );
+        }
+      }
+
       res.status(201).json(absence);
     } catch (error: any) {
       console.error('Erreur lors de la création de l\'absence:', error);
@@ -2474,7 +3569,19 @@ router.post(
 // Mettre à jour une absence (Admin)
 router.put('/absences/:id', async (req, res) => {
   try {
-    const { status, excused, reason, date } = req.body;
+    const {
+      status,
+      excused,
+      reason,
+      date,
+      justificationDocuments,
+      justificationSubmittedAt,
+      hasMedicalCertificate,
+      minutesLate,
+      sanctionNote,
+      attendanceSource,
+      notifyParents,
+    } = req.body;
 
     const absence = await prisma.absence.findUnique({
       where: { id: req.params.id },
@@ -2484,13 +3591,37 @@ router.put('/absences/:id', async (req, res) => {
       return res.status(404).json({ error: 'Absence non trouvée' });
     }
 
+    const lateMins =
+      minutesLate !== undefined
+        ? minutesLate === null || minutesLate === ''
+          ? null
+          : Math.max(0, Math.min(480, Number(minutesLate)))
+        : undefined;
+
     const updatedAbsence = await prisma.absence.update({
       where: { id: req.params.id },
       data: {
         ...(status && { status }),
+        ...(status && status !== 'LATE' ? { minutesLate: null } : {}),
         ...(excused !== undefined && { excused }),
         ...(reason !== undefined && { reason }),
         ...(date && { date: new Date(date) }),
+        ...(justificationDocuments !== undefined && {
+          justificationDocuments: Array.isArray(justificationDocuments) ? justificationDocuments : [],
+        }),
+        ...(justificationSubmittedAt !== undefined && {
+          justificationSubmittedAt: justificationSubmittedAt
+            ? new Date(justificationSubmittedAt)
+            : null,
+        }),
+        ...(hasMedicalCertificate !== undefined && { hasMedicalCertificate: !!hasMedicalCertificate }),
+        ...(lateMins !== undefined && { minutesLate: lateMins }),
+        ...(sanctionNote !== undefined && {
+          sanctionNote: sanctionNote == null || sanctionNote === '' ? null : String(sanctionNote).trim(),
+        }),
+        ...(attendanceSource !== undefined && {
+          attendanceSource: attendanceSource ? String(attendanceSource) : null,
+        }),
       },
       include: {
         student: {
@@ -2528,6 +3659,14 @@ router.put('/absences/:id', async (req, res) => {
         },
       },
     });
+
+    if (notifyParents === true) {
+      try {
+        await notifyParentsForAbsenceById(updatedAbsence.id);
+      } catch (e) {
+        console.error('notifyParentsForAbsenceById:', e);
+      }
+    }
 
     res.json(updatedAbsence);
   } catch (error: any) {
@@ -2957,6 +4096,18 @@ router.get('/users', async (req, res) => {
             profession: true,
           },
         },
+        educatorProfile: {
+          select: { id: true, employeeId: true, specialization: true },
+        },
+        staffProfile: {
+          select: {
+            id: true,
+            employeeId: true,
+            staffCategory: true,
+            supportKind: true,
+            jobTitle: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -3152,15 +4303,17 @@ router.delete('/users/:id', async (req, res) => {
 // Obtenir les statistiques par rôle
 router.get('/roles/stats', async (req, res) => {
   try {
-    const [admins, teachers, students, parents, educators, activeUsers, inactiveUsers] = await Promise.all([
-      prisma.user.count({ where: { role: 'ADMIN' } }),
-      prisma.user.count({ where: { role: 'TEACHER' } }),
-      prisma.user.count({ where: { role: 'STUDENT' } }),
-      prisma.user.count({ where: { role: 'PARENT' } }),
-      prisma.user.count({ where: { role: 'EDUCATOR' } }),
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.user.count({ where: { isActive: false } }),
-    ]);
+    const [admins, teachers, students, parents, educators, staff, activeUsers, inactiveUsers] =
+      await Promise.all([
+        prisma.user.count({ where: { role: 'ADMIN' } }),
+        prisma.user.count({ where: { role: 'TEACHER' } }),
+        prisma.user.count({ where: { role: 'STUDENT' } }),
+        prisma.user.count({ where: { role: 'PARENT' } }),
+        prisma.user.count({ where: { role: 'EDUCATOR' } }),
+        prisma.user.count({ where: { role: 'STAFF' } }),
+        prisma.user.count({ where: { isActive: true } }),
+        prisma.user.count({ where: { isActive: false } }),
+      ]);
 
     res.json({
       admins,
@@ -3168,9 +4321,10 @@ router.get('/roles/stats', async (req, res) => {
       students,
       parents,
       educators,
+      staff,
       activeUsers,
       inactiveUsers,
-      total: admins + teachers + students + parents + educators,
+      total: admins + teachers + students + parents + educators + staff,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3428,28 +4582,145 @@ router.get('/messages', async (req, res) => {
   }
 });
 
-// Envoyer un message
+// Envoyer un message (1:1, ou diffusion parents par classe / par niveau)
 router.post('/messages', async (req, res) => {
   try {
-    const { receiverId, subject, content, category, channels } = req.body;
+    const {
+      receiverId,
+      subject,
+      content,
+      category,
+      channels,
+      threadKey: bodyThreadKey,
+      attachmentUrls: rawAttachments,
+      broadcastClassId,
+      broadcastLevel,
+      academicYear,
+    } = req.body as {
+      receiverId?: string;
+      subject?: string;
+      content?: string;
+      category?: string;
+      channels?: string[];
+      threadKey?: string;
+      attachmentUrls?: string[];
+      broadcastClassId?: string;
+      broadcastLevel?: string;
+      academicYear?: string;
+    };
 
-    if (!receiverId || !content) {
-      return res.status(400).json({ error: 'receiverId et content sont requis' });
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'Le contenu est requis' });
+    }
+
+    const {
+      makeDmThreadKey,
+      createInternalPlatformMessage,
+      notifyUserNewMessage,
+    } = await import('../utils/internal-messaging.util');
+
+    const attachmentUrls = Array.isArray(rawAttachments)
+      ? rawAttachments.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
+      : [];
+
+    const validCategories = ['GENERAL', 'ACADEMIC', 'ABSENCE', 'PAYMENT', 'CONDUCT', 'URGENT', 'ANNOUNCEMENT'] as const;
+    const messageCategory: MessageCategory =
+      category && validCategories.includes(category as MessageCategory)
+        ? (category as MessageCategory)
+        : 'GENERAL';
+
+    /** Diffusion : tous les parents d’élèves actifs de la classe */
+    if (broadcastClassId && String(broadcastClassId).trim()) {
+      const classId = String(broadcastClassId).trim();
+      const students = await prisma.student.findMany({
+        where: { classId, isActive: true },
+        select: {
+          parents: { select: { parent: { select: { userId: true } } } },
+        },
+      });
+      const parentUserIds = [...new Set(students.flatMap((s) => s.parents.map((p) => p.parent.userId)))];
+      if (parentUserIds.length === 0) {
+        return res.status(400).json({ error: 'Aucun parent à joindre pour cette classe.' });
+      }
+      const batchKey = `class_${classId}_${Date.now()}`;
+      for (const pid of parentUserIds) {
+        await createInternalPlatformMessage({
+          senderId: req.user!.id,
+          receiverId: pid,
+          subject: subject && String(subject).trim() ? String(subject).trim() : null,
+          content: content.trim(),
+          category: messageCategory,
+          threadKey: batchKey,
+          attachmentUrls,
+        });
+      }
+      return res.status(201).json({
+        ok: true,
+        broadcast: true,
+        scope: 'class',
+        count: parentUserIds.length,
+        threadKey: batchKey,
+      });
+    }
+
+    /** Diffusion : parents d’élèves actifs de toutes les classes d’un niveau (ex. « 6ème ») */
+    if (broadcastLevel && String(broadcastLevel).trim() && academicYear && String(academicYear).trim()) {
+      const level = String(broadcastLevel).trim();
+      const year = String(academicYear).trim();
+      const classes = await prisma.class.findMany({
+        where: { level, academicYear: year },
+        select: { id: true },
+      });
+      if (classes.length === 0) {
+        return res.status(404).json({ error: 'Aucune classe pour ce niveau et cette année scolaire.' });
+      }
+      const classIds = classes.map((c) => c.id);
+      const students = await prisma.student.findMany({
+        where: { classId: { in: classIds }, isActive: true },
+        select: {
+          parents: { select: { parent: { select: { userId: true } } } },
+        },
+      });
+      const parentUserIds = [...new Set(students.flatMap((s) => s.parents.map((p) => p.parent.userId)))];
+      if (parentUserIds.length === 0) {
+        return res.status(400).json({ error: 'Aucun parent à joindre pour ce niveau.' });
+      }
+      const batchKey = `level_${year}_${level.replace(/\s+/g, '_')}_${Date.now()}`;
+      for (const pid of parentUserIds) {
+        await createInternalPlatformMessage({
+          senderId: req.user!.id,
+          receiverId: pid,
+          subject: subject && String(subject).trim() ? String(subject).trim() : null,
+          content: content.trim(),
+          category: messageCategory,
+          threadKey: batchKey,
+          attachmentUrls,
+        });
+      }
+      return res.status(201).json({
+        ok: true,
+        broadcast: true,
+        scope: 'level',
+        count: parentUserIds.length,
+        threadKey: batchKey,
+      });
+    }
+
+    if (!receiverId) {
+      return res.status(400).json({
+        error: 'receiverId requis (ou utilisez broadcastClassId / broadcastLevel + academicYear).',
+      });
     }
 
     // Valider les canaux
     const validChannels = ['PLATFORM', 'EMAIL', 'SMS'];
-    const selectedChannels = channels && Array.isArray(channels) 
-      ? channels.filter((c: string) => validChannels.includes(c))
-      : ['PLATFORM']; // Par défaut, envoyer sur la plateforme
+    const selectedChannels = channels && Array.isArray(channels)
+      ? (channels.filter((c: string) => validChannels.includes(c)) as MessageChannel[])
+      : (['PLATFORM'] as MessageChannel[]);
 
     if (selectedChannels.length === 0) {
       return res.status(400).json({ error: 'Au moins un canal doit être sélectionné' });
     }
-
-    // Valider la catégorie
-    const validCategories = ['GENERAL', 'ACADEMIC', 'ABSENCE', 'PAYMENT', 'CONDUCT', 'URGENT', 'ANNOUNCEMENT'];
-    const messageCategory = category && validCategories.includes(category) ? category : 'GENERAL';
 
     // Récupérer les informations du destinataire
     const receiver = await prisma.user.findUnique({
@@ -3460,6 +4731,7 @@ router.post('/messages', async (req, res) => {
         lastName: true,
         email: true,
         phone: true,
+        role: true,
       },
     });
 
@@ -3476,6 +4748,11 @@ router.post('/messages', async (req, res) => {
       },
     });
 
+    const dmKey =
+      bodyThreadKey && String(bodyThreadKey).trim().length > 0
+        ? String(bodyThreadKey).trim()
+        : makeDmThreadKey(req.user!.id, receiverId);
+
     // Créer le message dans la base de données
     const message = await prisma.message.create({
       data: {
@@ -3485,6 +4762,8 @@ router.post('/messages', async (req, res) => {
         content,
         category: messageCategory,
         channels: selectedChannels,
+        threadKey: dmKey,
+        attachmentUrls,
         sentViaSMS: false,
         sentViaEmail: false,
         smsStatus: selectedChannels.includes('SMS') ? 'pending' : null,
@@ -3506,6 +4785,14 @@ router.post('/messages', async (req, res) => {
           },
         },
       },
+    });
+
+    await notifyUserNewMessage({
+      receiverUserId: receiver.id,
+      receiverRole: receiver.role,
+      senderDisplayName: `${sender?.firstName ?? ''} ${sender?.lastName ?? ''}`.trim() || 'Administration',
+      subject: message.subject,
+      contentSnippet: message.content,
     });
 
     // Envoyer via les différents canaux
@@ -3547,17 +4834,13 @@ router.post('/messages', async (req, res) => {
     // Envoyer par SMS si demandé
     if (selectedChannels.includes('SMS') && receiver.phone) {
       const { sendSMS, formatPhoneNumber, isValidPhoneNumber } = await import('../utils/sms.util');
-      
+
       if (isValidPhoneNumber(receiver.phone)) {
         const formattedPhone = formatPhoneNumber(receiver.phone);
-        const smsContent = subject 
-          ? `${subject}\n\n${content}` 
-          : content;
-        
+        const smsContent = subject ? `${subject}\n\n${content}` : content;
+
         // Limiter la longueur du SMS (160 caractères)
-        const smsText = smsContent.length > 160 
-          ? smsContent.substring(0, 157) + '...' 
-          : smsContent;
+        const smsText = smsContent.length > 160 ? smsContent.substring(0, 157) + '...' : smsContent;
 
         const smsResult = await sendSMS(formattedPhone, smsText);
 
@@ -3763,7 +5046,22 @@ router.get('/announcements', async (req, res) => {
 // Créer une annonce
 router.post('/announcements', async (req, res) => {
   try {
-    const { title, content, targetRole, targetClass, priority, expiresAt } = req.body;
+    const {
+      title,
+      content,
+      targetRole,
+      targetClass,
+      priority,
+      expiresAt,
+      portalCategory,
+      coverImageUrl,
+      imageUrls,
+    } = req.body;
+    const {
+      normalizePortalCategory,
+      normalizeCoverImageUrl,
+      parseImageUrlsField,
+    } = await import('../utils/announcement-portal-fields.util');
 
     if (!title || !content) {
       return res.status(400).json({ error: 'title et content sont requis' });
@@ -3776,7 +5074,7 @@ router.post('/announcements', async (req, res) => {
     // Valider le targetRole si fourni
     let finalTargetRole = null;
     if (targetRole) {
-      const validRoles = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'EDUCATOR'];
+      const validRoles = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'EDUCATOR', 'STAFF'];
       if (validRoles.includes(targetRole)) {
         finalTargetRole = targetRole;
       }
@@ -3801,6 +5099,9 @@ router.post('/announcements', async (req, res) => {
         targetClassId: targetClass || null,
         priority: finalPriority,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        portalCategory: normalizePortalCategory(portalCategory),
+        coverImageUrl: normalizeCoverImageUrl(coverImageUrl),
+        imageUrls: parseImageUrlsField(imageUrls),
       },
       include: {
         author: {
@@ -3843,6 +5144,15 @@ router.put('/announcements/:id/publish', async (req, res) => {
       },
     });
 
+    const { notifyUsersAboutPublishedAnnouncement } = await import(
+      '../utils/announcement-publish-notify.util'
+    );
+    setImmediate(() => {
+      notifyUsersAboutPublishedAnnouncement(announcement.id).catch((err) => {
+        console.error('notifyUsersAboutPublishedAnnouncement:', err);
+      });
+    });
+
     res.json(announcement);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3852,7 +5162,13 @@ router.put('/announcements/:id/publish', async (req, res) => {
 // Mettre à jour une annonce
 router.put('/announcements/:id', async (req, res) => {
   try {
-    const { title, content, targetRole, targetClass, priority, expiresAt } = req.body;
+    const { title, content, targetRole, targetClass, priority, expiresAt, portalCategory, coverImageUrl, imageUrls } =
+      req.body;
+    const {
+      normalizePortalCategory,
+      normalizeCoverImageUrl,
+      parseImageUrlsField,
+    } = await import('../utils/announcement-portal-fields.util');
 
     const announcement = await prisma.announcement.update({
       where: { id: req.params.id },
@@ -3863,74 +5179,15 @@ router.put('/announcements/:id', async (req, res) => {
         ...(targetClass && { targetClassId: targetClass }),
         ...(priority && { priority }),
         ...(expiresAt && { expiresAt: new Date(expiresAt) }),
-      },
-    });
-
-    res.json(announcement);
-  } catch (error: any) {
-    console.error(`Erreur lors de la mise à jour de l'annonce ${req.params.id}:`, error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Supprimer une annonce
-router.delete('/announcements/:id', async (req, res) => {
-  try {
-    const announcement = await prisma.announcement.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!announcement) {
-      return res.status(404).json({ error: 'Annonce non trouvée' });
-    }
-
-    await prisma.announcement.delete({
-      where: { id: req.params.id },
-    });
-
-    res.json({ message: 'Annonce supprimée avec succès' });
-  } catch (error: any) {
-    console.error(`Erreur lors de la suppression de l'annonce ${req.params.id}:`, error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Supprimer un message
-router.delete('/messages/:id', async (req, res) => {
-  try {
-    const message = await prisma.message.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!message) {
-      return res.status(404).json({ error: 'Message non trouvé' });
-    }
-
-    await prisma.message.delete({
-      where: { id: req.params.id },
-    });
-
-    res.json({ message: 'Message supprimé avec succès' });
-  } catch (error: any) {
-    console.error(`Erreur lors de la suppression du message ${req.params.id}:`, error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Mettre à jour une annonce
-router.put('/announcements/:id', async (req, res) => {
-  try {
-    const { title, content, targetRole, targetClass, priority, expiresAt } = req.body;
-
-    const announcement = await prisma.announcement.update({
-      where: { id: req.params.id },
-      data: {
-        ...(title && { title }),
-        ...(content && { content }),
-        ...(targetRole && { targetRole }),
-        ...(targetClass && { targetClassId: targetClass }),
-        ...(priority && { priority }),
-        ...(expiresAt && { expiresAt: new Date(expiresAt) }),
+        ...(req.body.portalCategory !== undefined && {
+          portalCategory: normalizePortalCategory(portalCategory),
+        }),
+        ...(req.body.coverImageUrl !== undefined && {
+          coverImageUrl: normalizeCoverImageUrl(coverImageUrl),
+        }),
+        ...(req.body.imageUrls !== undefined && {
+          imageUrls: parseImageUrlsField(imageUrls),
+        }),
       },
     });
 
@@ -4008,6 +5265,42 @@ router.get('/notifications', async (req, res) => {
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+/** État des canaux d’alerte (sans secrets) — pilotage admin */
+router.get('/notifications/channel-status', async (_req, res) => {
+  try {
+    const { isWebPushConfigured } = await import('../utils/push-send.util');
+    const { isSmtpConfigured } = await import('../utils/email.util');
+    const { isTwilioConfigured } = await import('../utils/sms.util');
+    res.json({
+      pushWeb: isWebPushConfigured(),
+      emailSmtp: isSmtpConfigured(),
+      smsTwilio: isTwilioConfigured(),
+      attendanceParentNotify: process.env.NOTIFY_PARENTS_ON_ATTENDANCE?.trim() !== 'false',
+      announcementUrgentSms: process.env.ANNOUNCEMENT_URGENT_SMS?.trim() === 'true',
+      tuitionSmsOverdue: process.env.TUITION_REMINDER_SMS_OVERDUE?.trim() === 'true',
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+/** Vérifie in-app + e-mail + push pour le compte admin courant */
+router.post('/notifications/test', async (req, res) => {
+  try {
+    const { notifyUsersImportant } = await import('../utils/notify-important.util');
+    await notifyUsersImportant([req.user!.id], {
+      type: 'test',
+      title: 'Test des notifications',
+      content:
+        'Si vous voyez ceci dans la cloche, recevez un e-mail et une notification push (navigateur), les canaux correspondants sont correctement configurés.',
+      email: undefined,
+    });
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
 
@@ -4385,119 +5678,129 @@ router.delete('/notifications/:id', async (req, res) => {
 
 // ========== GESTION DES EMPLOIS DU TEMPS ==========
 
+const scheduleInclude = {
+  class: { select: { id: true, name: true, level: true } },
+  course: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      teacher: {
+        select: {
+          id: true,
+          user: { select: { firstName: true, lastName: true, email: true } },
+        },
+      },
+    },
+  },
+  substituteTeacher: {
+    select: {
+      id: true,
+      user: { select: { firstName: true, lastName: true, email: true } },
+    },
+  },
+} as const;
+
 // Obtenir tous les emplois du temps
 router.get('/schedules', async (req, res) => {
   try {
-    const { classId, courseId } = req.query;
+    const { classId, courseId, teacherId, room } = req.query;
 
     const schedules = await prisma.schedule.findMany({
       where: {
         ...(classId && { classId: classId as string }),
         ...(courseId && { courseId: courseId as string }),
+        ...(teacherId && {
+          OR: [
+            { course: { teacherId: teacherId as string } },
+            { substituteTeacherId: teacherId as string },
+          ],
+        }),
       },
-      include: {
-        class: {
-          select: {
-            name: true,
-            level: true,
-          },
-        },
-        course: {
-          select: {
-            name: true,
-            code: true,
-            teacher: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: scheduleInclude,
       orderBy: [
         { dayOfWeek: 'asc' },
         { startTime: 'asc' },
       ],
     });
 
-    res.json(schedules);
+    const roomKey = typeof room === 'string' ? normalizeRoomKey(room) : null;
+    res.json(roomKey ? schedules.filter((s) => normalizeRoomKey(s.room) === roomKey) : schedules);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/schedules/auto-generate', async (req, res) => {
+  try {
+    const result = await autoGenerateTimetableForClass(prisma, {
+      classId: String(req.body.classId),
+      clearExisting: Boolean(req.body.clearExisting),
+      days: Array.isArray(req.body.days)
+        ? req.body.days.map((v: unknown) => parseInt(String(v), 10))
+        : undefined,
+      slotDurationMinutes:
+        req.body.slotDurationMinutes != null
+          ? parseInt(String(req.body.slotDurationMinutes), 10)
+          : undefined,
+      morningStart: req.body.morningStart,
+      morningEnd: req.body.morningEnd,
+      afternoonStart: req.body.afternoonStart,
+      afternoonEnd: req.body.afternoonEnd,
+    });
+    res.status(201).json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
 
 // Créer un emploi du temps
 router.post('/schedules', async (req, res) => {
   try {
-    const { classId, courseId, dayOfWeek, startTime, endTime, room } = req.body;
+    const {
+      classId,
+      courseId,
+      dayOfWeek,
+      startTime,
+      endTime,
+      room,
+      substituteTeacherId,
+      replacementNote,
+    } = req.body;
 
     if (!classId || !courseId || dayOfWeek === undefined || !startTime || !endTime) {
       return res.status(400).json({ error: 'Tous les champs sont requis' });
     }
 
-    // Vérifier les conflits
-    const conflictingSchedule = await prisma.schedule.findFirst({
-      where: {
-        classId,
-        dayOfWeek: parseInt(dayOfWeek),
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { gte: startTime } },
-              { endTime: { lte: endTime } },
-            ],
-          },
-        ],
-      },
-    });
-
-    if (conflictingSchedule) {
-      return res.status(400).json({ error: 'Conflit d\'horaire détecté' });
+    try {
+      await assertScheduleConstraints(prisma, {
+        classId: String(classId),
+        courseId: String(courseId),
+        dayOfWeek: parseInt(String(dayOfWeek), 10),
+        startTime: String(startTime),
+        endTime: String(endTime),
+        room: room ? String(room) : null,
+        substituteTeacherId: substituteTeacherId ? String(substituteTeacherId) : null,
+      });
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        return res.status(400).json({ error: e.message });
+      }
+      return res.status(400).json({ error: 'Contrainte non respectée' });
     }
 
     const schedule = await prisma.schedule.create({
       data: {
         classId,
         courseId,
-        dayOfWeek: parseInt(dayOfWeek),
-        startTime,
-        endTime,
-        room,
+        dayOfWeek: parseInt(String(dayOfWeek), 10),
+        startTime: String(startTime),
+        endTime: String(endTime),
+        room: room ? String(room) : null,
+        substituteTeacherId: substituteTeacherId ? String(substituteTeacherId) : null,
+        replacementNote: replacementNote ? String(replacementNote) : null,
       },
-      include: {
-        class: true,
-        course: {
-          include: {
-            teacher: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: scheduleInclude,
     });
 
     res.status(201).json(schedule);
@@ -4511,34 +5814,7 @@ router.get('/schedules/:id', async (req, res) => {
   try {
     const schedule = await prisma.schedule.findUnique({
       where: { id: req.params.id },
-      include: {
-        class: {
-          select: {
-            id: true,
-            name: true,
-            level: true,
-          },
-        },
-        course: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            teacher: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: scheduleInclude,
     });
 
     if (!schedule) {
@@ -4558,20 +5834,54 @@ router.get('/schedules/:id', async (req, res) => {
 // Mettre à jour un emploi du temps
 router.put('/schedules/:id', async (req, res) => {
   try {
-    const { dayOfWeek, startTime, endTime, room } = req.body;
+    const { dayOfWeek, startTime, endTime, room, substituteTeacherId, replacementNote } = req.body;
+
+    const current = await prisma.schedule.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: 'Emploi du temps non trouvé' });
+
+    const nextDay = dayOfWeek !== undefined ? parseInt(String(dayOfWeek), 10) : current.dayOfWeek;
+    const nextStart = startTime ? String(startTime) : current.startTime;
+    const nextEnd = endTime ? String(endTime) : current.endTime;
+    const nextRoom = room !== undefined ? (room ? String(room) : null) : current.room;
+    const nextSubstitute =
+      substituteTeacherId !== undefined
+        ? substituteTeacherId
+          ? String(substituteTeacherId)
+          : null
+        : current.substituteTeacherId;
+
+    try {
+      await assertScheduleConstraints(
+        prisma,
+        {
+          classId: current.classId,
+          courseId: current.courseId,
+          dayOfWeek: nextDay,
+          startTime: nextStart,
+          endTime: nextEnd,
+          room: nextRoom,
+          substituteTeacherId: nextSubstitute,
+        },
+        current.id
+      );
+    } catch (e: unknown) {
+      if (e instanceof Error) return res.status(400).json({ error: e.message });
+      return res.status(400).json({ error: 'Contrainte non respectée' });
+    }
 
     const schedule = await prisma.schedule.update({
       where: { id: req.params.id },
       data: {
-        ...(dayOfWeek !== undefined && { dayOfWeek: parseInt(dayOfWeek) }),
-        ...(startTime && { startTime }),
-        ...(endTime && { endTime }),
-        ...(room !== undefined && { room }),
+        dayOfWeek: nextDay,
+        startTime: nextStart,
+        endTime: nextEnd,
+        room: nextRoom,
+        substituteTeacherId: nextSubstitute,
+        ...(replacementNote !== undefined && {
+          replacementNote: replacementNote ? String(replacementNote) : null,
+        }),
       },
-      include: {
-        class: true,
-        course: true,
-      },
+      include: scheduleInclude,
     });
 
     res.json(schedule);
@@ -4590,6 +5900,197 @@ router.delete('/schedules/:id', async (req, res) => {
     res.json({ message: 'Emploi du temps supprimé' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== CONTRÔLE D'ACCÈS ==========
+
+router.get('/access-control/overview', async (_req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const [studentBadges, teacherBadges, staffBadges, studentBio, teacherBio, staffBio, byType, criticalToday] =
+      await Promise.all([
+        prisma.student.count({ where: { nfcId: { not: null } } }),
+        prisma.teacher.count({ where: { nfcId: { not: null } } }),
+        prisma.staffMember.count({ where: { nfcId: { not: null } } }),
+        prisma.student.count({ where: { biometricId: { not: null } } }),
+        prisma.teacher.count({ where: { biometricId: { not: null } } }),
+        prisma.staffMember.count({ where: { biometricId: { not: null } } }),
+        prisma.securityEvent.groupBy({
+          by: ['type'],
+          where: { createdAt: { gte: startOfDay, lt: endOfDay } },
+          _count: true,
+        }),
+        prisma.securityEvent.count({
+          where: {
+            createdAt: { gte: startOfDay, lt: endOfDay },
+            severity: 'critical',
+          },
+        }),
+      ]);
+
+    const typeCount = new Map<string, number>(
+      byType.map((x: any) => [String(x.type), Number(x?._count?.type ?? x?._count ?? 0)])
+    );
+    const sum = (types: string[]) => types.reduce((acc, t) => acc + (typeCount.get(t) ?? 0), 0);
+    const todayEntries = sum(['badge_entry', 'biometric_entry', 'manual_entry', 'visitor_entry']);
+    const todayExits = sum(['badge_exit', 'biometric_exit', 'manual_exit', 'visitor_exit']);
+    const visitorIn = typeCount.get('visitor_entry') ?? 0;
+    const visitorOut = typeCount.get('visitor_exit') ?? 0;
+
+    res.json({
+      badgesAssigned: studentBadges + teacherBadges + staffBadges,
+      biometricsEnrolled: studentBio + teacherBio + staffBio,
+      todayEntries,
+      todayExits,
+      activeVisitorsEstimate: visitorIn - visitorOut,
+      criticalAlertsToday: criticalToday,
+    });
+  } catch (error: any) {
+    console.error('GET /access-control/overview:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/access-control/entry-logs', async (req, res) => {
+  try {
+    const { type, limit = 100 } = req.query;
+    const validLimit = Math.min(Math.max(parseInt(String(limit), 10) || 100, 1), 500);
+    const rows = await prisma.securityEvent.findMany({
+      where: {
+        type: {
+          in: [
+            'badge_entry',
+            'badge_exit',
+            'biometric_entry',
+            'biometric_exit',
+            'manual_entry',
+            'manual_exit',
+            'visitor_entry',
+            'visitor_exit',
+          ],
+        },
+        ...(type && typeof type === 'string' && { type }),
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: validLimit,
+    });
+    res.json(rows);
+  } catch (error: any) {
+    console.error('GET /access-control/entry-logs:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/access-control/entry-logs', async (req, res) => {
+  try {
+    const { type, description, severity, userId, metadata } = req.body;
+    if (!type || typeof type !== 'string') {
+      return res.status(400).json({ error: 'type est requis' });
+    }
+    if (!description || typeof description !== 'string' || !description.trim()) {
+      return res.status(400).json({ error: 'description est requise' });
+    }
+    if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: String(userId) } });
+      if (!user) return res.status(400).json({ error: 'Utilisateur introuvable' });
+    }
+    const row = await prisma.securityEvent.create({
+      data: {
+        userId: userId || req.user?.id || null,
+        type: type.trim(),
+        description: metadata ? `${description.trim()} | ${JSON.stringify(metadata)}` : description.trim(),
+        severity: severity || 'info',
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /access-control/entry-logs:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/access-control/appointments', async (req, res) => {
+  try {
+    const { from, to, status } = req.query;
+    const where: Record<string, unknown> = {};
+    if (status && typeof status === 'string') where.status = status;
+    if (from && to && typeof from === 'string' && typeof to === 'string') {
+      const fromD = new Date(from);
+      const toD = new Date(to);
+      if (!Number.isNaN(fromD.getTime()) && !Number.isNaN(toD.getTime())) {
+        where.scheduledStart = { gte: fromD, lte: toD };
+      }
+    } else {
+      // Fenêtre par défaut limitée pour éviter des scans historiques trop lourds.
+      const now = new Date();
+      const in90d = new Date();
+      in90d.setDate(in90d.getDate() + 90);
+      where.scheduledStart = { gte: now, lte: in90d };
+    }
+    const rows = await prisma.parentTeacherAppointment.findMany({
+      where,
+      include: {
+        parent: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+        teacher: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+        student: { include: { user: { select: { firstName: true, lastName: true } } } },
+      },
+      orderBy: { scheduledStart: 'asc' },
+      take: 500,
+    });
+    res.json(rows);
+  } catch (error: any) {
+    console.error('GET /access-control/appointments:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/access-control/cctv', async (_req, res) => {
+  try {
+    const alerts = await prisma.securityEvent.findMany({
+      where: { severity: { in: ['warning', 'critical'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    res.json({
+      provider: process.env.CCTV_PROVIDER || 'Non configuré',
+      status: process.env.CCTV_ENABLED === 'true' ? 'online' : 'monitoring-only',
+      monitoredZones: Number(process.env.CCTV_ZONE_COUNT || 0),
+      lastAlerts: alerts,
+    });
+  } catch (error: any) {
+    console.error('GET /access-control/cctv:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/access-control/alarm', async (_req, res) => {
+  try {
+    const latestCritical = await prisma.securityEvent.findFirst({
+      where: { severity: 'critical' },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({
+      provider: process.env.ALARM_PROVIDER || 'Non configuré',
+      armed: process.env.ALARM_ARMED === 'true',
+      mode: process.env.ALARM_MODE || 'unset',
+      lastCriticalEvent: latestCritical,
+    });
+  } catch (error: any) {
+    console.error('GET /access-control/alarm:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
 
@@ -4706,6 +6207,205 @@ router.get('/security/stats', async (req, res) => {
   }
 });
 
+router.get('/security/data-protection-summary', async (_req, res) => {
+  try {
+    const [consentsTotal, consentsGranted, gdprEvents, lastBackupEvent] = await Promise.all([
+      prisma.parentConsent.count(),
+      prisma.parentConsent.count({ where: { granted: true } }),
+      prisma.securityEvent.count({
+        where: { type: { in: ['gdpr_data_export', 'gdpr_erasure_request'] } },
+      }),
+      prisma.securityEvent.findFirst({
+        where: { type: { in: ['backup_success', 'backup_failure'] } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const backupDirRaw = process.env.MONGODB_BACKUP_DIR?.trim();
+    const backupDir = backupDirRaw
+      ? path.isAbsolute(backupDirRaw)
+        ? backupDirRaw
+        : path.resolve(process.cwd(), backupDirRaw)
+      : path.resolve(process.cwd(), 'backups', 'mongodb');
+    const backupFiles = await fs.readdir(backupDir).catch(() => []);
+    const backupArchives = backupFiles.filter(
+      (f) => f.startsWith('mongo-backup-') && f.endsWith('.archive.gz')
+    );
+
+    res.json({
+      rgpdEnabled: true,
+      privacyPolicyUrl: '/privacy',
+      consent: {
+        total: consentsTotal,
+        granted: consentsGranted,
+        deniedOrPending: Math.max(0, consentsTotal - consentsGranted),
+      },
+      gdprRequestsTracked: gdprEvents,
+      sensitiveEncryptionConfigured: Boolean(
+        process.env.SENSITIVE_FIELD_ENCRYPTION_KEY?.trim()
+      ),
+      scheduledBackupsEnabled: ['1', 'true', 'yes'].includes(
+        (process.env.ENABLE_SCHEDULED_MONGODB_BACKUPS || '').toLowerCase()
+      ),
+      backupCron: process.env.MONGODB_BACKUP_CRON || '0 3 * * *',
+      backupRetentionDays: Number(process.env.MONGODB_BACKUP_RETENTION_DAYS || 14),
+      backupArchiveCount: backupArchives.length,
+      lastBackupEvent,
+    });
+  } catch (error: any) {
+    console.error('GET /security/data-protection-summary:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/security/role-permissions', async (_req, res) => {
+  try {
+    const usersByRole = await prisma.user.groupBy({
+      by: ['role'],
+      _count: true,
+    });
+    const rolePermissions: Record<string, string[]> = {
+      ADMIN: ['all:*'],
+      TEACHER: [
+        'teacher:profile',
+        'teacher:attendance',
+        'teacher:grades',
+        'teacher:assignments',
+        'teacher:appointments',
+      ],
+      STUDENT: ['student:profile', 'student:grades', 'student:attendance', 'student:assignments'],
+      PARENT: ['parent:children', 'parent:attendance', 'parent:grades', 'parent:appointments'],
+      EDUCATOR: ['educator:profile', 'educator:discipline', 'educator:reports', 'educator:messaging'],
+      STAFF: ['staff:profile', 'staff:attendance', 'staff:admin-ops'],
+    };
+    res.json({
+      roles: usersByRole.map((r) => ({
+        role: r.role,
+        users: r._count,
+        permissions: rolePermissions[r.role] || [],
+      })),
+    });
+  } catch (error: any) {
+    console.error('GET /security/role-permissions:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/security/2fa/users', async (_req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        twoFactorSettings: {
+          select: {
+            enabled: true,
+            method: true,
+            lastVerifiedAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: [{ role: 'asc' }, { lastName: 'asc' }],
+    });
+    const total = users.length;
+    const enabled = users.filter((u) => u.twoFactorSettings?.enabled).length;
+    res.json({
+      summary: { totalUsers: total, enabled2FA: enabled, rate: total ? (enabled / total) * 100 : 0 },
+      users,
+    });
+  } catch (error: any) {
+    console.error('GET /security/2fa/users:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.patch('/security/2fa/users/:userId', async (req, res) => {
+  try {
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled doit être booléen' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    if (enabled) {
+      return res.status(400).json({
+        error: "Activation admin directe non autorisée. L'utilisateur doit configurer 2FA via son compte.",
+      });
+    }
+    await prisma.userTwoFactorSettings.updateMany({
+      where: { userId: user.id },
+      data: { enabled: false },
+    });
+    await prisma.securityEvent.create({
+      data: {
+        userId: req.user?.id || null,
+        type: 'two_factor_disabled_by_admin',
+        description: `2FA désactivée pour ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        severity: 'warning',
+      },
+    });
+    res.json({ ok: true, enabled: false });
+  } catch (error: any) {
+    console.error('PATCH /security/2fa/users/:userId:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/security/performance/slow-endpoints', async (req, res) => {
+  try {
+    const limitRaw = Number.parseInt(String(req.query.limit ?? '5'), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 20) : 5;
+    res.json({
+      generatedAt: new Date().toISOString(),
+      summary: getMetricsSummary(),
+      topSlowEndpoints: getSlowEndpoints(limit),
+    });
+  } catch (error: any) {
+    console.error('GET /security/performance/slow-endpoints:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/security/backups/run', async (req, res) => {
+  try {
+    const result = await runMongoBackup();
+    if (result.ok) {
+      await prisma.securityEvent.create({
+        data: {
+          userId: req.user?.id || null,
+          type: 'backup_success',
+          description: `Sauvegarde MongoDB réussie: ${result.archivePath}`,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          severity: 'info',
+        },
+      });
+      return res.json(result);
+    }
+    await prisma.securityEvent.create({
+      data: {
+        userId: req.user?.id || null,
+        type: 'backup_failure',
+        description: `Échec sauvegarde MongoDB: ${result.error}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        severity: 'warning',
+      },
+    });
+    return res.status(500).json(result);
+  } catch (error: any) {
+    console.error('POST /security/backups/run:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
 // Changer le mot de passe d'un utilisateur
 router.put('/security/users/:id/password', async (req, res) => {
   try {
@@ -4785,7 +6485,7 @@ router.get('/dashboard', async (req, res) => {
       prisma.student.count(),
       prisma.teacher.count(),
       prisma.class.count(),
-      prisma.student.count({ where: { isActive: true } }),
+      prisma.student.count({ where: { isActive: true, enrollmentStatus: 'ACTIVE' } }),
       prisma.parent.count(),
       prisma.educator.count(),
     ]);
@@ -4800,6 +6500,113 @@ router.get('/dashboard', async (req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+/** KPI consolidés + séries courtes pour tableaux de bord et vue direction */
+router.get('/dashboard/kpis', async (_req, res) => {
+  try {
+    const now = new Date();
+    const d30 = new Date(now);
+    d30.setDate(d30.getDate() - 30);
+    const d180 = new Date(now);
+    d180.setDate(d180.getDate() - 180);
+
+    const [
+      admissionsPending,
+      admissionsUnderReview,
+      tuitionUnpaid,
+      payments30d,
+      payments6m,
+      saSubmitted,
+      saTotal,
+    ] = await Promise.all([
+      prisma.admission.count({ where: { status: 'PENDING' } }),
+      prisma.admission.count({ where: { status: 'UNDER_REVIEW' } }),
+      prisma.tuitionFee.aggregate({
+        where: { isPaid: false },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.payment.aggregate({
+        where: { status: 'COMPLETED', paidAt: { gte: d30, lte: now } },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.payment.findMany({
+        where: { status: 'COMPLETED', paidAt: { gte: d180, lte: now } },
+        select: { amount: true, paidAt: true },
+      }),
+      prisma.studentAssignment.count({ where: { submitted: true } }),
+      prisma.studentAssignment.count(),
+    ]);
+
+    const aggCount = (a: { _count?: number | { _all?: number } }) => {
+      const c = a._count;
+      if (c == null) return 0;
+      return typeof c === 'number' ? c : c._all ?? 0;
+    };
+
+    const monthPay = new Map<string, number>();
+    for (const p of payments6m) {
+      if (!p.paidAt) continue;
+      const d = new Date(p.paidAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthPay.set(key, (monthPay.get(key) ?? 0) + p.amount);
+    }
+    const paymentsByMonth = [...monthPay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, amount]) => {
+        const [y, mo] = month.split('-');
+        return { month, label: `${mo}/${y}`, amount: Math.round(amount * 100) / 100 };
+      });
+
+    const allStudents = await prisma.student.findMany({
+      where: { isActive: true, enrollmentStatus: 'ACTIVE' },
+      select: {
+        grades: { select: { score: true, maxScore: true, coefficient: true } },
+        absences: { select: { excused: true } },
+      },
+      take: 800,
+    });
+    let h = 0;
+    let m = 0;
+    for (const s of allStudents) {
+      const grades = s.grades || [];
+      const totalScore = grades.reduce(
+        (sum, g) => sum + (g.maxScore > 0 ? (g.score / g.maxScore) * 20 * g.coefficient : 0),
+        0
+      );
+      const totalCoef = grades.reduce((sum, g) => sum + g.coefficient, 0);
+      const avg = totalCoef > 0 ? totalScore / totalCoef : 0;
+      const unexcused = s.absences?.filter((a) => !a.excused).length || 0;
+      if (avg < 10 || unexcused > 5) h++;
+      else if (avg < 12) m++;
+    }
+
+    const submissionRate =
+      saTotal > 0 ? Math.round((saSubmitted / saTotal) * 1000) / 10 : null;
+
+    res.json({
+      generatedAt: now.toISOString(),
+      cards: {
+        admissionsPending,
+        admissionsUnderReview,
+        tuitionUnpaidAmount: Math.round((tuitionUnpaid._sum.amount ?? 0) * 100) / 100,
+        tuitionUnpaidCount: aggCount(tuitionUnpaid),
+        paymentsCompleted30dAmount: Math.round((payments30d._sum.amount ?? 0) * 100) / 100,
+        paymentsCompleted30dCount: aggCount(payments30d),
+        studentAssignmentsSubmissionRate: submissionRate,
+        atRiskHigh: h,
+        atRiskMedium: m,
+      },
+      charts: {
+        paymentsByMonth,
+      },
+    });
+  } catch (error: any) {
+    console.error('GET /admin/dashboard/kpis:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });
 
@@ -5115,6 +6922,237 @@ router.get('/report-cards', async (req, res) => {
   }
 });
 
+// Template par défaut des bulletins (personnalisation)
+router.get('/report-cards/template/default', async (_req, res) => {
+  try {
+    const template = await prisma.reportCardTemplate.findFirst({
+      where: { isDefault: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    res.json(template);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.put('/report-cards/template/default', async (req, res) => {
+  try {
+    const { name, description, settings } = req.body as {
+      name?: string;
+      description?: string;
+      settings?: Record<string, unknown>;
+    };
+
+    await prisma.reportCardTemplate.updateMany({
+      where: { isDefault: true },
+      data: { isDefault: false },
+    });
+
+    const existing = await prisma.reportCardTemplate.findFirst({
+      where: { name: name?.trim() || 'Template bulletin par défaut' },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const template = existing
+      ? await prisma.reportCardTemplate.update({
+          where: { id: existing.id },
+          data: {
+            description: description?.trim() || null,
+            settings: (settings || {}) as any,
+            isDefault: true,
+          },
+        })
+      : await prisma.reportCardTemplate.create({
+          data: {
+            name: name?.trim() || 'Template bulletin par défaut',
+            description: description?.trim() || null,
+            settings: (settings || {}) as any,
+            isDefault: true,
+          },
+        });
+
+    res.json(template);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Historique résultats + progression élève
+router.get('/grades/history/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, classId: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève introuvable' });
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId },
+      include: {
+        course: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    const monthlyMap = new Map<string, { total: number; coeff: number }>();
+    for (const g of grades) {
+      const key = `${g.date.getFullYear()}-${String(g.date.getMonth() + 1).padStart(2, '0')}`;
+      const value = monthlyMap.get(key) || { total: 0, coeff: 0 };
+      const on20 = (g.score / g.maxScore) * 20;
+      value.total += on20 * g.coefficient;
+      value.coeff += g.coefficient;
+      monthlyMap.set(key, value);
+    }
+
+    const progression = [...monthlyMap.entries()].map(([month, v]) => ({
+      month,
+      average: v.coeff > 0 ? v.total / v.coeff : 0,
+    }));
+
+    const reportCards = await prisma.reportCard.findMany({
+      where: { studentId },
+      orderBy: [{ academicYear: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    res.json({
+      studentId,
+      history: grades,
+      progression,
+      reportCards,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Classements et rangs par classe / période
+router.get('/grades/rankings', async (req, res) => {
+  try {
+    const { classId, period = 'trim1', academicYear } = req.query as {
+      classId?: string;
+      period?: string;
+      academicYear?: string;
+    };
+    if (!classId || !academicYear) {
+      return res.status(400).json({ error: 'classId et academicYear sont requis' });
+    }
+
+    const { rows, periodLabel, periodDates } = await computeClassBulletinRanks(
+      classId,
+      period,
+      academicYear
+    );
+
+    const students = await prisma.student.findMany({
+      where: { classId },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+      },
+    });
+    const byId = new Map(students.map((s) => [s.id, s]));
+
+    res.json({
+      classId,
+      period,
+      periodLabel,
+      periodDates,
+      rows: rows.map((r) => ({
+        ...r,
+        student: byId.get(r.studentId) || null,
+      })),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Conseils de classe
+router.get('/class-councils', async (req, res) => {
+  try {
+    const { classId, period, academicYear } = req.query;
+    const councils = await prisma.classCouncilSession.findMany({
+      where: {
+        ...(classId ? { classId: classId as string } : {}),
+        ...(period ? { period: period as string } : {}),
+        ...(academicYear ? { academicYear: academicYear as string } : {}),
+      },
+      include: {
+        class: { select: { id: true, name: true, level: true } },
+      },
+      orderBy: { meetingDate: 'desc' },
+    });
+    res.json(councils);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/class-councils', async (req, res) => {
+  try {
+    const {
+      classId,
+      period,
+      academicYear,
+      title,
+      meetingDate,
+      summary,
+      decisions,
+      recommendations,
+    } = req.body;
+    if (!classId || !period || !academicYear || !meetingDate) {
+      return res.status(400).json({
+        error: 'classId, period, academicYear et meetingDate sont requis',
+      });
+    }
+
+    const created = await prisma.classCouncilSession.create({
+      data: {
+        classId,
+        period,
+        academicYear,
+        title: title?.trim() || null,
+        meetingDate: new Date(meetingDate),
+        summary: summary?.trim() || null,
+        decisions: decisions?.trim() || null,
+        recommendations: recommendations?.trim() || null,
+        createdById: (req as any).user?.id || null,
+      },
+      include: { class: { select: { id: true, name: true, level: true } } },
+    });
+    res.status(201).json(created);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.put('/class-councils/:id', async (req, res) => {
+  try {
+    const {
+      title,
+      meetingDate,
+      summary,
+      decisions,
+      recommendations,
+    } = req.body;
+
+    const updated = await prisma.classCouncilSession.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title !== undefined && { title: title?.trim() || null }),
+        ...(meetingDate !== undefined && { meetingDate: new Date(meetingDate) }),
+        ...(summary !== undefined && { summary: summary?.trim() || null }),
+        ...(decisions !== undefined && { decisions: decisions?.trim() || null }),
+        ...(recommendations !== undefined && { recommendations: recommendations?.trim() || null }),
+      },
+      include: { class: { select: { id: true, name: true, level: true } } },
+    });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
 // Fonctions utilitaires
 function getPeriodDates(period: string, academicYear: string): { start: Date; end: Date } {
   const [yearStart, yearEnd] = academicYear.split('-').map(Number);
@@ -5183,6 +7221,9 @@ router.get('/tuition-fees', async (req, res) => {
     }
     if (isPaid !== undefined) {
       where.isPaid = isPaid === 'true';
+    }
+    if (req.query.feeType) {
+      where.feeType = req.query.feeType as string;
     }
 
     // Si grouped=true, retourner les frais regroupés par élève et parent
@@ -5361,9 +7402,24 @@ router.get('/tuition-fees', async (req, res) => {
 router.post('/tuition-fees', async (req, res) => {
   try {
     console.log('Requête reçue pour créer un frais de scolarité:', req.body);
-    const { studentId, academicYear, period, amount, dueDate, description } = req.body;
+    const {
+      studentId,
+      academicYear,
+      period,
+      amount,
+      dueDate,
+      description,
+      feeType,
+      billingPeriod,
+      baseAmount,
+      discountAmount,
+      scholarshipLabel,
+      catalogId,
+      scheduleTemplateId,
+      installmentIndex,
+    } = req.body;
 
-    if (!studentId || !academicYear || !period || !amount || !dueDate) {
+    if (!studentId || !academicYear || !period || amount == null || !dueDate) {
       console.error('Champs manquants:', { studentId, academicYear, period, amount, dueDate });
       return res.status(400).json({ error: 'studentId, academicYear, period, amount et dueDate sont requis' });
     }
@@ -5392,10 +7448,19 @@ router.post('/tuition-fees', async (req, res) => {
       return res.status(400).json({ error: 'Un frais de scolarité existe déjà pour cet élève, cette période et cette année scolaire' });
     }
 
-    // Valider et convertir les données
-    const amountValue = parseFloat(amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
-      return res.status(400).json({ error: 'Le montant doit être un nombre positif' });
+    const disc = discountAmount != null ? Math.max(0, parseFloat(String(discountAmount))) : 0;
+    const baseVal = baseAmount != null ? parseFloat(String(baseAmount)) : null;
+    let amountValue = parseFloat(String(amount));
+    if (Number.isNaN(amountValue)) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+    if (baseVal != null && !Number.isNaN(baseVal)) {
+      amountValue = Math.max(0, Math.round(baseVal - disc));
+    } else if (disc > 0) {
+      amountValue = Math.max(0, Math.round(amountValue - disc));
+    }
+    if (amountValue <= 0) {
+      return res.status(400).json({ error: 'Le montant à payer doit être strictement positif' });
     }
 
     const dueDateValue = new Date(dueDate);
@@ -5412,6 +7477,14 @@ router.post('/tuition-fees', async (req, res) => {
       dueDate: dueDateValue,
       description: description ? String(description) : null,
       isPaid: false,
+      ...(feeType && { feeType }),
+      ...(billingPeriod && { billingPeriod }),
+      ...(baseVal != null && !Number.isNaN(baseVal) && { baseAmount: baseVal }),
+      ...(disc > 0 && { discountAmount: disc }),
+      ...(scholarshipLabel && { scholarshipLabel: String(scholarshipLabel) }),
+      ...(catalogId && { catalogId: String(catalogId) }),
+      ...(scheduleTemplateId && { scheduleTemplateId: String(scheduleTemplateId) }),
+      ...(installmentIndex != null && { installmentIndex: Number(installmentIndex) }),
     };
 
     console.log('Données à insérer dans Prisma:', tuitionFeeData);
@@ -5457,10 +7530,34 @@ router.post('/tuition-fees', async (req, res) => {
 // Créer des frais de scolarité pour plusieurs élèves (par classe)
 router.post('/tuition-fees/bulk', async (req, res) => {
   try {
-    const { classId, academicYear, period, amount, dueDate, description, studentIds } = req.body;
+    const {
+      classId,
+      academicYear,
+      period,
+      amount,
+      dueDate,
+      description,
+      studentIds,
+      feeType,
+      billingPeriod,
+      baseAmount,
+      discountAmount,
+      scholarshipLabel,
+      catalogId,
+      scheduleTemplateId,
+    } = req.body;
 
-    if (!academicYear || !period || !amount || !dueDate) {
+    if (!academicYear || !period || amount == null || !dueDate) {
       return res.status(400).json({ error: 'academicYear, period, amount et dueDate sont requis' });
+    }
+
+    const discBulk = discountAmount != null ? Math.max(0, parseFloat(String(discountAmount))) : 0;
+    const baseBulk = baseAmount != null ? parseFloat(String(baseAmount)) : null;
+    let amountNet = parseFloat(String(amount));
+    if (baseBulk != null && !Number.isNaN(baseBulk)) {
+      amountNet = Math.max(0, Math.round(baseBulk - discBulk));
+    } else if (discBulk > 0) {
+      amountNet = Math.max(0, Math.round(amountNet - discBulk));
     }
 
     if (!classId && (!studentIds || studentIds.length === 0)) {
@@ -5516,10 +7613,17 @@ router.post('/tuition-fees/bulk', async (req, res) => {
           studentId: student.id,
           academicYear,
           period,
-          amount: parseFloat(amount),
+          amount: amountNet,
           dueDate: new Date(dueDate),
           description: description || null,
           isPaid: false,
+          ...(feeType && { feeType }),
+          ...(billingPeriod && { billingPeriod }),
+          ...(baseBulk != null && !Number.isNaN(baseBulk) && { baseAmount: baseBulk }),
+          ...(discBulk > 0 && { discountAmount: discBulk }),
+          ...(scholarshipLabel && { scholarshipLabel: String(scholarshipLabel) }),
+          ...(catalogId && { catalogId: String(catalogId) }),
+          ...(scheduleTemplateId && { scheduleTemplateId: String(scheduleTemplateId) }),
         },
         include: {
           student: {
@@ -5560,7 +7664,22 @@ router.post('/tuition-fees/bulk', async (req, res) => {
 router.put('/tuition-fees/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { academicYear, period, amount, dueDate, description, isPaid } = req.body;
+    const {
+      academicYear,
+      period,
+      amount,
+      dueDate,
+      description,
+      isPaid,
+      feeType,
+      billingPeriod,
+      baseAmount,
+      discountAmount,
+      scholarshipLabel,
+      catalogId,
+      scheduleTemplateId,
+      installmentIndex,
+    } = req.body;
 
     const tuitionFee = await prisma.tuitionFee.findUnique({
       where: { id },
@@ -5570,15 +7689,48 @@ router.put('/tuition-fees/:id', async (req, res) => {
       return res.status(404).json({ error: 'Frais de scolarité non trouvé' });
     }
 
+    const nextDisc =
+      discountAmount !== undefined
+        ? Math.max(0, parseFloat(String(discountAmount)))
+        : Number(tuitionFee.discountAmount ?? 0);
+    const nextBaseParsed =
+      baseAmount !== undefined ? parseFloat(String(baseAmount)) : undefined;
+
+    let computedAmount = Number(tuitionFee.amount);
+    if (nextBaseParsed !== undefined && !Number.isNaN(nextBaseParsed)) {
+      computedAmount = Math.max(0, Math.round(nextBaseParsed - nextDisc));
+    } else if (amount !== undefined) {
+      const a = parseFloat(String(amount));
+      if (!Number.isNaN(a)) computedAmount = Math.max(0, Math.round(a));
+    } else if (discountAmount !== undefined && tuitionFee.baseAmount != null) {
+      computedAmount = Math.max(0, Math.round(Number(tuitionFee.baseAmount) - nextDisc));
+    }
+
     const updatedTuitionFee = await prisma.tuitionFee.update({
       where: { id },
       data: {
         ...(academicYear && { academicYear }),
         ...(period && { period }),
-        ...(amount !== undefined && { amount: parseFloat(amount) }),
+        ...(amount !== undefined || baseAmount !== undefined || discountAmount !== undefined
+          ? { amount: computedAmount }
+          : {}),
         ...(dueDate && { dueDate: new Date(dueDate) }),
         ...(description !== undefined && { description }),
         ...(isPaid !== undefined && { isPaid }),
+        ...(feeType !== undefined && { feeType }),
+        ...(billingPeriod !== undefined && { billingPeriod }),
+        ...(baseAmount !== undefined && {
+          baseAmount: nextBaseParsed != null && !Number.isNaN(nextBaseParsed) ? nextBaseParsed : null,
+        }),
+        ...(discountAmount !== undefined && { discountAmount: nextDisc }),
+        ...(scholarshipLabel !== undefined && {
+          scholarshipLabel: scholarshipLabel ? String(scholarshipLabel) : null,
+        }),
+        ...(catalogId !== undefined && { catalogId: catalogId || null }),
+        ...(scheduleTemplateId !== undefined && { scheduleTemplateId: scheduleTemplateId || null }),
+        ...(installmentIndex !== undefined && {
+          installmentIndex: installmentIndex != null ? Number(installmentIndex) : null,
+        }),
       },
       include: {
         student: {
@@ -5963,6 +8115,108 @@ router.get('/payments', async (req, res) => {
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+/** Numérotation automatique des factures (lignes de frais sans numéro). */
+router.post('/tuition-fees/assign-invoices', async (req, res) => {
+  try {
+    const { academicYear, prefix, limit } = req.body ?? {};
+    const result = await assignTuitionFeeInvoiceNumbers({
+      academicYear: academicYear != null ? String(academicYear) : null,
+      prefix: prefix != null ? String(prefix) : undefined,
+      limit: limit != null ? Number(limit) : undefined,
+    });
+    res.json({
+      message: `${result.updated} facture(s) numérotée(s)`,
+      ...result,
+    });
+  } catch (e: unknown) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
+  }
+});
+
+/** Déclenche les relances automatiques (notifications in-app / e-mail). */
+router.post('/tuition-fees/run-reminders', async (_req, res) => {
+  try {
+    const result = await runAutomaticTuitionReminders();
+    res.json({
+      message: `${result.notifiedFees} ligne(s) relancée(s), ${result.parentNotifications} notification(s) parent approx.`,
+      ...result,
+    });
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
+  }
+});
+
+/** Enregistrement d’un encaissement au guichet (espèces ou virement sur place). */
+router.post('/tuition-fees/counter-payment', async (req, res) => {
+  try {
+    const adminId = req.user!.id;
+    const { tuitionFeeId, amount, paymentMethod, notes } = req.body ?? {};
+    if (!tuitionFeeId || amount == null || !paymentMethod) {
+      return res.status(400).json({ error: 'tuitionFeeId, amount et paymentMethod sont requis' });
+    }
+    const method = String(paymentMethod).toUpperCase();
+    if (method !== 'CASH' && method !== 'BANK_TRANSFER') {
+      return res.status(400).json({ error: 'paymentMethod doit être CASH ou BANK_TRANSFER' });
+    }
+    const payAmount = Math.round(Number(amount));
+    if (!Number.isFinite(payAmount) || payAmount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    const fee = await prisma.tuitionFee.findUnique({
+      where: { id: String(tuitionFeeId) },
+      include: { student: { select: { id: true } } },
+    });
+    if (!fee) return res.status(404).json({ error: 'Ligne de frais introuvable' });
+
+    const completed = await prisma.payment.findMany({
+      where: { tuitionFeeId: fee.id, status: 'COMPLETED' },
+    });
+    const totalPaid = completed.reduce((s, p) => s + p.amount, 0);
+    const remaining = Math.max(0, Math.round(fee.amount) - totalPaid);
+    if (remaining <= 0) {
+      return res.status(400).json({ error: 'Cette ligne est déjà soldée' });
+    }
+    if (payAmount > remaining) {
+      return res.status(400).json({ error: `Montant max : ${remaining} FCFA` });
+    }
+
+    const paymentReference = `GUI-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    const noteParts = [`Guichet / administration`, notes ? String(notes) : null].filter(Boolean);
+
+    const payment = await prisma.payment.create({
+      data: {
+        tuitionFeeId: fee.id,
+        studentId: fee.studentId,
+        payerId: adminId,
+        payerRole: 'ADMIN',
+        amount: payAmount,
+        paymentMethod: method as 'CASH' | 'BANK_TRANSFER',
+        status: 'COMPLETED',
+        paymentReference,
+        transactionId: `GUICHET-${Date.now()}`,
+        receiptUrl: autoReceiptUrl(paymentReference),
+        notes: noteParts.join(' — '),
+        paidAt: new Date(),
+      },
+    });
+
+    const newTotal = totalPaid + payAmount;
+    const isFullyPaid = newTotal >= fee.amount;
+    await prisma.tuitionFee.update({
+      where: { id: fee.id },
+      data: {
+        isPaid: isFullyPaid,
+        paidAt: isFullyPaid ? new Date() : fee.paidAt,
+      },
+    });
+
+    res.status(201).json({ payment, message: 'Paiement guichet enregistré' });
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
   }
 });
 
@@ -6879,6 +9133,14 @@ router.get('/material/rooms', async (req, res) => {
         ...(isActive !== undefined && { isActive: isActive === 'true' }),
       },
       orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: {
+            equipmentStored: true,
+            reservations: true,
+          },
+        },
+      },
     });
     res.json(rooms);
   } catch (error: any) {
@@ -6947,11 +9209,12 @@ router.delete('/material/rooms/:id', async (req, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'Salle introuvable' });
     }
-    const [eqCount, maintCount] = await Promise.all([
+    const [eqCount, maintCount, resCount] = await Promise.all([
       prisma.materialEquipment.count({ where: { roomId: req.params.id } }),
       prisma.materialMaintenance.count({ where: { roomId: req.params.id } }),
+      prisma.materialRoomReservation.count({ where: { roomId: req.params.id } }),
     ]);
-    if (eqCount > 0 || maintCount > 0) {
+    if (eqCount > 0 || maintCount > 0 || resCount > 0) {
       await prisma.materialRoom.update({
         where: { id: req.params.id },
         data: { isActive: false },
@@ -7327,6 +9590,605 @@ router.patch('/material/allocations/:id', async (req, res) => {
     res.json(row);
   } catch (error: any) {
     console.error('PATCH /material/allocations/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// --- Gestion de stock (fournitures, entretien, sécurité, approvisionnement) ---
+
+router.get('/material/stock-items', async (req, res) => {
+  try {
+    const { search, type, lowStockOnly, isActive } = req.query;
+    const rows = await prisma.materialStockItem.findMany({
+      where: {
+        ...(search &&
+          typeof search === 'string' &&
+          search.trim() && {
+            OR: [
+              { name: { contains: search.trim() } },
+              { category: { contains: search.trim() } },
+              { location: { contains: search.trim() } },
+            ],
+          }),
+        ...(type && typeof type === 'string' && { type: type as any }),
+        ...(isActive !== undefined && { isActive: isActive === 'true' }),
+      },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    });
+    const filtered =
+      lowStockOnly === 'true'
+        ? rows.filter((r) => Number(r.currentQty) <= Number(r.safetyQty))
+        : rows;
+    res.json(filtered);
+  } catch (error: any) {
+    console.error('GET /material/stock-items:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/material/stock-items', async (req, res) => {
+  try {
+    const { name, category, type, unit, currentQty, safetyQty, reorderQty, location, notes, isActive } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Le nom de l’article est requis' });
+    }
+    const row = await prisma.materialStockItem.create({
+      data: {
+        name: name.trim(),
+        category: category?.trim() || null,
+        type: type || 'OTHER',
+        unit: unit?.trim() || 'unité',
+        currentQty: Number(currentQty) || 0,
+        safetyQty: Math.max(0, Number(safetyQty) || 0),
+        reorderQty: reorderQty != null && reorderQty !== '' ? Number(reorderQty) : null,
+        location: location?.trim() || null,
+        notes: notes?.trim() || null,
+        isActive: isActive !== false,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /material/stock-items:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.patch('/material/stock-items/:id', async (req, res) => {
+  try {
+    const existing = await prisma.materialStockItem.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Article introuvable' });
+    const { name, category, type, unit, currentQty, safetyQty, reorderQty, location, notes, isActive } = req.body;
+    const row = await prisma.materialStockItem.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name: String(name).trim() }),
+        ...(category !== undefined && { category: category ? String(category).trim() : null }),
+        ...(type !== undefined && { type }),
+        ...(unit !== undefined && { unit: unit ? String(unit).trim() : 'unité' }),
+        ...(currentQty !== undefined && { currentQty: Number(currentQty) || 0 }),
+        ...(safetyQty !== undefined && { safetyQty: Math.max(0, Number(safetyQty) || 0) }),
+        ...(reorderQty !== undefined && {
+          reorderQty: reorderQty != null && reorderQty !== '' ? Number(reorderQty) : null,
+        }),
+        ...(location !== undefined && { location: location ? String(location).trim() : null }),
+        ...(notes !== undefined && { notes: notes ? String(notes).trim() : null }),
+        ...(isActive !== undefined && { isActive: Boolean(isActive) }),
+      },
+    });
+    res.json(row);
+  } catch (error: any) {
+    console.error('PATCH /material/stock-items/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/material/stock-items/:id/movements', async (req, res) => {
+  try {
+    const item = await prisma.materialStockItem.findUnique({ where: { id: req.params.id } });
+    if (!item) return res.status(404).json({ error: 'Article introuvable' });
+    const rows = await prisma.materialStockMovement.findMany({
+      where: { itemId: req.params.id },
+      orderBy: { occurredAt: 'desc' },
+    });
+    res.json(rows);
+  } catch (error: any) {
+    console.error('GET /material/stock-items/:id/movements:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/material/stock-items/:id/movements', async (req, res) => {
+  try {
+    const item = await prisma.materialStockItem.findUnique({ where: { id: req.params.id } });
+    if (!item) return res.status(404).json({ error: 'Article introuvable' });
+    const { type, quantity, countedQty, unitCost, note, reference, occurredAt } = req.body;
+    if (!type || typeof type !== 'string') {
+      return res.status(400).json({ error: 'Type de mouvement requis' });
+    }
+    const qty = Number(quantity);
+    let delta = 0;
+    if (type === 'IN') delta = Math.abs(qty || 0);
+    else if (type === 'OUT') delta = -Math.abs(qty || 0);
+    else if (type === 'ADJUSTMENT') delta = qty || 0;
+    else if (type === 'INVENTORY_COUNT') {
+      const c = Number(countedQty);
+      if (!Number.isFinite(c) || c < 0) {
+        return res.status(400).json({ error: 'countedQty requis pour INVENTORY_COUNT' });
+      }
+      delta = c - Number(item.currentQty);
+    } else {
+      return res.status(400).json({ error: 'Type de mouvement invalide' });
+    }
+    if (delta === 0) return res.status(400).json({ error: 'Mouvement nul' });
+    const nextQty = Number(item.currentQty) + delta;
+    if (nextQty < 0) return res.status(400).json({ error: 'Stock insuffisant' });
+    const unitCostN = unitCost != null && unitCost !== '' ? Number(unitCost) : null;
+    const totalCost = unitCostN != null ? Math.abs(delta) * unitCostN : null;
+
+    const [, movement] = await prisma.$transaction([
+      prisma.materialStockItem.update({
+        where: { id: item.id },
+        data: { currentQty: nextQty },
+      }),
+      prisma.materialStockMovement.create({
+        data: {
+          itemId: item.id,
+          type,
+          quantity: delta,
+          unitCost: unitCostN,
+          totalCost,
+          note: note?.trim() || null,
+          reference: reference?.trim() || null,
+          occurredAt: occurredAt ? new Date(occurredAt) : new Date(),
+        },
+      }),
+    ]);
+    res.status(201).json(movement);
+  } catch (error: any) {
+    console.error('POST /material/stock-items/:id/movements:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/material/stock-orders', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const rows = await prisma.materialStockOrder.findMany({
+      where: {
+        ...(status && typeof status === 'string' && { status: status as any }),
+      },
+      include: {
+        lines: {
+          include: {
+            item: { select: { id: true, name: true, unit: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(rows);
+  } catch (error: any) {
+    console.error('GET /material/stock-orders:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/material/stock-orders', async (req, res) => {
+  try {
+    const { supplierName, expectedAt, notes, lines } = req.body as {
+      supplierName?: string;
+      expectedAt?: string;
+      notes?: string;
+      lines?: Array<{ itemId: string; qtyOrdered: number; unitCost?: number; notes?: string }>;
+    };
+    if (!supplierName || !supplierName.trim()) {
+      return res.status(400).json({ error: 'Le fournisseur est requis' });
+    }
+    if (!Array.isArray(lines) || lines.length === 0) {
+      return res.status(400).json({ error: 'Au moins une ligne de commande est requise' });
+    }
+    const checkedLines = await Promise.all(
+      lines.map(async (l) => {
+        const item = await prisma.materialStockItem.findUnique({ where: { id: l.itemId } });
+        if (!item) throw new Error(`Article introuvable (${l.itemId})`);
+        return {
+          itemId: l.itemId,
+          qtyOrdered: Math.max(0.01, Number(l.qtyOrdered) || 0.01),
+          unitCost: l.unitCost != null ? Number(l.unitCost) : null,
+          notes: l.notes?.trim() || null,
+        };
+      })
+    );
+    const orderNumber = `CMD-${Date.now()}`;
+    const row = await prisma.materialStockOrder.create({
+      data: {
+        orderNumber,
+        supplierName: supplierName.trim(),
+        status: 'ORDERED',
+        orderedAt: new Date(),
+        expectedAt: expectedAt ? new Date(expectedAt) : null,
+        notes: notes?.trim() || null,
+        lines: { create: checkedLines },
+      },
+      include: {
+        lines: {
+          include: { item: { select: { id: true, name: true, unit: true } } },
+        },
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /material/stock-orders:', error);
+    res.status(400).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.patch('/material/stock-orders/:id', async (req, res) => {
+  try {
+    const existing = await prisma.materialStockOrder.findUnique({
+      where: { id: req.params.id },
+      include: { lines: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Commande introuvable' });
+    const { status, receivedLines, notes } = req.body as {
+      status?: string;
+      receivedLines?: Array<{ lineId: string; qtyReceived: number }>;
+      notes?: string;
+    };
+    if (Array.isArray(receivedLines) && receivedLines.length > 0) {
+      await prisma.$transaction(
+        receivedLines.map((entry) =>
+          prisma.materialStockOrderLine.update({
+            where: { id: entry.lineId },
+            data: { qtyReceived: Math.max(0, Number(entry.qtyReceived) || 0) },
+          })
+        )
+      );
+    }
+    const refreshedLines = await prisma.materialStockOrderLine.findMany({ where: { orderId: existing.id } });
+    const allReceived = refreshedLines.length > 0 && refreshedLines.every((l) => l.qtyReceived >= l.qtyOrdered);
+    const anyReceived = refreshedLines.some((l) => l.qtyReceived > 0);
+    const derivedStatus = allReceived ? 'RECEIVED' : anyReceived ? 'PARTIALLY_RECEIVED' : existing.status;
+    const finalStatus = status || derivedStatus;
+    const row = await prisma.materialStockOrder.update({
+      where: { id: existing.id },
+      data: {
+        status: finalStatus as any,
+        ...(notes !== undefined && { notes: notes ? String(notes).trim() : null }),
+        ...((finalStatus === 'RECEIVED' || finalStatus === 'PARTIALLY_RECEIVED') && { receivedAt: new Date() }),
+      },
+      include: {
+        lines: {
+          include: { item: { select: { id: true, name: true, unit: true } } },
+        },
+      },
+    });
+    res.json(row);
+  } catch (error: any) {
+    console.error('PATCH /material/stock-orders/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/material/stock-periodic-inventories', async (req, res) => {
+  try {
+    const { from, to, type } = req.query;
+    const where: Record<string, unknown> = { type: 'INVENTORY_COUNT' };
+    if (from && typeof from === 'string' && to && typeof to === 'string') {
+      const fromD = new Date(from);
+      const toD = new Date(to);
+      if (!Number.isNaN(fromD.getTime()) && !Number.isNaN(toD.getTime())) {
+        where.occurredAt = { gte: fromD, lte: toD };
+      }
+    }
+    if (type && typeof type === 'string') {
+      where.item = { type: type as any };
+    }
+    const rows = await prisma.materialStockMovement.findMany({
+      where,
+      include: {
+        item: { select: { id: true, name: true, type: true, unit: true } },
+      },
+      orderBy: { occurredAt: 'desc' },
+    });
+    res.json(rows);
+  } catch (error: any) {
+    console.error('GET /material/stock-periodic-inventories:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// --- Réservations de salles & créneaux indisponibles (12.1) ---
+
+router.get('/material/room-reservations', async (req, res) => {
+  try {
+    const { roomId, from, to, status } = req.query;
+    const where: Record<string, unknown> = {};
+    if (roomId && typeof roomId === 'string') where.roomId = roomId;
+    if (status && typeof status === 'string') where.status = status;
+    if (from && typeof from === 'string' && to && typeof to === 'string') {
+      const fromD = new Date(from);
+      const toD = new Date(to);
+      if (!Number.isNaN(fromD.getTime()) && !Number.isNaN(toD.getTime())) {
+        where.AND = [{ startAt: { lte: toD } }, { endAt: { gte: fromD } }];
+      }
+    }
+    const list = await prisma.materialRoomReservation.findMany({
+      where,
+      include: {
+        room: { select: { id: true, name: true, code: true } },
+        requesterUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { startAt: 'asc' },
+    });
+    res.json(list);
+  } catch (error: any) {
+    console.error('GET /material/room-reservations:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/material/room-reservations', async (req, res) => {
+  try {
+    const { roomId, title, startAt, endAt, status, requesterName, requesterUserId, notes } = req.body;
+    if (!roomId || typeof roomId !== 'string') {
+      return res.status(400).json({ error: 'roomId est requis' });
+    }
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Le titre est requis' });
+    }
+    const start = new Date(startAt);
+    const end = new Date(endAt);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Dates invalides' });
+    }
+    if (end <= start) {
+      return res.status(400).json({ error: 'La fin doit être après le début' });
+    }
+    const room = await prisma.materialRoom.findUnique({ where: { id: roomId } });
+    if (!room) return res.status(400).json({ error: 'Salle introuvable' });
+    const st = status === 'PENDING' || status === 'CONFIRMED' || status === 'CANCELLED' ? status : 'CONFIRMED';
+    if (st !== 'CANCELLED') {
+      const overlap = await prisma.materialRoomReservation.findFirst({
+        where: {
+          roomId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          AND: [{ startAt: { lt: end } }, { endAt: { gt: start } }],
+        },
+      });
+      if (overlap) {
+        return res.status(409).json({ error: 'Créneau déjà réservé pour cette salle' });
+      }
+    }
+    if (requesterUserId) {
+      const u = await prisma.user.findUnique({ where: { id: String(requesterUserId) } });
+      if (!u) return res.status(400).json({ error: 'Utilisateur demandeur invalide' });
+    }
+    const row = await prisma.materialRoomReservation.create({
+      data: {
+        roomId,
+        title: title.trim(),
+        startAt: start,
+        endAt: end,
+        status: st,
+        requesterName: requesterName?.trim() || null,
+        requesterUserId: requesterUserId || null,
+        notes: notes?.trim() || null,
+      },
+      include: {
+        room: { select: { id: true, name: true, code: true } },
+        requesterUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /material/room-reservations:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.patch('/material/room-reservations/:id', async (req, res) => {
+  try {
+    const existing = await prisma.materialRoomReservation.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Réservation introuvable' });
+    const { title, startAt, endAt, status, requesterName, requesterUserId, notes } = req.body;
+    const start = startAt != null ? new Date(startAt) : existing.startAt;
+    const end = endAt != null ? new Date(endAt) : existing.endAt;
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Dates invalides' });
+    }
+    if (end <= start) {
+      return res.status(400).json({ error: 'La fin doit être après le début' });
+    }
+    const nextStatus =
+      status === 'PENDING' || status === 'CONFIRMED' || status === 'CANCELLED' ? status : existing.status;
+    if (nextStatus !== 'CANCELLED') {
+      const overlap = await prisma.materialRoomReservation.findFirst({
+        where: {
+          roomId: existing.roomId,
+          id: { not: existing.id },
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          AND: [{ startAt: { lt: end } }, { endAt: { gt: start } }],
+        },
+      });
+      if (overlap) {
+        return res.status(409).json({ error: 'Créneau déjà réservé pour cette salle' });
+      }
+    }
+    if (requesterUserId !== undefined && requesterUserId) {
+      const u = await prisma.user.findUnique({ where: { id: String(requesterUserId) } });
+      if (!u) return res.status(400).json({ error: 'Utilisateur demandeur invalide' });
+    }
+    const row = await prisma.materialRoomReservation.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title !== undefined && { title: String(title).trim() }),
+        ...(startAt !== undefined && { startAt: start }),
+        ...(endAt !== undefined && { endAt: end }),
+        ...(status !== undefined && { status: nextStatus }),
+        ...(requesterName !== undefined && { requesterName: requesterName ? String(requesterName).trim() : null }),
+        ...(requesterUserId !== undefined && { requesterUserId: requesterUserId || null }),
+        ...(notes !== undefined && { notes: notes ? String(notes).trim() : null }),
+      },
+      include: {
+        room: { select: { id: true, name: true, code: true } },
+        requesterUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+    });
+    res.json(row);
+  } catch (error: any) {
+    console.error('PATCH /material/room-reservations/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/material/room-reservations/:id', async (req, res) => {
+  try {
+    const existing = await prisma.materialRoomReservation.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Réservation introuvable' });
+    await prisma.materialRoomReservation.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('DELETE /material/room-reservations/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/material/room-unavailable-slots', async (req, res) => {
+  try {
+    const { roomKey } = req.query;
+    const list = await prisma.roomScheduleUnavailableSlot.findMany({
+      where:
+        roomKey && typeof roomKey === 'string' && roomKey.trim()
+          ? { roomKey: roomKey.trim() }
+          : {},
+      orderBy: [{ roomKey: 'asc' }, { dayOfWeek: 'asc' }],
+    });
+    res.json(list);
+  } catch (error: any) {
+    console.error('GET /material/room-unavailable-slots:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/material/room-unavailable-slots', async (req, res) => {
+  try {
+    const { roomKey, dayOfWeek, startTime, endTime, reason } = req.body;
+    if (!roomKey || typeof roomKey !== 'string' || !roomKey.trim()) {
+      return res.status(400).json({ error: 'roomKey est requis (ex. id de salle matérielle)' });
+    }
+    const dow = Number(dayOfWeek);
+    if (!Number.isInteger(dow) || dow < 0 || dow > 6) {
+      return res.status(400).json({ error: 'dayOfWeek doit être entre 0 (dimanche) et 6' });
+    }
+    if (!startTime || !endTime || typeof startTime !== 'string' || typeof endTime !== 'string') {
+      return res.status(400).json({ error: 'startTime et endTime (HH:MM) sont requis' });
+    }
+    const row = await prisma.roomScheduleUnavailableSlot.create({
+      data: {
+        roomKey: roomKey.trim(),
+        dayOfWeek: dow,
+        startTime: startTime.trim(),
+        endTime: endTime.trim(),
+        reason: reason?.trim() || null,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error: any) {
+    console.error('POST /material/room-unavailable-slots:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.delete('/material/room-unavailable-slots/:id', async (req, res) => {
+  try {
+    const existing = await prisma.roomScheduleUnavailableSlot.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Créneau introuvable' });
+    await prisma.roomScheduleUnavailableSlot.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('DELETE /material/room-unavailable-slots/:id:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/material/rooms/:id/occupancy', async (req, res) => {
+  try {
+    const room = await prisma.materialRoom.findUnique({ where: { id: req.params.id } });
+    if (!room) return res.status(404).json({ error: 'Salle introuvable' });
+    const { from, to, academicYear } = req.query;
+    const fromD = from && typeof from === 'string' ? new Date(from) : null;
+    const toD = to && typeof to === 'string' ? new Date(to) : null;
+    const keys = [room.id, room.code, room.name].filter((k): k is string => Boolean(k && String(k).trim()));
+    const norm = (s: string) => s.trim().toLowerCase();
+    const keyNorms = keys.map(norm);
+
+    const unavailableSlots = await prisma.roomScheduleUnavailableSlot.findMany({
+      where: { roomKey: { in: keys } },
+      orderBy: [{ dayOfWeek: 'asc' }],
+    });
+
+    let reservations: Awaited<ReturnType<typeof prisma.materialRoomReservation.findMany>> = [];
+    if (fromD && toD && !Number.isNaN(fromD.getTime()) && !Number.isNaN(toD.getTime())) {
+      reservations = await prisma.materialRoomReservation.findMany({
+        where: {
+          roomId: room.id,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          AND: [{ startAt: { lte: toD } }, { endAt: { gte: fromD } }],
+        },
+        orderBy: { startAt: 'asc' },
+      });
+    }
+
+    const scheduleWhere: Record<string, unknown> = { room: { not: null } };
+    if (academicYear && typeof academicYear === 'string' && academicYear.trim()) {
+      scheduleWhere.class = { academicYear: academicYear.trim() };
+    }
+    const schedules = await prisma.schedule.findMany({
+      where: scheduleWhere,
+      include: {
+        class: { select: { id: true, name: true, academicYear: true } },
+        course: { select: { name: true, code: true } },
+      },
+    });
+    const scheduleSlots = schedules
+      .filter((s) => {
+        const r = norm(String(s.room || ''));
+        if (!r) return false;
+        return keyNorms.some((k) => r === k || (k.length >= 2 && r.includes(k)));
+      })
+      .map((s) => ({
+        id: s.id,
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        room: s.room,
+        className: s.class.name,
+        classId: s.class.id,
+        academicYear: s.class.academicYear,
+        courseName: s.course.name,
+        courseCode: s.course.code,
+      }));
+
+    res.json({
+      room: {
+        id: room.id,
+        name: room.name,
+        code: room.code,
+        capacity: room.capacity,
+        building: room.building,
+        floor: room.floor,
+      },
+      period:
+        fromD && toD && !Number.isNaN(fromD.getTime()) && !Number.isNaN(toD.getTime())
+          ? { from: fromD.toISOString(), to: toD.toISOString() }
+          : null,
+      reservations,
+      unavailableSlots,
+      scheduleSlots,
+    });
+  } catch (error: any) {
+    console.error('GET /material/rooms/:id/occupancy:', error);
     res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 });

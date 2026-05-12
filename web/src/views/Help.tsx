@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import Footer from '../components/Footer';
+import UltraPremiumPageShell from '../components/public/UltraPremiumPageShell';
 import {
   FiHelpCircle,
   FiBook,
@@ -10,15 +10,18 @@ import {
   FiMail,
   FiFileText,
   FiSearch,
-  FiVideo as FiVideoIcon,
 } from 'react-icons/fi';
+
+const searchClass =
+  'w-full rounded-xl border border-stone-200/90 bg-white/95 py-4 pl-14 pr-4 text-lg text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/40';
 
 const Help = () => {
   const helpCategories = [
     {
       title: 'Guides rapides',
       icon: FiBook,
-      color: 'from-blue-500 to-blue-600',
+      gradient: 'from-amber-700 to-amber-900',
+      ring: 'ring-amber-500/25',
       items: [
         'Créer votre premier compte',
         'Configurer votre établissement',
@@ -28,8 +31,9 @@ const Help = () => {
     },
     {
       title: 'Tutoriels vidéo',
-      icon: FiVideoIcon,
-      color: 'from-green-500 to-green-600',
+      icon: FiVideo,
+      gradient: 'from-emerald-600 to-teal-800',
+      ring: 'ring-emerald-500/25',
       items: [
         'Présentation générale',
         'Gestion des élèves',
@@ -40,7 +44,8 @@ const Help = () => {
     {
       title: 'Résolution de problèmes',
       icon: FiHelpCircle,
-      color: 'from-orange-500 to-orange-600',
+      gradient: 'from-stone-600 to-stone-800',
+      ring: 'ring-stone-500/20',
       items: [
         'Problèmes de connexion',
         'Erreurs courantes',
@@ -51,44 +56,47 @@ const Help = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-black mb-4">Centre d'aide</h1>
-          <p className="text-xl text-blue-100">
-            Trouvez l'aide dont vous avez besoin pour utiliser School Manager
-          </p>
+    <UltraPremiumPageShell
+      navLabel="Ressources"
+      title="Centre d'aide"
+      description="Tout ce qu'il faut pour prendre en main School Manager, au même endroit."
+    >
+      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="-mt-10 mb-12">
+          <Card variant="premium" className="!p-5 sm:!p-6 shadow-lg ring-1 ring-stone-200/80">
+            <div className="relative">
+              <label htmlFor="help-search" className="sr-only">
+                Rechercher dans l'aide
+              </label>
+              <FiSearch
+                className="pointer-events-none absolute left-4 top-1/2 h-6 w-6 -translate-y-1/2 text-stone-400 sm:left-5"
+                aria-hidden
+              />
+              <input
+                id="help-search"
+                type="search"
+                placeholder="Rechercher dans l'aide…"
+                className={searchClass}
+              />
+            </div>
+          </Card>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search */}
-        <Card className="mb-12">
-          <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
-            <input
-              type="text"
-              placeholder="Rechercher de l'aide..."
-              className="w-full pl-14 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-            />
-          </div>
-        </Card>
-
-        {/* Help Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3">
           {helpCategories.map((category, index) => {
             const Icon = category.icon;
             return (
-              <Card key={index} className="hover:shadow-xl transition-shadow">
-                <div className={`w-16 h-16 bg-gradient-to-br ${category.color} rounded-xl flex items-center justify-center mb-4`}>
-                  <Icon className="w-8 h-8 text-white" />
+              <Card key={index} variant="premium" className="transition-all duration-300 hover:-translate-y-0.5 hover:shadow-premium">
+                <div
+                  className={`mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${category.gradient} shadow-lg ring-2 ${category.ring}`}
+                >
+                  <Icon className="h-8 w-8 text-white" aria-hidden />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">{category.title}</h3>
+                <h3 className="mb-4 text-xl font-bold text-stone-900">{category.title}</h3>
                 <ul className="space-y-2">
                   {category.items.map((item, itemIndex) => (
-                    <li key={itemIndex} className="flex items-center text-sm text-gray-600">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                    <li key={itemIndex} className="flex items-center text-sm text-stone-600">
+                      <span className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-600/90" aria-hidden />
                       {item}
                     </li>
                   ))}
@@ -98,66 +106,57 @@ const Help = () => {
           })}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
-            <div className="text-center py-8">
-              <FiMessageSquare className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">FAQ</h3>
-              <p className="text-gray-600 mb-4">
-                Consultez les questions fréquemment posées
-              </p>
+        <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Card
+            variant="premium"
+            className="border border-amber-200/70 bg-gradient-to-br from-amber-50/90 to-white !p-8 ring-1 ring-amber-900/5"
+          >
+            <div className="py-2 text-center">
+              <FiMessageSquare className="mx-auto mb-4 h-12 w-12 text-amber-800" aria-hidden />
+              <h3 className="mb-2 text-xl font-bold text-stone-900">FAQ</h3>
+              <p className="mb-4 text-stone-600">Consultez les questions fréquemment posées.</p>
               <Link href="/faq">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                  Voir la FAQ
-                </Button>
+                <Button>Voir la FAQ</Button>
               </Link>
             </div>
           </Card>
 
-          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
-            <div className="text-center py-8">
-              <FiMail className="w-12 h-12 text-green-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Contactez-nous</h3>
-              <p className="text-gray-600 mb-4">
-                Notre équipe est là pour vous aider
-              </p>
+          <Card
+            variant="premium"
+            className="border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-white !p-8 ring-1 ring-emerald-900/5"
+          >
+            <div className="py-2 text-center">
+              <FiMail className="mx-auto mb-4 h-12 w-12 text-emerald-800" aria-hidden />
+              <h3 className="mb-2 text-xl font-bold text-stone-900">Contact</h3>
+              <p className="mb-4 text-stone-600">Écrivez-nous pour un accompagnement personnalisé.</p>
               <Link href="/contact">
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  Nous contacter
-                </Button>
+                <Button className="bg-emerald-800 hover:bg-emerald-900">Nous contacter</Button>
               </Link>
             </div>
           </Card>
         </div>
 
-        {/* Documentation Link */}
-        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
-          <div className="text-center py-8">
-            <FiFileText className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">Documentation complète</h3>
-            <p className="text-gray-600 mb-6">
-              Accédez à la documentation détaillée pour approfondir vos connaissances
+        <Card
+          variant="premium"
+          className="border border-stone-200/90 bg-gradient-to-br from-stone-100/80 via-white to-amber-50/40 !p-8 ring-1 ring-stone-900/5"
+        >
+          <div className="py-2 text-center">
+            <FiFileText className="mx-auto mb-4 h-12 w-12 text-stone-800" aria-hidden />
+            <h3 className="mb-2 text-2xl font-bold text-stone-900">Documentation complète</h3>
+            <p className="mb-6 text-stone-600">
+              Guides détaillés, parcours par rôle et références techniques.
             </p>
             <Link href="/documentation">
-              <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                <FiBook className="w-4 h-4 mr-2" />
+              <Button variant="secondary" className="inline-flex items-center gap-2">
+                <FiBook className="h-4 w-4" aria-hidden />
                 Accéder à la documentation
               </Button>
             </Link>
           </div>
         </Card>
       </div>
-
-      <Footer />
-    </div>
+    </UltraPremiumPageShell>
   );
 };
 
 export default Help;
-
-
-
-
-
-

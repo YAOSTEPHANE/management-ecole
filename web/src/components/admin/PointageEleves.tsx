@@ -23,6 +23,10 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
   const [modalOpen, setModalOpen] = useState(false);
   const [scannedNFCId, setScannedNFCId] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LATE'>>({});
+  /** Scan lecteur : carte NFC ou terminal biométrique (même API, source tracée). */
+  const [scanSource, setScanSource] = useState<'NFC' | 'BIOMETRIC'>('NFC');
+  const [notifyParentsOnSave, setNotifyParentsOnSave] = useState(true);
+  const [defaultLateMinutes, setDefaultLateMinutes] = useState(10);
 
   const { data: courses, isLoading: coursesLoading } = useQuery({
     queryKey: ['admin-courses'],
@@ -52,8 +56,14 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
   });
 
   const recordNFCMutation = useMutation({
-    mutationFn: (data: { courseId: string; studentId: string; date: string; status?: 'PRESENT' | 'ABSENT' | 'LATE' }) =>
-      adminApi.recordNFCAttendance(data),
+    mutationFn: (data: {
+      courseId: string;
+      studentId: string;
+      date: string;
+      status?: 'PRESENT' | 'ABSENT' | 'LATE';
+      attendanceSource?: 'NFC' | 'BIOMETRIC' | 'MANUAL';
+      notifyParentsOnSave?: boolean;
+    }) => adminApi.recordNFCAttendance(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-absences'] });
       setScannedNFCId(null);
@@ -78,8 +88,18 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
       studentId: studentByNFC.id,
       date: selectedDate,
       status: 'PRESENT',
+      attendanceSource: scanSource,
+      notifyParentsOnSave,
     });
-  }, [studentByNFC, studentByNFCLoading, selectedCourseId, selectedDate, scannedNFCId]);
+  }, [
+    studentByNFC,
+    studentByNFCLoading,
+    selectedCourseId,
+    selectedDate,
+    scannedNFCId,
+    scanSource,
+    notifyParentsOnSave,
+  ]);
 
   useEffect(() => {
     if (!scannedNFCId) processedNFCRef.current = null;
@@ -126,15 +146,21 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
 
   const handleSave = () => {
     if (!selectedCourseId || !selectedDate) return;
-    const attendance = students.map((s: any) => ({
-      studentId: s.id,
-      status: attendanceStatus[s.id] || 'ABSENT',
-      excused: false,
-    }));
+    const attendance = students.map((s: any) => {
+      const st = attendanceStatus[s.id] || 'ABSENT';
+      return {
+        studentId: s.id,
+        status: st,
+        excused: false,
+        ...(st === 'LATE' ? { minutesLate: defaultLateMinutes } : {}),
+      };
+    });
     takeAttendanceMutation.mutate({
       courseId: selectedCourseId,
       date: selectedDate,
       attendance,
+      notifyParentsOnSave,
+      attendanceSource: 'MANUAL',
     });
   };
 
@@ -179,7 +205,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Pointage des élèves</h2>
               <p className="text-gray-600">
-                Le pointage se fait en <strong>scannant le badge NFC</strong> de chaque élève. Choisissez le cours et la date, démarrez le pointage, puis scannez les badges. Saisie manuelle possible en secours.
+                <strong>Carte scolaire</strong>, <strong>empreinte digitale</strong> (identifiant associé comme la carte) ou <strong>saisie manuelle</strong>. Choisissez le cours et la date, démarrez le pointage, puis enregistrez les présences.
               </p>
             </div>
           )}
@@ -217,7 +243,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
                 </Button>
                 <Button onClick={() => setModalOpen(true)} variant="secondary" size="md">
                   <FiUserCheck className="w-4 h-4 mr-2" />
-                  Saisie manuelle (sans badge)
+                  Saisie manuelle
                 </Button>
               </>
             )}
@@ -229,11 +255,34 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
         <Card className="border-2 border-green-200 bg-green-50/50">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
             <FiWifi className="w-5 h-5 text-green-600" />
-            Scannez les badges des élèves
+            Carte scolaire ou empreinte digitale
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Chaque élève présente son badge NFC au lecteur pour être marqué présent.
+            Placez la carte sur le lecteur NFC ou utilisez un terminal biométrique configuré avec le même identifiant élève. Sinon ouvrez la saisie manuelle.
           </p>
+          <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
+            <label className="flex items-center gap-2 text-gray-700">
+              <span className="text-gray-600">Source du scan</span>
+              <select
+                aria-label="Source du scan pointage"
+                value={scanSource}
+                onChange={(e) => setScanSource(e.target.value as 'NFC' | 'BIOMETRIC')}
+                className="px-2 py-1 border border-gray-200 rounded-lg"
+              >
+                <option value="NFC">Carte NFC</option>
+                <option value="BIOMETRIC">Biométrie</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-gray-700">
+              <input
+                type="checkbox"
+                checked={notifyParentsOnSave}
+                onChange={(e) => setNotifyParentsOnSave(e.target.checked)}
+                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              Alerter les parents (absences non justifiées / retards)
+            </label>
+          </div>
           <NFCScanner
             onScan={(nfcId) => setScannedNFCId(nfcId)}
             onError={(msg) => toast.error(msg)}
@@ -249,7 +298,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
                 </p>
               )}
               {scannedNFCId && !studentByNFC && !studentByNFCLoading && (
-                <p className="text-sm text-red-600">Aucun élève associé à ce badge NFC.</p>
+                <p className="text-sm text-red-600">Aucun élève associé à cet identifiant (carte ou empreinte).</p>
               )}
             </div>
           )}
@@ -303,6 +352,33 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
             <p className="text-sm text-gray-600">
               Cliquez sur un élève pour changer son statut : Présent → Absent → En retard → Présent.
             </p>
+            <div className="rounded-lg border border-amber-100 bg-amber-50/40 p-3 space-y-2 mb-2">
+              <p className="text-xs text-gray-700">
+                <strong>Retards :</strong> durée par défaut appliquée à chaque élève marqué « En retard » (e-mail / SMS
+                parents si activé ci-dessous).
+              </p>
+              <label className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                Minutes de retard (défaut)
+                <input
+                  type="number"
+                  min={1}
+                  max={480}
+                  aria-label="Minutes de retard par défaut"
+                  value={defaultLateMinutes}
+                  onChange={(e) => setDefaultLateMinutes(Math.max(1, Math.min(480, Number(e.target.value) || 1)))}
+                  className="w-20 px-2 py-1 border border-gray-200 rounded-lg"
+                />
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={notifyParentsOnSave}
+                  onChange={(e) => setNotifyParentsOnSave(e.target.checked)}
+                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                Notifier les parents après enregistrement (absences non justifiées et retards)
+              </label>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"

@@ -100,7 +100,7 @@ const NFCAttendanceScanner: React.FC<NFCAttendanceScannerProps> = ({
           <div>
             <p className="font-semibold text-yellow-900">Cours requis</p>
             <p className="text-sm text-yellow-700">
-              Veuillez sélectionner un cours pour utiliser le scanner NFC
+              Veuillez sélectionner un cours pour le pointage automatique (carte ou empreinte)
             </p>
           </div>
         </div>
@@ -117,10 +117,10 @@ const NFCAttendanceScanner: React.FC<NFCAttendanceScannerProps> = ({
           <div>
             <p className="font-semibold text-blue-900">Enregistrement automatique</p>
             <p className="text-sm text-blue-700">
-              Chaque scan NFC marque automatiquement l'élève comme <strong>PRESENT</strong>
+              Chaque lecture (<strong>carte scolaire</strong> ou <strong>empreinte digitale</strong> si l’identifiant est lié au dossier) marque l’élève comme <strong>PRÉSENT</strong>.
             </p>
             <p className="text-xs text-blue-600 mt-1">
-              Les élèves qui ne scannent pas restent marqués comme ABSENT
+              Sans passage lecteur, l’élève reste absent jusqu’à correction manuelle.
             </p>
           </div>
         </div>

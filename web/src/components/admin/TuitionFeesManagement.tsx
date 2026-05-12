@@ -31,6 +31,22 @@ import toast from 'react-hot-toast';
 import { formatFCFA } from '../../utils/currency';
 import { getCurrentAcademicYear } from '../../utils/academicYear';
 import { ADM } from './adminModuleLayout';
+import TuitionFeeCatalogAndSchedulesPanel from './TuitionFeeCatalogAndSchedulesPanel';
+
+const FEE_TYPE_LABELS: Record<string, string> = {
+  ENROLLMENT: 'Inscription',
+  TUITION: 'Scolarité',
+  CANTEEN: 'Cantine',
+  TRANSPORT: 'Transport',
+  ACTIVITY: 'Activités',
+  MATERIAL: 'Matériel',
+  OTHER: 'Autre',
+};
+
+function feeTypeLabel(code: string | undefined): string {
+  if (!code) return 'Scolarité';
+  return FEE_TYPE_LABELS[code] ?? code;
+}
 
 interface TuitionFeesManagementProps {
   /** Masque le titre principal (module Gestion des frais) */
@@ -47,6 +63,8 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
   const [filterClass, setFilterClass] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
+  const [filterFeeType, setFilterFeeType] = useState<string>('all');
+  const [mainTab, setMainTab] = useState<'liste' | 'baremes'>('liste');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -64,6 +82,11 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     amount: '',
     dueDate: '',
     description: '',
+    feeType: 'TUITION',
+    billingPeriod: 'ONE_TIME',
+    baseAmount: '',
+    discountAmount: '',
+    scholarshipLabel: '',
   });
 
   const [bulkFormData, setBulkFormData] = useState({
@@ -73,22 +96,32 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     amount: '',
     dueDate: '',
     description: '',
+    feeType: 'TUITION',
+    billingPeriod: 'ONE_TIME',
+    baseAmount: '',
+    discountAmount: '',
+    scholarshipLabel: '',
   });
 
   // Fetch data
   const { data: tuitionFees, isLoading } = useQuery({
-    queryKey: ['admin-tuition-fees'],
-    queryFn: () => adminApi.getTuitionFees(),
+    queryKey: ['admin-tuition-fees', filterFeeType],
+    queryFn: () =>
+      adminApi.getTuitionFees({
+        ...(filterFeeType !== 'all' && { feeType: filterFeeType }),
+      }),
   });
 
   const { data: tuitionFeesGrouped, isLoading: isLoadingGrouped } = useQuery({
-    queryKey: ['admin-tuition-fees-grouped', filterClass, filterStatus, filterPeriod],
-    queryFn: () => adminApi.getTuitionFeesGrouped({
-      ...(filterClass !== 'all' && { classId: filterClass }),
-      ...(filterStatus === 'paid' && { isPaid: true }),
-      ...(filterStatus === 'pending' && { isPaid: false }),
-      ...(filterPeriod !== 'all' && { period: filterPeriod }),
-    }),
+    queryKey: ['admin-tuition-fees-grouped', filterClass, filterStatus, filterPeriod, filterFeeType],
+    queryFn: () =>
+      adminApi.getTuitionFeesGrouped({
+        ...(filterClass !== 'all' && { classId: filterClass }),
+        ...(filterStatus === 'paid' && { isPaid: true }),
+        ...(filterStatus === 'pending' && { isPaid: false }),
+        ...(filterPeriod !== 'all' && { period: filterPeriod }),
+        ...(filterFeeType !== 'all' && { feeType: filterFeeType }),
+      }),
     enabled: groupByStudent,
   });
 
@@ -107,6 +140,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     mutationFn: adminApi.createTuitionFee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees-grouped'] });
       toast.success('Frais de scolarité créé avec succès');
       setShowAddModal(false);
       resetForm();
@@ -120,6 +154,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     mutationFn: adminApi.createTuitionFeesBulk,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees-grouped'] });
       toast.success(`${data.created} frais créés avec succès${data.skipped > 0 ? `, ${data.skipped} ignorés` : ''}`);
       setShowBulkModal(false);
       resetBulkForm();
@@ -133,6 +168,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     mutationFn: ({ id, data }: { id: string; data: any }) => adminApi.updateTuitionFee(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees-grouped'] });
       toast.success('Frais de scolarité mis à jour avec succès');
       setShowEditModal(false);
       setSelectedFee(null);
@@ -146,6 +182,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     mutationFn: adminApi.deleteTuitionFee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees-grouped'] });
       toast.success('Frais de scolarité supprimé avec succès');
     },
     onError: (error: any) => {
@@ -157,6 +194,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     mutationFn: adminApi.createTestTuitionFees,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tuition-fees-grouped'] });
       toast.success(`${data.summary.totalCreated} frais de test créés avec succès !`);
     },
     onError: (error: any) => {
@@ -246,6 +284,11 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       amount: '',
       dueDate: '',
       description: '',
+      feeType: 'TUITION',
+      billingPeriod: 'ONE_TIME',
+      baseAmount: '',
+      discountAmount: '',
+      scholarshipLabel: '',
     });
   };
 
@@ -257,20 +300,44 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       amount: '',
       dueDate: '',
       description: '',
+      feeType: 'TUITION',
+      billingPeriod: 'ONE_TIME',
+      baseAmount: '',
+      discountAmount: '',
+      scholarshipLabel: '',
     });
   };
 
   // Handlers
   const handleCreate = () => {
-    if (!formData.studentId || !formData.academicYear || !formData.period || !formData.amount || !formData.dueDate) {
+    if (!formData.studentId || !formData.academicYear || !formData.period || !formData.dueDate) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
+    if (!formData.amount.trim() && !formData.baseAmount.trim()) {
+      toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
+      return;
+    }
 
-    // Validation du montant
-    const amountValue = parseFloat(formData.amount);
+    let amountValue = parseFloat(formData.amount);
+    if (formData.baseAmount.trim()) {
+      const b = parseFloat(formData.baseAmount);
+      const d = formData.discountAmount.trim() ? parseFloat(formData.discountAmount) : 0;
+      if (Number.isNaN(b) || b <= 0) {
+        toast.error('Montant brut invalide');
+        return;
+      }
+      amountValue = Math.max(0, Math.round(b - (Number.isNaN(d) ? 0 : d)));
+    } else if (formData.discountAmount.trim()) {
+      const d = parseFloat(formData.discountAmount);
+      if (Number.isNaN(amountValue) || amountValue <= 0) {
+        toast.error('Montant à payer requis si vous indiquez une remise');
+        return;
+      }
+      amountValue = Math.max(0, Math.round(amountValue - (Number.isNaN(d) ? 0 : d)));
+    }
     if (isNaN(amountValue) || amountValue <= 0) {
-      toast.error('Le montant doit être un nombre positif');
+      toast.error('Le montant à payer doit être strictement positif');
       return;
     }
 
@@ -284,38 +351,74 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
     // Formatage de la date au format ISO
     const formattedDate = dueDateValue.toISOString().split('T')[0];
 
-    console.log('Création d\'un frais avec les données:', {
+    const payload: Record<string, unknown> = {
       studentId: formData.studentId,
       academicYear: formData.academicYear,
       period: formData.period,
       amount: amountValue,
       dueDate: formattedDate,
       description: formData.description || undefined,
-    });
-
-    createMutation.mutate({
-      studentId: formData.studentId,
-      academicYear: formData.academicYear,
-      period: formData.period,
-      amount: amountValue,
-      dueDate: formattedDate,
-      description: formData.description || undefined,
-    });
+      feeType: formData.feeType,
+      billingPeriod: formData.billingPeriod,
+    };
+    if (formData.baseAmount.trim()) {
+      payload.baseAmount = parseFloat(formData.baseAmount);
+    }
+    if (formData.discountAmount.trim()) {
+      payload.discountAmount = parseFloat(formData.discountAmount);
+    }
+    if (formData.scholarshipLabel.trim()) {
+      payload.scholarshipLabel = formData.scholarshipLabel.trim();
+    }
+    createMutation.mutate(payload);
   };
 
   const handleBulkCreate = () => {
-    if (!bulkFormData.classId || !bulkFormData.academicYear || !bulkFormData.period || !bulkFormData.amount || !bulkFormData.dueDate) {
+    if (!bulkFormData.classId || !bulkFormData.academicYear || !bulkFormData.period || !bulkFormData.dueDate) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
-    bulkCreateMutation.mutate({
+    if (!bulkFormData.amount.trim() && !bulkFormData.baseAmount.trim()) {
+      toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
+      return;
+    }
+    let bulkAmount = parseFloat(bulkFormData.amount);
+    if (bulkFormData.baseAmount.trim()) {
+      const b = parseFloat(bulkFormData.baseAmount);
+      const d = bulkFormData.discountAmount.trim() ? parseFloat(bulkFormData.discountAmount) : 0;
+      if (Number.isNaN(b) || b <= 0) {
+        toast.error('Montant brut invalide');
+        return;
+      }
+      bulkAmount = Math.max(0, Math.round(b - (Number.isNaN(d) ? 0 : d)));
+    } else if (bulkFormData.discountAmount.trim()) {
+      const d = parseFloat(bulkFormData.discountAmount);
+      bulkAmount = Math.max(0, Math.round(bulkAmount - (Number.isNaN(d) ? 0 : d)));
+    }
+    if (Number.isNaN(bulkAmount) || bulkAmount <= 0) {
+      toast.error('Le montant à payer doit être strictement positif');
+      return;
+    }
+    const bulkPayload: Record<string, unknown> = {
       classId: bulkFormData.classId,
       academicYear: bulkFormData.academicYear,
       period: bulkFormData.period,
-      amount: parseFloat(bulkFormData.amount),
+      amount: bulkAmount,
       dueDate: bulkFormData.dueDate,
       description: bulkFormData.description || undefined,
-    });
+      feeType: bulkFormData.feeType,
+      billingPeriod: bulkFormData.billingPeriod,
+    };
+    if (bulkFormData.baseAmount.trim()) {
+      bulkPayload.baseAmount = parseFloat(bulkFormData.baseAmount);
+    }
+    if (bulkFormData.discountAmount.trim()) {
+      bulkPayload.discountAmount = parseFloat(bulkFormData.discountAmount);
+    }
+    if (bulkFormData.scholarshipLabel.trim()) {
+      bulkPayload.scholarshipLabel = bulkFormData.scholarshipLabel.trim();
+    }
+    bulkCreateMutation.mutate(bulkPayload);
   };
 
   const handleEdit = (fee: any) => {
@@ -328,21 +431,61 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       amount: fee.amount.toString(),
       dueDate: format(new Date(fee.dueDate), 'yyyy-MM-dd'),
       description: fee.description || '',
+      feeType: fee.feeType || 'TUITION',
+      billingPeriod: fee.billingPeriod || 'ONE_TIME',
+      baseAmount: fee.baseAmount != null ? String(fee.baseAmount) : '',
+      discountAmount: fee.discountAmount != null ? String(fee.discountAmount) : '',
+      scholarshipLabel: fee.scholarshipLabel || '',
     });
     setShowEditModal(true);
   };
 
   const handleUpdate = () => {
     if (!selectedFee) return;
+    if (!formData.amount.trim() && !formData.baseAmount.trim()) {
+      toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
+      return;
+    }
+    let amountValue = parseFloat(formData.amount);
+    if (formData.baseAmount.trim()) {
+      const b = parseFloat(formData.baseAmount);
+      const d = formData.discountAmount.trim() ? parseFloat(formData.discountAmount) : 0;
+      if (Number.isNaN(b) || b <= 0) {
+        toast.error('Montant brut invalide');
+        return;
+      }
+      amountValue = Math.max(0, Math.round(b - (Number.isNaN(d) ? 0 : d)));
+    } else if (formData.discountAmount.trim()) {
+      const d = parseFloat(formData.discountAmount);
+      if (Number.isNaN(amountValue) || amountValue <= 0) {
+        toast.error('Montant à payer requis si vous indiquez une remise');
+        return;
+      }
+      amountValue = Math.max(0, Math.round(amountValue - (Number.isNaN(d) ? 0 : d)));
+    }
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      toast.error('Le montant à payer doit être strictement positif');
+      return;
+    }
+    const upd: Record<string, unknown> = {
+      academicYear: formData.academicYear,
+      period: formData.period,
+      amount: amountValue,
+      dueDate: formData.dueDate,
+      description: formData.description || undefined,
+      feeType: formData.feeType,
+      billingPeriod: formData.billingPeriod,
+    };
+    if (formData.baseAmount.trim()) {
+      upd.baseAmount = parseFloat(formData.baseAmount);
+    } else {
+      upd.baseAmount = null;
+    }
+    upd.discountAmount = formData.discountAmount.trim() ? parseFloat(formData.discountAmount) : 0;
+    upd.scholarshipLabel = formData.scholarshipLabel.trim() || null;
     updateMutation.mutate({
       id: selectedFee.id,
-      data: {
-        academicYear: formData.academicYear,
-        period: formData.period,
-        amount: parseFloat(formData.amount),
-        dueDate: formData.dueDate,
-        description: formData.description || undefined,
-      },
+      data: upd,
     });
   };
 
@@ -447,6 +590,29 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
         </div>
       </div>
 
+      <div className={ADM.tabRow}>
+        <button
+          type="button"
+          onClick={() => setMainTab('liste')}
+          className={ADM.tabBtn(mainTab === 'liste', 'bg-amber-50 text-amber-950 ring-1 ring-amber-200')}
+        >
+          Lignes de frais (élèves)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab('baremes')}
+          className={ADM.tabBtn(mainTab === 'baremes', 'bg-amber-50 text-amber-950 ring-1 ring-amber-200')}
+        >
+          Barèmes, bourses & échéanciers
+        </button>
+      </div>
+
+      {mainTab === 'baremes' && (
+        <TuitionFeeCatalogAndSchedulesPanel students={students} classes={classes} />
+      )}
+
+      {mainTab === 'liste' && (
+      <>
       {/* Statistics */}
       <div className={ADM.grid4}>
         <Card className={`border-l-4 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 ${ADM.statCard}`}>
@@ -542,6 +708,21 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
             {periods.map((period) => (
               <option key={period} value={period}>{period}</option>
             ))}
+          </select>
+          <select
+            aria-label="Filtrer par type de frais"
+            value={filterFeeType}
+            onChange={(e) => setFilterFeeType(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Tous les types</option>
+            <option value="ENROLLMENT">Inscription</option>
+            <option value="TUITION">Scolarité</option>
+            <option value="CANTEEN">Cantine</option>
+            <option value="TRANSPORT">Transport</option>
+            <option value="ACTIVITY">Activités</option>
+            <option value="MATERIAL">Matériel</option>
+            <option value="OTHER">Autre</option>
           </select>
         </div>
       </Card>
@@ -655,6 +836,11 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                                     <p className="text-sm font-medium text-gray-800">
                                       {fee.period} - {fee.academicYear}
                                     </p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                      <Badge variant="info" size="sm" className="text-[10px]">
+                                        {feeTypeLabel(fee.feeType)}
+                                      </Badge>
+                                    </div>
                                     <p className="text-xs text-gray-500">
                                       Échéance: {format(new Date(fee.dueDate), 'dd MMM yyyy', { locale: fr })}
                                     </p>
@@ -774,6 +960,12 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                     Période
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Type
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                    Facture
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
                     Année scolaire
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
@@ -793,7 +985,7 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
               <tbody>
                 {filteredFees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-500">
+                    <td colSpan={10} className="py-8 text-center text-gray-500">
                       <FiDollarSign className="mx-auto mb-3 h-12 w-12 text-gray-400" />
                       <p className="mb-1 text-sm font-medium">Aucun frais de scolarité trouvé</p>
                       <p className="text-xs">Créez un frais ou attribuez à une classe</p>
@@ -809,6 +1001,10 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                       </td>
                       <td className={`${tc} text-gray-600`}>{fee.student?.class?.name || '-'}</td>
                       <td className={`${tc} text-gray-600`}>{fee.period}</td>
+                      <td className={`${tc} text-gray-600`}>{feeTypeLabel(fee.feeType)}</td>
+                      <td className={`${tc} text-gray-600 font-mono text-[11px]`}>
+                        {fee.invoiceNumber || '—'}
+                      </td>
                       <td className={`${tc} text-gray-600`}>{fee.academicYear}</td>
                       <td className={`${tc} font-semibold text-gray-900`}>{formatFCFA(fee.amount)}</td>
                       <td className={`${tc} text-gray-600`}>
@@ -849,6 +1045,8 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
           </div>
         )}
       </Card>
+      </>
+      )}
 
       {/* Add Modal */}
       <Modal
@@ -923,8 +1121,65 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type de frais</label>
+              <select
+                value={formData.feeType}
+                onChange={(e) => setFormData({ ...formData, feeType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ENROLLMENT">Inscription</option>
+                <option value="TUITION">Scolarité</option>
+                <option value="CANTEEN">Cantine</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="ACTIVITY">Activités</option>
+                <option value="MATERIAL">Matériel</option>
+                <option value="OTHER">Autre</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rythme de facturation</label>
+              <select
+                value={formData.billingPeriod}
+                onChange={(e) => setFormData({ ...formData, billingPeriod: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ONE_TIME">Ponctuel</option>
+                <option value="MONTHLY">Mensuel</option>
+                <option value="QUARTERLY">Trimestriel</option>
+                <option value="SEMIANNUAL">Semestriel</option>
+                <option value="ANNUAL">Annuel</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Montant brut (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={formData.baseAmount}
+                onChange={(e) => setFormData({ ...formData, baseAmount: e.target.value })}
+                placeholder="Ex. barème avant remise"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remise (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={formData.discountAmount}
+                onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Montant (FCFA) <span className="text-red-500">*</span>
+                Montant à payer (FCFA){' '}
+                {!formData.baseAmount.trim() ? <span className="text-red-500">*</span> : null}
               </label>
               <input
                 type="number"
@@ -933,6 +1188,9 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 placeholder="100000"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+              {formData.baseAmount.trim() ? (
+                <p className="text-xs text-gray-500 mt-1">Avec un montant brut, le net est recalculé (brut − remise).</p>
+              ) : null}
             </div>
 
             <div>
@@ -946,6 +1204,17 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Libellé bourse / aide (optionnel)</label>
+            <input
+              type="text"
+              value={formData.scholarshipLabel}
+              onChange={(e) => setFormData({ ...formData, scholarshipLabel: e.target.value })}
+              placeholder="Ex. Bourse mérite 2025"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
 
           <div>
@@ -1051,8 +1320,65 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type de frais</label>
+              <select
+                value={bulkFormData.feeType}
+                onChange={(e) => setBulkFormData({ ...bulkFormData, feeType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ENROLLMENT">Inscription</option>
+                <option value="TUITION">Scolarité</option>
+                <option value="CANTEEN">Cantine</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="ACTIVITY">Activités</option>
+                <option value="MATERIAL">Matériel</option>
+                <option value="OTHER">Autre</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rythme de facturation</label>
+              <select
+                value={bulkFormData.billingPeriod}
+                onChange={(e) => setBulkFormData({ ...bulkFormData, billingPeriod: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ONE_TIME">Ponctuel</option>
+                <option value="MONTHLY">Mensuel</option>
+                <option value="QUARTERLY">Trimestriel</option>
+                <option value="SEMIANNUAL">Semestriel</option>
+                <option value="ANNUAL">Annuel</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Montant brut (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={bulkFormData.baseAmount}
+                onChange={(e) => setBulkFormData({ ...bulkFormData, baseAmount: e.target.value })}
+                placeholder="Ex. barème avant remise"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remise (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={bulkFormData.discountAmount}
+                onChange={(e) => setBulkFormData({ ...bulkFormData, discountAmount: e.target.value })}
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Montant (FCFA) <span className="text-red-500">*</span>
+                Montant à payer (FCFA){' '}
+                {!bulkFormData.baseAmount.trim() ? <span className="text-red-500">*</span> : null}
               </label>
               <input
                 type="number"
@@ -1061,6 +1387,9 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 placeholder="100000"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+              {bulkFormData.baseAmount.trim() ? (
+                <p className="text-xs text-gray-500 mt-1">Avec un montant brut, le net est recalculé (brut − remise).</p>
+              ) : null}
             </div>
 
             <div>
@@ -1074,6 +1403,17 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Libellé bourse / aide (optionnel)</label>
+            <input
+              type="text"
+              value={bulkFormData.scholarshipLabel}
+              onChange={(e) => setBulkFormData({ ...bulkFormData, scholarshipLabel: e.target.value })}
+              placeholder="Ex. Bourse mérite 2025"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
 
           <div>
@@ -1158,8 +1498,65 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type de frais</label>
+              <select
+                value={formData.feeType}
+                onChange={(e) => setFormData({ ...formData, feeType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ENROLLMENT">Inscription</option>
+                <option value="TUITION">Scolarité</option>
+                <option value="CANTEEN">Cantine</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="ACTIVITY">Activités</option>
+                <option value="MATERIAL">Matériel</option>
+                <option value="OTHER">Autre</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rythme de facturation</label>
+              <select
+                value={formData.billingPeriod}
+                onChange={(e) => setFormData({ ...formData, billingPeriod: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ONE_TIME">Ponctuel</option>
+                <option value="MONTHLY">Mensuel</option>
+                <option value="QUARTERLY">Trimestriel</option>
+                <option value="SEMIANNUAL">Semestriel</option>
+                <option value="ANNUAL">Annuel</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Montant brut (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={formData.baseAmount}
+                onChange={(e) => setFormData({ ...formData, baseAmount: e.target.value })}
+                placeholder="Ex. barème avant remise"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remise (FCFA), optionnel</label>
+              <input
+                type="number"
+                value={formData.discountAmount}
+                onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Montant (FCFA) <span className="text-red-500">*</span>
+                Montant à payer (FCFA){' '}
+                {!formData.baseAmount.trim() ? <span className="text-red-500">*</span> : null}
               </label>
               <input
                 type="number"
@@ -1168,6 +1565,9 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 placeholder="100000"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+              {formData.baseAmount.trim() ? (
+                <p className="text-xs text-gray-500 mt-1">Avec un montant brut, le net est recalculé (brut − remise).</p>
+              ) : null}
             </div>
 
             <div>
@@ -1181,6 +1581,17 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Libellé bourse / aide (optionnel)</label>
+            <input
+              type="text"
+              value={formData.scholarshipLabel}
+              onChange={(e) => setFormData({ ...formData, scholarshipLabel: e.target.value })}
+              placeholder="Ex. Bourse mérite 2025"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
 
           <div>

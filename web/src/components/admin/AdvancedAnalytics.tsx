@@ -28,15 +28,16 @@ import {
 } from 'recharts';
 import {
   PremiumTooltip,
-  PieGradients,
-  BarGradientSingle,
   LineAreaGradient,
-  RadarFillGradient,
   CHART_GRID,
   CHART_AXIS_TICK,
   CHART_MARGIN_COMPACT,
   CHART_MARGIN_TILTED,
   RechartsViewport,
+  CHART_BLUE,
+  CHART_RED,
+  chartBlueRed,
+  CHART_ANIMATION_MS,
 } from '../charts';
 import {
   FiBarChart,
@@ -575,13 +576,7 @@ const AdvancedAnalytics = () => {
           {gradeTrendData.length > 0 ? (
             <RechartsViewport height={320}>
               <ComposedChart data={gradeTrendData} margin={CHART_MARGIN_COMPACT}>
-                <defs>
-                  <linearGradient id="advLineStroke" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#a855f7" />
-                  </linearGradient>
-                </defs>
-                <LineAreaGradient id="advLineArea" colorFrom="#6366f1" colorTo="#e0e7ff" />
+                <LineAreaGradient id="advLineArea" colorFrom={CHART_BLUE} colorTo="#dbeafe" />
                 <CartesianGrid {...CHART_GRID} />
                 <XAxis
                   dataKey="month"
@@ -610,15 +605,19 @@ const AdvancedAnalytics = () => {
                   fill="url(#advLineArea)"
                   fillOpacity={1}
                   legendType="none"
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
                 <Line
                   type="monotone"
                   dataKey="average"
-                  stroke="url(#advLineStroke)"
+                  stroke={CHART_RED}
                   strokeWidth={3}
                   name="Moyenne (/20)"
-                  dot={{ r: 5, strokeWidth: 2, stroke: '#fff', fill: '#6366f1' }}
+                  dot={{ r: 5, strokeWidth: 2, stroke: '#fff', fill: CHART_RED }}
                   activeDot={{ r: 8, strokeWidth: 2, stroke: '#fff' }}
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
               </ComposedChart>
             </RechartsViewport>
@@ -645,7 +644,6 @@ const AdvancedAnalytics = () => {
           {classPerformanceData.length > 0 ? (
             <RechartsViewport height={320}>
               <BarChart data={classPerformanceData} margin={CHART_MARGIN_TILTED}>
-                <BarGradientSingle id="advPerfBar" from="#10b981" to="#059669" />
                 <CartesianGrid {...CHART_GRID} />
                 <XAxis
                   dataKey="name"
@@ -673,11 +671,16 @@ const AdvancedAnalytics = () => {
                 />
                 <Bar
                   dataKey="moyenne"
-                  fill="url(#advPerfBar)"
                   name="Moyenne (/20)"
                   radius={[10, 10, 0, 0]}
                   maxBarSize={56}
-                />
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
+                >
+                  {classPerformanceData.map((_, index) => (
+                    <Cell key={`perf-${index}`} fill={chartBlueRed(index)} />
+                  ))}
+                </Bar>
               </BarChart>
             </RechartsViewport>
           ) : (
@@ -696,7 +699,6 @@ const AdvancedAnalytics = () => {
           {subjectData.length > 0 ? (
             <RechartsViewport height={320}>
               <PieChart>
-                <PieGradients count={subjectData.length} idPrefix="adv-subj" />
                 <Pie
                   data={subjectData}
                   cx="50%"
@@ -710,9 +712,11 @@ const AdvancedAnalytics = () => {
                   stroke="#fff"
                   strokeWidth={2}
                   dataKey="count"
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 >
                   {subjectData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={`url(#adv-subj-${index})`} />
+                    <Cell key={`cell-${index}`} fill={chartBlueRed(index)} />
                   ))}
                 </Pie>
                 <Tooltip content={(p) => <PremiumTooltip {...p} />} />
@@ -736,12 +740,12 @@ const AdvancedAnalytics = () => {
               <AreaChart data={absenceTrendData} margin={CHART_MARGIN_COMPACT}>
                 <defs>
                   <linearGradient id="advAbsTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f87171" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#fecaca" stopOpacity={0.15} />
+                    <stop offset="0%" stopColor={CHART_BLUE} stopOpacity={0.5} />
+                    <stop offset="100%" stopColor={CHART_BLUE} stopOpacity={0.06} />
                   </linearGradient>
                   <linearGradient id="advAbsUnex" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.95} />
-                    <stop offset="100%" stopColor="#fef3c7" stopOpacity={0.2} />
+                    <stop offset="0%" stopColor={CHART_RED} stopOpacity={0.5} />
+                    <stop offset="100%" stopColor={CHART_RED} stopOpacity={0.06} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid {...CHART_GRID} />
@@ -764,19 +768,23 @@ const AdvancedAnalytics = () => {
                   type="monotone"
                   dataKey="count"
                   stackId="1"
-                  stroke="#ef4444"
+                  stroke={CHART_BLUE}
                   strokeWidth={2}
                   fill="url(#advAbsTotal)"
                   name="Total absences"
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
                 <Area
                   type="monotone"
                   dataKey="unexcused"
                   stackId="2"
-                  stroke="#d97706"
+                  stroke={CHART_RED}
                   strokeWidth={2}
                   fill="url(#advAbsUnex)"
                   name="Non justifiées"
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
               </AreaChart>
             </RechartsViewport>
@@ -796,7 +804,6 @@ const AdvancedAnalytics = () => {
           {assignmentCompletionData.length > 0 ? (
             <RechartsViewport height={320}>
               <BarChart data={assignmentCompletionData} margin={CHART_MARGIN_TILTED}>
-                <BarGradientSingle id="advAssignBar" from="#a855f7" to="#6366f1" />
                 <CartesianGrid {...CHART_GRID} />
                 <XAxis
                   dataKey="name"
@@ -824,10 +831,12 @@ const AdvancedAnalytics = () => {
                 />
                 <Bar
                   dataKey="complété"
-                  fill="url(#advAssignBar)"
+                  fill={CHART_BLUE}
                   name="Complétion"
                   radius={[10, 10, 0, 0]}
                   maxBarSize={48}
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
               </BarChart>
             </RechartsViewport>
@@ -881,7 +890,12 @@ const AdvancedAnalytics = () => {
                   },
                 ]}
               >
-                <RadarFillGradient id="advRadarFill" />
+                <defs>
+                  <radialGradient id="advRadarFill" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor={CHART_BLUE} stopOpacity={0.42} />
+                    <stop offset="100%" stopColor={CHART_BLUE} stopOpacity={0.08} />
+                  </radialGradient>
+                </defs>
                 <PolarGrid stroke="#cbd5e1" strokeDasharray="4 8" />
                 <PolarAngleAxis
                   dataKey="subject"
@@ -895,10 +909,12 @@ const AdvancedAnalytics = () => {
                 <Radar
                   name="Indice"
                   dataKey="A"
-                  stroke="#6366f1"
+                  stroke={CHART_BLUE}
                   strokeWidth={2.5}
                   fill="url(#advRadarFill)"
                   fillOpacity={1}
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
                 <Tooltip content={(p) => <PremiumTooltip {...p} valueSuffix="%" />} />
               </RadarChart>

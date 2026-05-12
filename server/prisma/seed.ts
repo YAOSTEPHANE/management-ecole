@@ -15,14 +15,24 @@ async function main() {
   await prisma.schedule.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.tuitionFee.deleteMany();
+  await prisma.tuitionPaymentScheduleTemplate.deleteMany();
+  await prisma.tuitionFeeCatalog.deleteMany();
   await prisma.conduct.deleteMany();
   await prisma.reportCard.deleteMany();
   await prisma.course.deleteMany();
+  await prisma.parentTeacherAppointment.deleteMany();
+  await prisma.studentPickupAuthorization.deleteMany();
+  await prisma.parentConsent.deleteMany();
+  await prisma.parentInteraction.deleteMany();
+  await prisma.parentContact.deleteMany();
   await prisma.studentParent.deleteMany();
   await prisma.student.deleteMany();
   await prisma.parent.deleteMany();
   await prisma.teacher.deleteMany();
   await prisma.educator.deleteMany();
+  await prisma.staffAttendance.deleteMany();
+  await prisma.staffMember.deleteMany();
+  await prisma.jobDescription.deleteMany();
   await prisma.class.deleteMany();
   await prisma.user.deleteMany();
 

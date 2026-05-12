@@ -1,22 +1,11 @@
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Footer from '../components/Footer';
+import HomeReveal from '../components/public/HomeReveal';
 import { getCurrentAcademicYear } from '../utils/academicYear';
-
-const Hero3D = dynamic(() => import('../components/illustrations/Hero3D'), {
-  ssr: false,
-  loading: () => (
-    <div
-      className="flex h-[260px] w-full items-center justify-center sm:h-[320px] lg:h-[340px]"
-      aria-hidden
-    >
-      <div className="h-40 w-40 animate-pulse rounded-3xl bg-white/5 ring-1 ring-white/10" />
-    </div>
-  ),
-});
 import {
   FiArrowRight,
   FiAward,
@@ -25,6 +14,7 @@ import {
   FiCalendar,
   FiCheck,
   FiClock,
+  FiFileText,
   FiHelpCircle,
   FiHeart,
   FiLayers,
@@ -47,10 +37,19 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
+const MARQUEE_ITEMS = [
+  'Pilotage administratif',
+  'Suivi pédagogique',
+  'Portail familles',
+  'Sécurité & rôles',
+  'Temps réel',
+  'Bulletins & absences',
+];
+
 const TRUST_PILLS = [
   { icon: FiShield, text: 'Données & accès sécurisés' },
-  { icon: FiZap, text: 'Temps réel sur les tableaux de bord' },
-  { icon: FiSmartphone, text: 'Utilisable sur ordinateur & mobile' },
+  { icon: FiZap, text: 'Tableaux de bord en direct' },
+  { icon: FiSmartphone, text: 'Web & mobile' },
 ];
 
 const PILLARS = [
@@ -58,8 +57,10 @@ const PILLARS = [
     title: 'Administration',
     text: 'Inscriptions, classes, personnel et finances au même endroit.',
     icon: FiLayers,
-    accent: 'from-blue-500 to-indigo-600',
+    accent: 'from-stone-700 to-amber-800',
     span: 'md:col-span-2',
+    image: '/home/pillar-administration.jpg',
+    imageAlt: 'Équipe en réunion autour de documents et graphiques de pilotage',
   },
   {
     title: 'Pédagogie',
@@ -67,6 +68,8 @@ const PILLARS = [
     icon: FiBook,
     accent: 'from-emerald-500 to-teal-600',
     span: 'md:col-span-1',
+    image: '/home/pillar-pedagogy.jpg',
+    imageAlt: 'Salle de classe avec élèves et matériel pédagogique',
   },
   {
     title: 'Portails',
@@ -74,6 +77,8 @@ const PILLARS = [
     icon: FiUsers,
     accent: 'from-amber-500 to-orange-600',
     span: 'md:col-span-1',
+    image: '/home/pillar-portals.jpg',
+    imageAlt: 'Groupe de personnes collaborant autour d’un ordinateur portable',
   },
   {
     title: 'Sécurité',
@@ -81,6 +86,8 @@ const PILLARS = [
     icon: FiLock,
     accent: 'from-rose-500 to-pink-600',
     span: 'md:col-span-2',
+    image: '/home/pillar-security.jpg',
+    imageAlt: 'Sécurité numérique et protection des données sur ordinateur portable',
   },
 ];
 
@@ -89,29 +96,37 @@ const ROLES = [
     label: 'Administrateur',
     desc: 'Pilotage, statistiques et paramètres de l’établissement.',
     gradient: 'from-violet-600 to-indigo-700',
-    ring: 'ring-violet-500/20',
+    ring: 'ring-violet-500/25',
     icon: FiBarChart2,
+    image: '/home/role-admin.jpg',
+    imageAlt: 'Professionnels collaborant autour d’un tableau de bord',
   },
   {
     label: 'Enseignant',
     desc: 'Cours, évaluations, pointage et suivi des élèves.',
     gradient: 'from-emerald-600 to-teal-700',
-    ring: 'ring-emerald-500/20',
+    ring: 'ring-emerald-500/25',
     icon: FiBook,
+    image: '/home/role-teacher.jpg',
+    imageAlt: 'Enseignant avec des élèves en classe',
   },
   {
     label: 'Élève',
     desc: 'Emploi du temps, notes, devoirs et absences.',
     gradient: 'from-sky-600 to-blue-700',
-    ring: 'ring-sky-500/20',
+    ring: 'ring-sky-500/25',
     icon: FiAward,
+    image: '/home/role-student.jpg',
+    imageAlt: 'Élève concentré sur le travail scolaire',
   },
   {
     label: 'Parent',
     desc: 'Suivi des enfants et informations sur la scolarité.',
     gradient: 'from-amber-600 to-orange-700',
-    ring: 'ring-amber-500/20',
+    ring: 'ring-amber-500/25',
     icon: FiHeart,
+    image: '/home/role-parent.jpg',
+    imageAlt: 'Famille partageant un moment ensemble',
   },
 ];
 
@@ -127,10 +142,16 @@ const HIGHLIGHTS = [
     icon: FiTarget,
   },
   {
-    title: 'Prêt pour le terrain',
-    text: 'JWT, contrôle d’accès et journalisation des actions sensibles.',
+    title: 'Sécurité maîtrisée',
+    text: 'Accès par rôle, authentification robuste et traçabilité des actions sensibles.',
     icon: FiShield,
   },
+];
+
+const HERO_FLOATING = [
+  { t: 'Inscriptions', ok: true },
+  { t: 'Notes & bulletins', ok: true },
+  { t: 'Familles informées', ok: true },
 ];
 
 export default function Home() {
@@ -139,31 +160,32 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div
-      className="min-h-screen bg-[#fafbfc] text-[#1a1d29] antialiased"
-      style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-    >
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-[#e8eaef]/80 bg-white/80 shadow-sm shadow-slate-900/5 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-14 h-14 sm:h-16 max-w-6xl items-center justify-between px-3 sm:px-6">
-          <Link href="/" className="group flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#2563eb] to-[#4f46e5] text-white shadow-lg shadow-indigo-500/30 ring-2 ring-white">
+    <div className="min-h-screen premium-body premium-body-v2 font-sans text-stone-900 antialiased">
+      <header className="sticky top-0 z-50 glass-nav glass-nav-v2 shadow-[0_8px_30px_-12px_rgba(12,10,9,0.08)]">
+        <div className="mx-auto flex h-14 min-h-14 max-w-6xl items-center justify-between px-3 sm:h-16 sm:px-6">
+          <Link
+            href="/"
+            className="group flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2"
+          >
+            <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-800 to-stone-950 text-amber-100 shadow-lg shadow-amber-900/20 ring-2 ring-amber-400/40">
               <FiBook className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" aria-hidden />
             </div>
             <div className="leading-tight">
-              <span className="block text-lg font-bold tracking-tight text-[#1a1d29]">Gestion Scolaire</span>
-              <span className="hidden text-[10px] font-medium uppercase tracking-wider text-[#5c617a] sm:block">
+              <span className="block font-display text-lg font-semibold tracking-tight text-stone-900">
+                Gestion Scolaire
+              </span>
+              <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-800/80 sm:block">
                 Pilotage & pédagogie
               </span>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-0.5 rounded-2xl border border-stone-200/80 bg-stone-50/80 p-1 md:flex">
             {NAV_LINKS.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#5c617a] transition-colors hover:bg-slate-100 hover:text-[#1a1d29]"
+                className="rounded-xl px-3.5 py-2 text-sm font-medium text-stone-600 transition-all hover:bg-white hover:text-stone-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
               >
                 {label}
               </Link>
@@ -173,7 +195,7 @@ export default function Home() {
           <div className="hidden items-center gap-2 sm:gap-3 md:flex">
             {user ? (
               <Link href={`/${user.role.toLowerCase()}`}>
-                <Button className="shadow-md shadow-indigo-500/20">Tableau de bord</Button>
+                <Button>Tableau de bord</Button>
               </Link>
             ) : (
               <>
@@ -181,7 +203,7 @@ export default function Home() {
                   <Button variant="secondary">Connexion</Button>
                 </Link>
                 <Link href="/login">
-                  <Button>
+                  <Button className="shadow-lg shadow-amber-900/15 ring-1 ring-amber-500/20">
                     Commencer
                     <FiArrowRight className="ml-1.5 inline h-4 w-4" />
                   </Button>
@@ -192,7 +214,7 @@ export default function Home() {
 
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-[#5c617a] transition-colors hover:bg-slate-100 md:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-stone-600 transition-colors hover:bg-stone-100/90 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
             aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             onClick={() => setMenuOpen((o) => !o)}
           >
@@ -201,20 +223,20 @@ export default function Home() {
         </div>
 
         {menuOpen && (
-          <div className="border-t border-[#e8eaef] bg-white px-4 py-4 shadow-inner md:hidden">
+          <div className="border-t border-stone-200/90 bg-white/95 px-4 py-4 shadow-inner backdrop-blur-sm md:hidden">
             <nav className="flex flex-col gap-1">
               {NAV_LINKS.map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-[#1a1d29] hover:bg-slate-50"
+                  className="rounded-xl px-4 py-3 text-sm font-medium text-stone-900 hover:bg-stone-50"
                   onClick={() => setMenuOpen(false)}
                 >
                   {label}
                 </Link>
               ))}
             </nav>
-            <div className="mt-4 flex flex-col gap-2 border-t border-[#e8eaef] pt-4">
+            <div className="mt-4 flex flex-col gap-2 border-t border-stone-200/90 pt-4">
               {user ? (
                 <Link href={`/${user.role.toLowerCase()}`} onClick={() => setMenuOpen(false)}>
                   <Button className="w-full">Tableau de bord</Button>
@@ -238,86 +260,112 @@ export default function Home() {
 
       <main>
         {/* Hero */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-[#0c1222] via-[#111827] to-[#0f172a]">
+        <section className="relative overflow-hidden bg-gradient-to-b from-stone-950 via-stone-900 to-zinc-950">
+          <div className="page-hero-v2__glow pointer-events-none absolute inset-0" aria-hidden />
+          <div className="page-hero-v2__noise pointer-events-none absolute inset-0" aria-hidden />
+          <div className="home-hero-fine-grid" aria-hidden />
           <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(ellipse 100% 80% at 50% -30%, rgba(59, 130, 246, 0.45), transparent 55%), radial-gradient(ellipse 50% 50% at 90% 20%, rgba(139, 92, 246, 0.25), transparent), radial-gradient(ellipse 40% 40% at 10% 60%, rgba(16, 185, 129, 0.12), transparent)',
-            }}
+            className="home-hero-orb home-hero-orb--drift-a absolute -left-24 top-0 h-[min(28rem,50vw)] w-[min(28rem,50vw)] bg-amber-500/25"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.35] mix-blend-overlay"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
+            className="home-hero-orb home-hero-orb--drift-b absolute -right-32 bottom-0 h-[min(24rem,45vw)] w-[min(24rem,45vw)] bg-emerald-500/15"
             aria-hidden
           />
-          <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
-            <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
-              <div className="lg:col-span-6">
-                <div className="mb-6 inline-flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-100 shadow-lg shadow-blue-500/10 backdrop-blur-sm">
-                    <FiCalendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Année scolaire {year}
+          <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16 lg:pb-28 lg:pt-20">
+            <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-12">
+              <div className="home-section-fade lg:col-span-6">
+                <div className="mb-8 flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/35 bg-gradient-to-r from-amber-500/15 to-amber-600/5 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-amber-100 shadow-lg shadow-amber-950/30 backdrop-blur-md">
+                    <FiCalendar className="h-3.5 w-3.5 shrink-0 text-amber-200" aria-hidden />
+                    Année {year}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 backdrop-blur-sm">
                     <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                     </span>
-                    Solution tout-en-un
+                    Plateforme tout-en-un
                   </span>
                 </div>
 
-                <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
-                  La gestion de votre{' '}
-                  <span className="bg-gradient-to-r from-sky-300 via-indigo-300 to-violet-300 bg-clip-text text-transparent">
+                <h1 className="home-hero-title-line font-display text-[2.35rem] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl sm:leading-[1.06] lg:text-6xl lg:leading-[1.05]">
+                  Pilotez votre{' '}
+                  <span className="bg-gradient-to-r from-amber-200 via-amber-50 to-amber-200/90 bg-clip-text text-transparent">
                     établissement
-                  </span>
-                  , clarifiée.
+                  </span>{' '}
+                  avec clarté.
                 </h1>
-                <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300 sm:text-xl">
-                  Une plateforme unique pour l’administration, le suivi pédagogique et le lien avec les familles —
-                  sans tableurs ni informations éclatées.
+                <p className="home-hero-sub-line mt-7 max-w-xl text-lg leading-relaxed text-stone-400 sm:text-xl">
+                  Une expérience unique pour l’administration, la pédagogie et le lien avec les familles — fluide,
+                  sécurisée, sans silos d’information.
                 </p>
 
-                <ul className="mt-8 flex flex-wrap gap-3">
+                <ul className="mt-9 flex flex-wrap gap-3">
                   {TRUST_PILLS.map(({ icon: Icon, text }) => (
                     <li
                       key={text}
-                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 backdrop-blur-sm sm:text-sm"
+                      className="home-trust-pill inline-flex cursor-default items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-stone-200 shadow-lg shadow-black/20 backdrop-blur-md"
                     >
-                      <Icon className="h-4 w-4 shrink-0 text-indigo-300" aria-hidden />
+                      <Icon className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
                       {text}
                     </li>
                   ))}
                 </ul>
 
                 {!user && (
-                  <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <>
+                  <div className="mt-11 flex flex-col gap-4 sm:flex-row sm:items-center">
                     <Link href="/login">
                       <Button
                         size="lg"
-                        className="w-full bg-white font-semibold text-slate-900 shadow-xl shadow-slate-950/40 hover:bg-slate-100 sm:w-auto"
+                        variant="secondary"
+                        className="w-full border-0 bg-white px-8 font-bold text-stone-900 shadow-xl shadow-black/30 hover:bg-amber-50 sm:w-auto"
                       >
                         Accéder à la plateforme
                         <FiArrowRight className="ml-2 inline h-5 w-5" />
                       </Button>
                     </Link>
                     <Link href="/help">
-                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/5 px-8 py-4 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10 sm:w-auto">
+                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-semibold text-white backdrop-blur-md transition-all hover:border-amber-400/40 hover:bg-white/10 sm:w-auto">
                         <FiHelpCircle className="h-5 w-5" />
                         Découvrir l’aide
                       </span>
                     </Link>
                   </div>
+                  <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-white/10 pt-6 text-sm">
+                    <Link
+                      href="/documentation"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                    >
+                      <FiFileText className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      Documentation
+                    </Link>
+                    <Link
+                      href="/inscription"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                    >
+                      <FiCalendar className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      Candidature en ligne
+                    </Link>
+                    <Link
+                      href="/contact"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                    >
+                      <FiMessageSquare className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      Écrire à l’équipe
+                    </Link>
+                  </div>
+                  </>
                 )}
                 {user && (
-                  <div className="mt-10">
+                  <div className="mt-11">
                     <Link href={`/${user.role.toLowerCase()}`}>
-                      <Button size="lg" className="bg-white font-semibold text-slate-900 shadow-xl hover:bg-slate-100">
+                      <Button
+                        size="lg"
+                        variant="secondary"
+                        className="border-0 bg-white px-8 font-bold text-stone-900 shadow-xl hover:bg-amber-50"
+                      >
                         Ouvrir mon espace
                         <FiArrowRight className="ml-2 inline h-5 w-5" />
                       </Button>
@@ -325,44 +373,72 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="mt-12 grid grid-cols-3 gap-4 border-t border-white/10 pt-10 sm:max-w-md">
+                <div className="mt-14 grid grid-cols-3 gap-3 sm:max-w-lg sm:gap-4">
                   {[
-                    { n: '4', l: 'portails métiers' },
-                    { n: '1', l: 'vue centralisée' },
-                    { n: '24/7', l: 'accès web' },
+                    { n: '4', l: 'portails', d: 'métiers' },
+                    { n: '1', l: 'source', d: 'de vérité' },
+                    { n: '∞', l: 'évolutions', d: 'prévues' },
                   ].map((s) => (
-                    <div key={s.l} className="text-center sm:text-left">
-                      <p className="text-2xl font-black tabular-nums text-white sm:text-3xl">{s.n}</p>
-                      <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs">
-                        {s.l}
-                      </p>
+                    <div
+                      key={s.l}
+                      className="home-stat-tile rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-center shadow-inner backdrop-blur-sm sm:px-4 sm:text-left"
+                    >
+                      <p className="font-display text-2xl font-semibold tabular-nums text-white sm:text-3xl">{s.n}</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-stone-500">{s.l}</p>
+                      <p className="text-[10px] font-medium text-stone-600">{s.d}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="lg:col-span-6">
+              <div className="home-section-fade home-section-fade--late relative lg:col-span-6">
                 <div className="relative mx-auto max-w-lg lg:max-w-none">
-                  <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-indigo-500/20 via-transparent to-emerald-500/20 blur-2xl lg:-inset-6" aria-hidden />
-                  <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 to-white/5 p-1 shadow-2xl shadow-black/40 backdrop-blur-md">
-                    <div className="rounded-[1.35rem] bg-slate-950/40 p-6 sm:p-8">
-                      <div className="mb-4 flex items-center justify-between">
+                  <div
+                    className="absolute -inset-6 rounded-[2.25rem] bg-gradient-to-tr from-amber-400/20 via-transparent to-emerald-400/15 blur-3xl motion-reduce:opacity-40"
+                    aria-hidden
+                  />
+                  <div className="home-hero-frame-in relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-gradient-to-br from-white/15 to-white/5 p-[2px] shadow-2xl shadow-black/50 backdrop-blur-md">
+                    <div className="relative overflow-hidden rounded-[1.6rem] bg-stone-950 ring-1 ring-white/10">
+                      <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between">
                         <div className="flex gap-2">
-                          <span className="h-3 w-3 rounded-full bg-red-400/80" />
-                          <span className="h-3 w-3 rounded-full bg-amber-400/80" />
-                          <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
+                          <span className="h-3 w-3 rounded-full bg-red-400/90 shadow-sm" />
+                          <span className="h-3 w-3 rounded-full bg-amber-400/90 shadow-sm" />
+                          <span className="h-3 w-3 rounded-full bg-emerald-400/90 shadow-sm" />
                         </div>
-                        <span className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
-                          Aperçu
+                        <span className="rounded-lg border border-white/10 bg-stone-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
+                          Aperçu visuel
                         </span>
                       </div>
-                      <div className="flex min-h-[260px] items-center justify-center sm:min-h-[320px] lg:min-h-[340px]">
-                        <Hero3D />
+                      <div className="relative aspect-[4/3] min-h-[280px] sm:min-h-[320px] lg:min-h-[380px]">
+                        <Image
+                          src="/home/hero-platform.jpg"
+                          alt="Salle de classe : élève levant la main, ambiance d’apprentissage"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 1024px) 100vw, 50vw"
+                          priority
+                        />
+                        <div
+                          className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-transparent"
+                          aria-hidden
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 sm:p-5">
+                          <div className="flex flex-col gap-2 rounded-2xl border border-white/15 bg-stone-950/75 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-white/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            {HERO_FLOATING.map(({ t, ok }) => (
+                              <div key={t} className="flex items-center gap-2 text-sm font-medium text-white">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-400/30">
+                                  {ok ? <FiCheck className="h-4 w-4" aria-hidden /> : null}
+                                </span>
+                                {t}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <p className="mt-4 text-center text-xs text-slate-500 lg:text-left">
-                    Illustration décorative — votre tableau de bord réel s’affiche après connexion.
+                  <p className="mt-5 text-center text-xs text-stone-500 lg:text-left">
+                    Visuels d’ambiance — votre tableau de bord personnel apparaît après connexion.
                   </p>
                 </div>
               </div>
@@ -370,177 +446,310 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bento — Piliers */}
-        <section className="relative z-10 -mt-8 px-4 sm:px-6">
-          <div className="mx-auto max-w-6xl rounded-3xl border border-[#e8eaef] bg-white p-6 shadow-xl shadow-slate-900/5 sm:p-8 lg:p-10">
-            <div className="mb-10 text-center">
-              <span className="inline-block rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700">
-                Fonctionnalités
-              </span>
-              <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-[#1a1d29] sm:text-4xl">
-                Tout ce dont votre école a besoin
-              </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-lg text-[#5c617a]">
-                Une base solide pour administrer, enseigner et communiquer — avec une seule connexion.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {PILLARS.map(({ title, text, icon: Icon, accent, span }) => (
-                <article
-                  key={title}
-                  className={`group relative overflow-hidden rounded-2xl border border-[#e8eaef] bg-[#fafbfc] p-6 transition-all duration-300 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/10 ${span}`}
+        {/* Bandeau défilant */}
+        <section className="home-marquee-strip relative border-y border-white/10 py-4 text-white">
+          <div className="home-marquee overflow-hidden min-h-[3rem] flex items-center">
+            <div className="home-marquee-track items-center gap-10 pr-10 text-sm font-semibold uppercase tracking-[0.2em] text-stone-400">
+              {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+                <span
+                  key={`${item}-${i}`}
+                  className="flex shrink-0 items-center gap-10 whitespace-nowrap"
                 >
-                  <div
-                    className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg transition-transform duration-300 group-hover:scale-105`}
-                  >
-                    <Icon className="h-6 w-6" aria-hidden />
-                  </div>
-                  <h3 className="text-xl font-bold text-[#1a1d29]">{title}</h3>
-                  <p className="mt-2 leading-relaxed text-[#5c617a]">{text}</p>
-                  <div
-                    className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-[0.07] transition-opacity group-hover:opacity-[0.12]`}
-                    aria-hidden
-                  />
-                </article>
+                  <span className="text-amber-400/90" aria-hidden>
+                    ◆
+                  </span>
+                  {item}
+                </span>
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Bento — Piliers */}
+        <section className="relative z-10 -mt-6 px-4 sm:-mt-8 sm:px-6">
+          <HomeReveal>
+          <div className="mx-auto max-w-6xl rounded-[2rem] border border-stone-200/90 bg-white/60 p-1.5 shadow-[0_32px_64px_-28px_rgba(12,10,9,0.22)] backdrop-blur-2xl sm:p-2">
+            <div className="rounded-[1.65rem] bg-gradient-to-b from-white via-white to-stone-50/95 px-5 py-12 ring-1 ring-stone-900/[0.04] sm:px-8 sm:py-14 lg:px-12 lg:py-16">
+              <div className="mb-12 flex flex-col gap-4 text-center lg:mb-14">
+                <span className="mx-auto inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50/90 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-950 shadow-sm">
+                  Fonctionnalités
+                </span>
+                <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
+                  Tout ce dont votre école a besoin
+                </h2>
+                <div className="home-section-accent" aria-hidden />
+                <p className="mx-auto max-w-2xl text-lg leading-relaxed text-stone-600">
+                  Des modules pensés pour la vie réelle des équipes — une connexion, une vision partagée.
+                </p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-3 md:gap-6">
+                {PILLARS.map(({ title, text, icon: Icon, accent, span, image, imageAlt }, idx) => (
+                  <HomeReveal key={title} delayMs={idx * 70} className={span}>
+                  <article
+                    className="home-pillar-sheen group relative h-full overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-lg shadow-stone-900/[0.06] transition-all duration-500 hover:-translate-y-1 hover:border-amber-300/50 hover:shadow-2xl hover:shadow-amber-900/10"
+                  >
+                    <div
+                      className={`relative w-full overflow-hidden ${span.includes('col-span-2') ? 'h-48 sm:h-56' : 'h-44 sm:h-48'}`}
+                    >
+                      <Image
+                        src={image}
+                        alt={imageAlt}
+                        fill
+                        className="object-cover transition-transform duration-700 motion-safe:group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-900/15 to-transparent" />
+                      <span className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/95 text-sm font-bold text-stone-900 shadow-lg ring-1 ring-stone-200/80">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div className="relative p-6 sm:p-7">
+                      <div
+                        className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg ring-2 ring-white/30 transition-transform duration-300 group-hover:scale-105`}
+                      >
+                        <Icon className="h-6 w-6" aria-hidden />
+                      </div>
+                      <h3 className="font-display text-xl font-semibold text-stone-900 sm:text-2xl">{title}</h3>
+                      <p className="mt-2 leading-relaxed text-stone-600">{text}</p>
+                    </div>
+                  </article>
+                  </HomeReveal>
+                ))}
+              </div>
+            </div>
+          </div>
+          </HomeReveal>
+        </section>
+
+        {/* Bandeau campus */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+          <HomeReveal>
+          <div className="group overflow-hidden rounded-[2rem] border border-stone-200/90 bg-white shadow-[0_28px_56px_-24px_rgba(12,10,9,0.18)] ring-1 ring-amber-500/10 transition-shadow duration-500 hover:shadow-[0_36px_72px_-28px_rgba(12,10,9,0.22)] lg:grid lg:grid-cols-2">
+            <div className="relative min-h-[260px] lg:min-h-[400px]">
+              <Image
+                src="/home/split-campus.jpg"
+                alt="Bâtiment et campus scolaire, perspective architecturale"
+                fill
+                className="object-cover transition-transform duration-700 motion-safe:group-hover:scale-[1.02]"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-stone-950/50 via-stone-950/10 to-transparent lg:from-stone-950/55"
+                aria-hidden
+              />
+              <div className="absolute bottom-6 left-6 right-6 z-10 rounded-2xl border border-white/15 bg-stone-950/50 p-4 backdrop-blur-md lg:max-w-xs">
+                <p className="text-sm font-semibold text-white">Une vision partagée</p>
+                <p className="mt-1 text-xs text-stone-300">
+                  Même information pour la direction, les équipes et les familles.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-14">
+              <span className="inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-950">
+                Établissement
+              </span>
+              <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                L’école, sans angles morts
+              </h2>
+              <div className="home-section-accent mx-0 mt-3" aria-hidden />
+              <p className="mt-5 text-lg leading-relaxed text-stone-600">
+                De la direction aux familles, tout le monde s’appuie sur des données à jour. Moins d’erreurs, moins de
+                relances, plus de temps pour l’essentiel.
+              </p>
+              <ul className="mt-8 space-y-3 text-stone-700">
+                {['Données unifiées', 'Notifications ciblées', 'Historique tracé'].map((line) => (
+                  <li key={line} className="flex items-center gap-3 text-sm font-medium">
+                    <FiCheck className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10">
+                <Link href="/inscription">
+                  <span className="inline-flex items-center gap-2 rounded-2xl bg-stone-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/25 transition-all hover:bg-stone-800 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45">
+                    Démarrer une candidature
+                    <FiArrowRight className="h-4 w-4" aria-hidden />
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </div>
+          </HomeReveal>
         </section>
 
         {/* Rôles */}
-        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+          <HomeReveal>
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold tracking-tight text-[#1a1d29] sm:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
               Un espace pour chaque acteur
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-lg text-[#5c617a]">
-              Des interfaces adaptées au métier, avec des droits strictement définis.
+            <div className="home-section-accent mt-4" aria-hidden />
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
+              Interfaces dédiées et droits stricts — chacun voit ce qui le concerne.
             </p>
           </div>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {ROLES.map(({ label, desc, gradient, ring, icon: Icon }) => (
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {ROLES.map(({ label, desc, gradient, ring, icon: Icon, image, imageAlt }, idx) => (
+              <HomeReveal key={label} delayMs={idx * 55}>
               <div
-                key={label}
-                className={`relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-900/5 ring-2 ${ring} transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                className={`group relative overflow-hidden rounded-3xl border border-stone-200/80 bg-white shadow-lg shadow-stone-900/[0.06] ring-2 ${ring} transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl`}
               >
-                <div
-                  className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}
-                >
-                  <Icon className="h-5 w-5" aria-hidden />
+                <div className="relative h-40 w-full overflow-hidden">
+                  <Image
+                    src={image}
+                    alt={imageAlt}
+                    fill
+                    className="object-cover transition-transform duration-700 motion-safe:group-hover:scale-110"
+                    sizes="(max-width: 640px) 100vw, 25vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950/65 via-transparent to-transparent" />
+                  <div
+                    className={`absolute -bottom-5 left-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-xl ring-4 ring-white transition-transform duration-300 group-hover:scale-105`}
+                  >
+                    <Icon className="h-6 w-6" aria-hidden />
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-[#1a1d29]">{label}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#5c617a]">{desc}</p>
+                <div className="px-6 pb-7 pt-10">
+                  <h3 className="font-display text-lg font-semibold text-stone-900">{label}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-stone-600">{desc}</p>
+                </div>
               </div>
+              </HomeReveal>
             ))}
           </div>
+          </HomeReveal>
         </section>
 
-        {/* Points forts — 3 colonnes */}
-        <section className="border-y border-[#e8eaef] bg-gradient-to-b from-white to-[#f6f7fa] py-20 sm:py-24">
+        {/* Points forts */}
+        <section className="border-y border-stone-200/80 bg-gradient-to-b from-stone-50/90 via-white to-amber-50/20 py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <HomeReveal>
             <div className="text-center">
-              <h2 className="text-3xl font-extrabold tracking-tight text-[#1a1d29] sm:text-4xl">
-                Pourquoi centraliser ici ?
+              <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                Pourquoi tout centraliser ici ?
               </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-lg text-[#5c617a]">
-                Moins de friction au quotidien, plus de visibilité pour les équipes et les familles.
+              <div className="home-section-accent mt-4" aria-hidden />
+              <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
+                Moins de friction au quotidien, plus de clarté pour les équipes et les familles.
               </p>
             </div>
-            <div className="mt-14 grid gap-8 md:grid-cols-3">
-              {HIGHLIGHTS.map(({ title, text, icon: Icon }) => (
+            <div className="mt-16 grid gap-6 md:grid-cols-3">
+              {HIGHLIGHTS.map(({ title, text, icon: Icon }, i) => (
+                <HomeReveal key={title} delayMs={i * 80}>
                 <div
-                  key={title}
-                  className="relative rounded-2xl border border-white bg-white/80 p-8 shadow-lg shadow-slate-900/5 backdrop-blur-sm"
+                  className="group relative rounded-3xl bg-gradient-to-br from-amber-400/30 via-stone-200/40 to-amber-200/20 p-[1px] shadow-lg shadow-amber-900/5 transition-transform duration-300 hover:-translate-y-1"
                 >
-                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
-                    <Icon className="h-7 w-7" aria-hidden />
+                  <div className="h-full rounded-[1.4rem] bg-white/95 p-8 shadow-inner ring-1 ring-stone-900/[0.03] backdrop-blur-sm">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-800/70">
+                      {String(i + 1).padStart(2, '0')}
+                    </div>
+                    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 text-amber-900 shadow-md ring-1 ring-amber-200/80 transition-transform group-hover:scale-105">
+                      <Icon className="h-7 w-7" aria-hidden />
+                    </div>
+                    <h3 className="font-display text-xl font-semibold text-stone-900">{title}</h3>
+                    <p className="mt-3 leading-relaxed text-stone-600">{text}</p>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1a1d29]">{title}</h3>
-                  <p className="mt-3 leading-relaxed text-[#5c617a]">{text}</p>
                 </div>
+                </HomeReveal>
               ))}
             </div>
+            </HomeReveal>
           </div>
         </section>
 
-        {/* Bandeau citation */}
+        {/* Citation */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-          <div className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-6 py-12 text-center shadow-inner shadow-indigo-500/5 sm:px-12">
-            <FiMessageSquare className="mx-auto h-10 w-10 text-indigo-400" aria-hidden />
-            <blockquote className="mx-auto mt-6 max-w-3xl text-xl font-semibold leading-relaxed text-[#1a1d29] sm:text-2xl">
-              « Une école fluide, c’est la même information pour tout le monde — au bon moment, avec le bon niveau de
-              détail. »
+          <HomeReveal>
+          <div className="relative overflow-hidden rounded-[2rem] border border-amber-200/60 bg-gradient-to-br from-amber-50/90 via-white to-stone-50 px-6 py-14 text-center shadow-[0_28px_56px_-22px_rgba(180,83,9,0.18)] ring-1 ring-amber-100/80 sm:px-14 sm:py-16">
+            <span
+              className="pointer-events-none absolute -left-4 top-6 font-display text-[8rem] font-bold leading-none text-amber-200/40 sm:left-8"
+              aria-hidden
+            >
+              «
+            </span>
+            <FiMessageSquare className="relative z-10 mx-auto h-11 w-11 text-amber-800" aria-hidden />
+            <blockquote className="relative z-10 mx-auto mt-8 max-w-3xl font-display text-2xl font-medium leading-snug text-stone-900 sm:text-3xl">
+              Une école fluide, c’est la même information pour tout le monde — au bon moment, avec le bon niveau de
+              détail.
             </blockquote>
-            <p className="mt-6 text-sm font-medium text-[#5c617a]">Vision produit — Gestion Scolaire</p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            <p className="relative z-10 mt-8 text-sm font-semibold uppercase tracking-wider text-stone-500">
+              Vision produit — Gestion Scolaire
+            </p>
+            <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-2">
               {[...Array(5)].map((_, i) => (
                 <FiStar key={i} className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
               ))}
-              <span className="ml-2 text-sm text-[#5c617a]">Conçu pour les équipes éducatives</span>
+              <span className="ml-2 text-sm font-medium text-stone-600">Pensé pour les équipes éducatives</span>
             </div>
           </div>
+          </HomeReveal>
         </section>
 
         {/* CTA final */}
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
-          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#2563eb] via-[#4f46e5] to-[#6366f1] px-6 py-16 text-center shadow-2xl shadow-indigo-500/30 sm:px-12 sm:py-20">
-            <div
-              className="pointer-events-none absolute inset-0 opacity-40"
-              style={{
-                background:
-                  'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.25), transparent 45%), radial-gradient(circle at 80% 70%, rgba(99,102,241,0.5), transparent 40%)',
-              }}
-              aria-hidden
-            />
+        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
+          <HomeReveal>
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-stone-950 via-stone-900 to-amber-950 px-6 py-16 text-center shadow-2xl shadow-stone-900/40 ring-1 ring-amber-500/25 sm:px-12 sm:py-20 lg:py-24">
+            <div className="home-cta-aurora pointer-events-none absolute inset-0" aria-hidden />
             <div className="relative mx-auto max-w-2xl">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-                <FiClock className="h-8 w-8 text-white" aria-hidden />
+              <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/10 backdrop-blur-md">
+                <FiClock className="h-8 w-8 text-amber-200" aria-hidden />
               </div>
-              <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-                Donnez à votre établissement un cockpit moderne
+              <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">
+                Un cockpit moderne pour votre établissement
               </h2>
-              <p className="mt-4 text-lg text-indigo-100">
-                Connexion sécurisée, parcours clairs pour chaque rôle, et pages d’aide pour accompagner vos équipes.
+              <p className="mt-5 text-lg text-stone-400">
+                Connexion sécurisée, parcours clairs par rôle, et ressources d’aide pour embarquer vos équipes sans
+                friction.
               </p>
-              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 {!user ? (
                   <>
                     <Link href="/login">
                       <Button
                         size="lg"
-                        className="min-w-[200px] bg-white font-bold text-indigo-700 shadow-xl hover:bg-indigo-50"
+                        variant="secondary"
+                        className="min-w-[220px] border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-amber-50"
                       >
                         Se connecter
                       </Button>
                     </Link>
                     <Link href="/contact">
-                      <span className="inline-flex min-w-[200px] items-center justify-center rounded-lg border-2 border-white/40 bg-transparent px-8 py-4 text-base font-bold text-white transition-colors hover:bg-white/10">
+                      <span className="inline-flex min-w-[220px] items-center justify-center rounded-2xl border-2 border-white/35 bg-transparent px-8 py-4 text-base font-bold text-white transition-colors hover:bg-white/10">
                         Parler à un responsable
                       </span>
                     </Link>
                   </>
                 ) : (
                   <Link href={`/${user.role.toLowerCase()}`}>
-                    <Button size="lg" className="bg-white font-bold text-indigo-700 shadow-xl">
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-amber-50"
+                    >
                       Retour au tableau de bord
                     </Button>
                   </Link>
                 )}
               </div>
-              <p className="mt-10 text-sm text-indigo-200">
-                <Link href="/faq" className="font-medium underline decoration-indigo-300/60 underline-offset-4 hover:text-white">
+              <p className="mt-12 text-sm text-stone-500">
+                <Link
+                  href="/faq"
+                  className="font-medium text-amber-200/90 underline decoration-amber-400/40 underline-offset-4 hover:text-white"
+                >
                   Questions fréquentes
                 </Link>
-                <span className="mx-2 text-indigo-300">·</span>
+                <span className="mx-2 text-stone-600">·</span>
                 <Link
                   href="/contact"
-                  className="font-medium underline decoration-indigo-300/60 underline-offset-4 hover:text-white"
+                  className="font-medium text-amber-200/90 underline decoration-amber-400/40 underline-offset-4 hover:text-white"
                 >
                   Contact
                 </Link>
               </p>
             </div>
           </div>
+          </HomeReveal>
         </section>
       </main>
 

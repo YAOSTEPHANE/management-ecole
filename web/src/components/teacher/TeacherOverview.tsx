@@ -4,6 +4,16 @@ import { teacherApi } from '../../services/api';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import { FiBook, FiUsers, FiClipboard, FiCalendar, FiTrendingUp, FiClock, FiFileText, FiAlertCircle } from 'react-icons/fi';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { CHART_GRID, CHART_MARGIN_COMPACT, CHART_ANIMATION_MS } from '../charts';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 
@@ -26,6 +36,12 @@ const TeacherOverview = () => {
       return assignments.flat();
     },
     enabled: !!courses && courses.length > 0,
+  });
+
+  const { data: teachKpi } = useQuery({
+    queryKey: ['teacher-dashboard-kpis'],
+    queryFn: () => teacherApi.getDashboardKpis(),
+    staleTime: 60_000,
   });
 
   // Calculate unique students across all courses
@@ -140,6 +156,49 @@ const TeacherOverview = () => {
           );
         })}
       </div>
+
+      {teachKpi?.charts?.gradesByMonth && teachKpi.charts.gradesByMonth.length > 0 && (
+        <Card variant="premium" className="ring-1 ring-slate-900/5 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">KPI & tendance des notes (90 j.)</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                Moyenne sur 20 par mois · {teachKpi.cards?.gradesRecorded90d ?? 0} note(s) · RDV parents en attente :{' '}
+                {teachKpi.cards?.pendingParentAppointments ?? 0}
+              </p>
+            </div>
+            {teachKpi.cards?.averageGradeOn20Last90d != null && (
+              <div className="text-right">
+                <p className="text-[10px] uppercase text-slate-500 font-semibold">Moyenne brute (période)</p>
+                <p className="text-2xl font-bold text-teal-800">{teachKpi.cards.averageGradeOn20Last90d} / 20</p>
+              </div>
+            )}
+          </div>
+          <div className="h-56 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={teachKpi.charts.gradesByMonth}
+                margin={{ ...CHART_MARGIN_COMPACT, top: 8 }}
+              >
+                <CartesianGrid {...CHART_GRID} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                <YAxis domain={[0, 20]} width={28} tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v: number) => [`${v} / 20`, 'Moyenne']} />
+                <Line
+                  type="monotone"
+                  dataKey="average20"
+                  stroke="#0d9488"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  connectNulls
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
 
       {/* Prochaines actions */}
       {upcomingAssignments.length > 0 && (

@@ -1,0 +1,3 @@
+Photographies (Unsplash — licence ouverte) :
+- hero-platform, pillar-*, split-campus, role-* : banque Unsplash, téléchargées pour l’interface « Gestion Scolaire ».
+Conservez ce dossier si vous publiez l’application ; pour crédit visible, voir https://unsplash.com/fr/licence

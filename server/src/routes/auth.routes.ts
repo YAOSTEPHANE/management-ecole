@@ -3,25 +3,43 @@ import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { generateToken } from '../utils/jwt.util';
 import { hashPassword, comparePassword } from '../utils/password.util';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import {
   createPasswordResetToken,
   sendPasswordResetEmail,
+  sendTransactionalHtmlEmail,
   verifyResetToken,
   markTokenAsUsed,
 } from '../utils/email.util';
+import {
+  authLoginLimiter,
+  authRegisterLimiter,
+  authForgotPasswordLimiter,
+  authResetPasswordLimiter,
+  gdprExportLimiter,
+  gdprErasureRequestLimiter,
+} from '../middleware/rate-limit.middleware';
+import { decryptSessionUserPayload } from '../utils/student-sensitive-crypto.util';
+import { buildGdprDataExport } from '../utils/gdpr-data-export.util';
+import QRCode from 'qrcode';
+import { generateTwoFactorSecret, verifyTwoFactorToken } from '../utils/two-factor.util';
 
 const router = express.Router();
 
 // Inscription
 router.post(
   '/register',
+  authRegisterLimiter,
   [
     body('email').isEmail().withMessage('Email invalide'),
     body('password').isLength({ min: 6 }).withMessage('Mot de passe trop court'),
     body('firstName').notEmpty().withMessage('Prénom requis'),
     body('lastName').notEmpty().withMessage('Nom requis'),
-    body('role').isIn(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'EDUCATOR']).withMessage('Rôle invalide'),
+    body('role')
+      .isIn(['STUDENT', 'PARENT'])
+      .withMessage(
+        'Inscription publique réservée aux rôles élève et parent. Les autres comptes sont créés par l’administration.'
+      ),
   ],
   async (req, res) => {
     try {
@@ -30,11 +48,14 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, firstName, lastName, role, phone } = req.body;
+      const emailNorm = String(req.body.email ?? '')
+        .trim()
+        .toLowerCase();
+      const { password, firstName, lastName, role, phone } = req.body;
 
       // Vérifier si l'utilisateur existe déjà
       const existingUser = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailNorm },
       });
 
       if (existingUser) {
@@ -47,7 +68,7 @@ router.post(
       // Créer l'utilisateur
       const user = await prisma.user.create({
         data: {
-          email,
+          email: emailNorm,
           password: hashedPassword,
           firstName,
           lastName,
@@ -80,6 +101,7 @@ router.post(
 // Connexion
 router.post(
   '/login',
+  authLoginLimiter,
   [
     body('email').isEmail().withMessage('Email invalide'),
     body('password').notEmpty().withMessage('Mot de passe requis'),
@@ -91,23 +113,27 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password } = req.body;
+      const emailNorm = String(req.body.email ?? '')
+        .trim()
+        .toLowerCase();
+      const { password, twoFactorCode } = req.body;
 
       // Trouver l'utilisateur (tous les profils pour le même schéma que /auth/me)
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailNorm },
         include: {
           teacherProfile: true,
           studentProfile: true,
           parentProfile: true,
           educatorProfile: true,
+          staffProfile: true,
         },
       });
 
       // Logs de débogage en mode développement
       if (process.env.NODE_ENV === 'development') {
         console.log('🔍 Tentative de connexion:', {
-          email,
+          email: emailNorm,
           userExists: !!user,
           isActive: user?.isActive,
         });
@@ -115,14 +141,14 @@ router.post(
 
       if (!user) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('❌ Utilisateur non trouvé:', email);
+          console.log('❌ Utilisateur non trouvé:', emailNorm);
         }
         return res.status(401).json({ error: 'Identifiants invalides' });
       }
 
       if (!user.isActive) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('❌ Utilisateur inactif:', email);
+          console.log('❌ Utilisateur inactif:', emailNorm);
         }
         return res.status(401).json({ error: 'Votre compte a été désactivé. Contactez l\'administrateur.' });
       }
@@ -143,7 +169,7 @@ router.post(
       let isValidPassword = false;
       try {
         isValidPassword = await comparePassword(password, user.password);
-      } catch (compareErr: any) {
+      } catch (compareErr: unknown) {
         console.error('Erreur bcrypt.compare (hash invalide en base ?):', compareErr);
         return res.status(500).json({
           error:
@@ -153,16 +179,39 @@ router.post(
 
       if (process.env.NODE_ENV === 'development') {
         console.log('🔐 Vérification du mot de passe:', {
-          email,
+          email: emailNorm,
           isValid: isValidPassword,
         });
       }
 
       if (!isValidPassword) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('❌ Mot de passe incorrect pour:', email);
+          console.log('❌ Mot de passe incorrect pour:', emailNorm);
         }
         return res.status(401).json({ error: 'Identifiants invalides' });
+      }
+
+      const twoFactor = await prisma.userTwoFactorSettings.findUnique({
+        where: { userId: user.id },
+      });
+      if (twoFactor?.enabled) {
+        if (!twoFactorCode || typeof twoFactorCode !== 'string') {
+          return res.status(401).json({
+            error: 'Code 2FA requis',
+            code: 'TWO_FACTOR_REQUIRED',
+          });
+        }
+        const ok2fa = verifyTwoFactorToken(twoFactor.secretEncrypted, twoFactorCode);
+        if (!ok2fa) {
+          return res.status(401).json({
+            error: 'Code 2FA invalide',
+            code: 'TWO_FACTOR_INVALID',
+          });
+        }
+        await prisma.userTwoFactorSettings.update({
+          where: { userId: user.id },
+          data: { lastVerifiedAt: new Date() },
+        });
       }
 
       // Générer le token
@@ -183,8 +232,9 @@ router.post(
 
       res.json({
         message: 'Connexion réussie',
-        user: userWithoutPassword,
+        user: decryptSessionUserPayload(userWithoutPassword),
         token,
+        twoFactorEnabled: Boolean(twoFactor?.enabled),
       });
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
@@ -228,7 +278,7 @@ router.put('/me', authenticate, async (req: any, res) => {
       },
     });
 
-    res.json(updatedUser);
+    res.json(decryptSessionUserPayload(updatedUser));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -292,6 +342,8 @@ router.get('/me', authenticate, async (req: any, res) => {
         },
         parentProfile: {
           include: {
+            contacts: { orderBy: { sortOrder: 'asc' } },
+            consents: { take: 50, orderBy: { updatedAt: 'desc' } },
             students: {
               include: {
                 student: {
@@ -310,10 +362,34 @@ router.get('/me', authenticate, async (req: any, res) => {
                         lastName: true,
                       },
                     },
+                    pickupAuthorizations: { take: 15, orderBy: { createdAt: 'desc' } },
                   },
                 },
               },
             },
+          },
+        },
+        educatorProfile: {
+          select: {
+            id: true,
+            employeeId: true,
+            specialization: true,
+            hireDate: true,
+            contractType: true,
+            salary: true,
+          },
+        },
+        staffProfile: {
+          select: {
+            id: true,
+            employeeId: true,
+            staffCategory: true,
+            supportKind: true,
+            jobTitle: true,
+            department: true,
+            hireDate: true,
+            contractType: true,
+            salary: true,
           },
         },
       },
@@ -323,7 +399,7 @@ router.get('/me', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    res.json(user);
+    res.json(decryptSessionUserPayload(user));
   } catch (error: any) {
     console.error('Erreur dans /auth/me:', error);
     res.status(500).json({ 
@@ -333,9 +409,92 @@ router.get('/me', authenticate, async (req: any, res) => {
   }
 });
 
+router.post('/2fa/setup', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, email: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    const { secretEncrypted, otpauthUrl } = generateTwoFactorSecret(user.email);
+    await prisma.userTwoFactorSettings.upsert({
+      where: { userId: user.id },
+      update: {
+        enabled: false,
+        method: 'TOTP',
+        secretEncrypted,
+      },
+      create: {
+        userId: user.id,
+        enabled: false,
+        method: 'TOTP',
+        secretEncrypted,
+      },
+    });
+
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+    res.json({ otpauthUrl, qrCodeDataUrl });
+  } catch (error: any) {
+    console.error('POST /auth/2fa/setup:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/2fa/verify', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { code } = req.body as { code?: string };
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Code requis' });
+    }
+    const settings = await prisma.userTwoFactorSettings.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!settings) return res.status(404).json({ error: 'Configuration 2FA introuvable' });
+
+    const ok = verifyTwoFactorToken(settings.secretEncrypted, code);
+    if (!ok) return res.status(400).json({ error: 'Code invalide' });
+
+    await prisma.userTwoFactorSettings.update({
+      where: { userId: req.user!.id },
+      data: {
+        enabled: true,
+        lastVerifiedAt: new Date(),
+      },
+    });
+    res.json({ ok: true, enabled: true });
+  } catch (error: any) {
+    console.error('POST /auth/2fa/verify:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/2fa/disable', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { password } = req.body as { password?: string };
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Mot de passe requis' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    const valid = await comparePassword(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Mot de passe invalide' });
+
+    await prisma.userTwoFactorSettings.updateMany({
+      where: { userId: req.user!.id },
+      data: { enabled: false },
+    });
+    res.json({ ok: true, enabled: false });
+  } catch (error: any) {
+    console.error('POST /auth/2fa/disable:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
 // Demande de réinitialisation de mot de passe
 router.post(
   '/forgot-password',
+  authForgotPasswordLimiter,
   [body('email').isEmail().withMessage('Email invalide')],
   async (req, res) => {
     try {
@@ -344,10 +503,12 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email } = req.body;
+      const emailNorm = String(req.body.email ?? '')
+        .trim()
+        .toLowerCase();
 
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailNorm },
       });
 
       // Pour la sécurité, ne pas révéler si l'email existe
@@ -362,7 +523,7 @@ router.post(
       const token = await createPasswordResetToken(user.id);
 
       // Envoyer l'email de réinitialisation
-      await sendPasswordResetEmail(email, token, user.firstName);
+      await sendPasswordResetEmail(emailNorm, token, user.firstName);
 
       res.json({
         message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
@@ -377,6 +538,7 @@ router.post(
 // Réinitialisation de mot de passe avec token
 router.post(
   '/reset-password',
+  authResetPasswordLimiter,
   [
     body('token').notEmpty().withMessage('Token requis'),
     body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
@@ -424,6 +586,102 @@ router.post(
     } catch (error: any) {
       console.error('Erreur lors de la réinitialisation:', error);
       res.status(500).json({ error: error.message || 'Erreur serveur' });
+    }
+  }
+);
+
+// —— RGPD : portabilité et demandes d’effacement ——
+
+router.get('/gdpr/export', authenticate, gdprExportLimiter, async (req: AuthRequest, res) => {
+  try {
+    const payload = await buildGdprDataExport(req.user!.id);
+    const safeName = `${req.user!.email.replace(/[^a-zA-Z0-9._-]/g, '_')}-${new Date().toISOString().slice(0, 10)}`;
+    const filename = `school-manager-donnees-${safeName}.json`;
+
+    try {
+      await prisma.securityEvent.create({
+        data: {
+          userId: req.user!.id,
+          type: 'gdpr_data_export',
+          description: 'Export JSON des données personnelles (droit de portabilité)',
+          ipAddress: req.ip || req.socket.remoteAddress || undefined,
+          userAgent: req.get('user-agent') || undefined,
+          severity: 'info',
+        },
+      });
+    } catch (_) {
+      /* ne pas bloquer l’export */
+    }
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(payload, null, 2));
+  } catch (error: unknown) {
+    console.error('GET /auth/gdpr/export:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post(
+  '/gdpr/erasure-request',
+  authenticate,
+  gdprErasureRequestLimiter,
+  [body('details').optional().isString().isLength({ max: 2000 })],
+  async (req: AuthRequest, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      if (req.user!.role === 'ADMIN') {
+        return res.status(403).json({
+          error:
+            'Pour les comptes administrateurs, l’effacement ou la limitation se fait selon une procédure interne. Contactez le responsable du traitement (DPO / direction).',
+        });
+      }
+
+      const details =
+        typeof req.body?.details === 'string' ? req.body.details.trim().slice(0, 2000) : '';
+
+      await prisma.securityEvent.create({
+        data: {
+          userId: req.user!.id,
+          type: 'gdpr_erasure_request',
+          description: `Demande d'effacement / limitation RGPD — ${req.user!.email}${details ? ` — ${details}` : ''}`,
+          ipAddress: req.ip || req.socket.remoteAddress || undefined,
+          userAgent: req.get('user-agent') || undefined,
+          severity: 'warning',
+        },
+      });
+
+      const to = process.env.GDPR_CONTACT_EMAIL?.trim() || process.env.EMAIL_FROM?.trim();
+      if (to) {
+        const subject = `[RGPD] Demande concernant les données — ${req.user!.email}`;
+        const text = [
+          `Compte : ${req.user!.email} (${req.user!.role})`,
+          `ID utilisateur : ${req.user!.id}`,
+          details ? `Précisions : ${details}` : '(aucune précision)',
+          '',
+          'Traiter cette demande conformément au RGPD et aux obligations de conservation du service scolaire.',
+        ].join('\n');
+        const esc = (s: string) =>
+          s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        await sendTransactionalHtmlEmail(
+          to,
+          subject,
+          text,
+          `<pre style="font-family:system-ui,sans-serif;white-space:pre-wrap">${esc(text)}</pre>`
+        );
+      }
+
+      res.json({
+        message:
+          'Votre demande a été enregistrée. Le responsable du traitement peut vous contacter pour confirmer l’identité ou expliquer les éventuelles obligations de conservation.',
+      });
+    } catch (error: unknown) {
+      console.error('POST /auth/gdpr/erasure-request:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
     }
   }
 );

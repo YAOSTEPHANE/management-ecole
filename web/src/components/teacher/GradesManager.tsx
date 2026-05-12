@@ -383,6 +383,13 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
     comments: grade?.comments || '',
   });
 
+  useEffect(() => {
+    if (!isOpen || isEditMode || !courseData) return;
+    const d =
+      courseData.gradingCoefficient != null ? String(courseData.gradingCoefficient) : '1';
+    setFormData((prev) => ({ ...prev, coefficient: d }));
+  }, [isOpen, isEditMode, courseData?.id, courseData?.gradingCoefficient]);
+
   // Fetch students for the course's class
   const { data: students } = useQuery({
     queryKey: ['course-students', courseId],

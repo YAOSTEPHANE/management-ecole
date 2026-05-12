@@ -1,0 +1,88 @@
+import axios from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
+import {
+  persistSuccessfulGet,
+  tryServeGetFromOfflineCache,
+} from '@/lib/offline-api';
+
+/**
+ * Base URL sans slash final.
+ * - Navigateur sur Vercel : même origine `/api` (ou NEXT_PUBLIC_API_URL).
+ * - SSR / Node : URL absolue (VERCEL_URL + préfixe, ou localhost:5000 en dev).
+ */
+const API_URL = (() => {
+  const n = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
+  if (n?.startsWith('http')) return n;
+  if (typeof window !== 'undefined') {
+    return n || (process.env.VERCEL ? '/api' : 'http://localhost:5000/api');
+  }
+  if (process.env.VERCEL_URL) {
+    const path = n?.startsWith('/') ? n : '/api';
+    return `https://${process.env.VERCEL_URL}${path}`;
+  }
+  if (n?.startsWith('/')) {
+    return `http://localhost:5000${n}`;
+  }
+  return n || 'http://localhost:5000/api';
+})();
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Intercepteur pour ajouter le token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Réponses : mise en cache des GET essentiels pour le mode hors ligne
+api.interceptors.response.use(
+  async (response) => {
+    if (typeof window !== 'undefined') {
+      await persistSuccessfulGet(response.config as InternalAxiosRequestConfig, response.data);
+    }
+    return response;
+  },
+  async (error) => {
+    const config = error.config as InternalAxiosRequestConfig | undefined;
+
+    if (config && typeof window !== 'undefined') {
+      const cached = await tryServeGetFromOfflineCache(config, error);
+      if (cached !== null) {
+        return {
+          data: cached,
+          status: 200,
+          statusText: 'OK (cache hors ligne)',
+          headers: {} as never,
+          config,
+        };
+      }
+    }
+
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+      console.warn('Serveur backend non disponible ou hors ligne.');
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('token');
+      } catch {
+        /* ignore */
+      }
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;

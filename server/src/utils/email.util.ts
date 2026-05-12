@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import prisma from './prisma';
 
 /**
@@ -75,51 +76,111 @@ export const markTokenAsUsed = async (token: string): Promise<void> => {
   });
 };
 
+function getFrontendBase(): string {
+  const raw = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return raw.split(',')[0].trim();
+}
+
+/** URL du front (première origine CORS) — liens dans e-mails / notifications push */
+export function getPublicFrontendBase(): string {
+  return getFrontendBase();
+}
+
+export function isSmtpConfigured(): boolean {
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
+  if (!host || !user || !pass) return false;
+  if (user === 'your-email@gmail.com' || pass === 'your-password') return false;
+  return true;
+}
+
+function getEmailFrom(): string {
+  return process.env.EMAIL_FROM?.trim() || process.env.SMTP_USER || 'noreply@localhost';
+}
+
+/**
+ * E-mail HTML/text générique (alertes importantes).
+ */
+export async function sendTransactionalHtmlEmail(
+  to: string,
+  subject: string,
+  text: string,
+  html: string
+): Promise<{ ok: boolean }> {
+  try {
+    const transporter = await getTransporter();
+    if (transporter) {
+      await transporter.sendMail({
+        from: getEmailFrom(),
+        to,
+        subject,
+        text,
+        html,
+      });
+      return { ok: true };
+    }
+    console.log('\n=== E-MAIL TRANSACTIONNEL (SMTP non configuré) ===');
+    console.log(`À: ${to}`);
+    console.log(`Sujet: ${subject}`);
+    console.log(text);
+    console.log('========================\n');
+    return { ok: true };
+  } catch (error) {
+    console.error('sendTransactionalHtmlEmail:', error);
+    return { ok: false };
+  }
+}
+
+async function getTransporter(): Promise<nodemailer.Transporter | null> {
+  if (!isSmtpConfigured()) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
 /**
  * Génère le lien de réinitialisation de mot de passe
- * Note: En production, remplacez par votre URL frontend réelle
  */
 export const getResetPasswordUrl = (token: string): string => {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const frontendUrl = getFrontendBase();
   return `${frontendUrl}/reset-password?token=${token}`;
 };
 
 /**
- * Envoie un email de réinitialisation de mot de passe
- * TODO: Implémenter avec un vrai service d'email (Nodemailer, SendGrid, etc.)
- * Pour l'instant, on log juste le lien dans la console
+ * Envoie un email de réinitialisation de mot de passe (SMTP si configuré, sinon log console).
  */
 export const sendPasswordResetEmail = async (email: string, token: string, firstName: string): Promise<void> => {
   const resetUrl = getResetPasswordUrl(token);
+  const transporter = await getTransporter();
 
-  // TODO: Implémenter l'envoi d'email réel
-  // Exemple avec Nodemailer:
-  // await transporter.sendMail({
-  //   from: process.env.EMAIL_FROM,
-  //   to: email,
-  //   subject: 'Réinitialisation de votre mot de passe',
-  //   html: `...`
-  // });
+  if (transporter) {
+    await transporter.sendMail({
+      from: getEmailFrom(),
+      to: email,
+      subject: 'Réinitialisation de votre mot de passe',
+      text: `Bonjour ${firstName},\n\nPour définir un nouveau mot de passe, ouvrez ce lien :\n${resetUrl}\n\nCe lien expire dans une heure.\n`,
+      html: `<p>Bonjour ${firstName},</p><p>Pour définir un nouveau mot de passe, cliquez sur le lien ci-dessous :</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Ce lien expire dans une heure.</p>`,
+    });
+    return;
+  }
 
-  // Pour l'instant, on log dans la console (utile pour le développement)
-  console.log('\n=== EMAIL DE RÉINITIALISATION DE MOT DE PASSE ===');
+  console.log('\n=== EMAIL DE RÉINITIALISATION DE MOT DE PASSE (SMTP non configuré) ===');
   console.log(`Destinataire: ${email}`);
   console.log(`Nom: ${firstName}`);
   console.log(`Lien de réinitialisation: ${resetUrl}`);
   console.log(`Token: ${token}`);
   console.log('================================================\n');
-
-  // En production, vous devriez utiliser un vrai service d'email
-  // Pour tester, vous pouvez copier le lien depuis la console du serveur
 };
 
 /**
  * Envoie un email de message
- * @param email Adresse email du destinataire
- * @param subject Sujet du message
- * @param content Contenu du message
- * @param senderName Nom de l'expéditeur
- * @returns Promise<{ success: boolean; messageId?: string; error?: string }>
  */
 export const sendMessageEmail = async (
   email: string,
@@ -128,45 +189,153 @@ export const sendMessageEmail = async (
   senderName: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
-    // TODO: Implémenter avec un vrai service d'email (Nodemailer, SendGrid, etc.)
-    // Exemple avec Nodemailer:
-    // const transporter = nodemailer.createTransport({
-    //   host: process.env.SMTP_HOST,
-    //   port: parseInt(process.env.SMTP_PORT || '587'),
-    //   secure: false,
-    //   auth: {
-    //     user: process.env.SMTP_USER,
-    //     pass: process.env.SMTP_PASS,
-    //   },
-    // });
-    // 
-    // const mailOptions = {
-    //   from: process.env.EMAIL_FROM,
-    //   to: email,
-    //   subject: subject || 'Message de School Manager',
-    //   html: `
-    //     <h2>Message de ${senderName}</h2>
-    //     <p>${content}</p>
-    //   `,
-    // };
-    // 
-    // const info = await transporter.sendMail(mailOptions);
-    // return { success: true, messageId: info.messageId };
+    const transporter = await getTransporter();
+    const subj = subject || 'Message de School Manager';
 
-    // Pour l'instant, on log dans la console (utile pour le développement)
-    console.log('\n=== EMAIL DE MESSAGE ===');
+    if (transporter) {
+      const info = await transporter.sendMail({
+        from: getEmailFrom(),
+        to: email,
+        subject: subj,
+        text: `${senderName} vous a écrit :\n\n${content}\n`,
+        html: `<h2>Message de ${senderName}</h2><p>${content.replace(/\n/g, '<br/>')}</p>`,
+      });
+      return { success: true, messageId: info.messageId };
+    }
+
+    console.log('\n=== EMAIL DE MESSAGE (SMTP non configuré) ===');
     console.log(`Destinataire: ${email}`);
     console.log(`Expéditeur: ${senderName}`);
-    console.log(`Sujet: ${subject || 'Sans objet'}`);
+    console.log(`Sujet: ${subj}`);
     console.log(`Contenu: ${content}`);
     console.log('========================\n');
 
-    // Simuler un envoi réussi
-    const messageId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+    const messageId = `email_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     return { success: true, messageId };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur lors de l\'envoi de l\'email';
     console.error('Erreur lors de l\'envoi de l\'email:', error);
-    return { success: false, error: error.message || 'Erreur lors de l\'envoi de l\'email' };
+    return { success: false, error: message };
+  }
+};
+
+export type AttendanceEmailPayload = {
+  to: string;
+  parentFirstName: string;
+  studentFullName: string;
+  statusLabel: string;
+  courseLine: string;
+  dateStr: string;
+  timeStr: string;
+  senderName: string;
+  /** Détail optionnel (ex. durée du retard) */
+  detailLine?: string;
+};
+
+/**
+ * Courriel aux parents lors d’un pointage (présence / absence).
+ */
+export const sendAttendanceNotificationEmail = async (
+  payload: AttendanceEmailPayload
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+  try {
+    const transporter = await getTransporter();
+    const subject = `Présence scolaire — ${payload.studentFullName}`;
+    const extra = payload.detailLine ? `\n\n${payload.detailLine}` : '';
+    const extraHtml = payload.detailLine ? `<p>${payload.detailLine}</p>` : '';
+    const text = `Bonjour ${payload.parentFirstName},\n\nNous vous informons que ${payload.studentFullName} a été enregistré(e) comme « ${payload.statusLabel} » pour le cours « ${payload.courseLine} » le ${payload.dateStr} (${payload.timeStr}).${extra}\n\nCordialement,\n${payload.senderName}`;
+    const html = `<p>Bonjour ${payload.parentFirstName},</p><p>Nous vous informons que <strong>${payload.studentFullName}</strong> a été enregistré(e) comme <strong>${payload.statusLabel}</strong> pour le cours <strong>${payload.courseLine}</strong> le ${payload.dateStr} (${payload.timeStr}).</p>${extraHtml}<p>Cordialement,<br/>${payload.senderName}</p>`;
+
+    if (transporter) {
+      const info = await transporter.sendMail({
+        from: getEmailFrom(),
+        to: payload.to,
+        subject,
+        text,
+        html,
+      });
+      return { success: true, messageId: info.messageId };
+    }
+
+    console.log('\n=== EMAIL PRÉSENCE (SMTP non configuré) ===');
+    console.log(`Destinataire: ${payload.to}`);
+    console.log(`Sujet: ${subject}`);
+    console.log(text);
+    console.log('========================\n');
+
+    const messageId = `email_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    return { success: true, messageId };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur lors de l\'envoi de l\'email';
+    console.error('Erreur lors de l\'envoi de l\'email de présence:', error);
+    return { success: false, error: message };
+  }
+};
+
+export type TeacherLeaveDecisionPayload = {
+  to: string;
+  teacherFirstName: string;
+  decision: 'APPROVED' | 'REJECTED';
+  leaveTypeLabel: string;
+  startDateStr: string;
+  endDateStr: string;
+  adminComment?: string | null;
+};
+
+/**
+ * Courriel à l’enseignant lorsque la direction approuve ou refuse une demande de congé.
+ */
+export const sendTeacherLeaveDecisionEmail = async (
+  payload: TeacherLeaveDecisionPayload
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+  try {
+    const transporter = await getTransporter();
+    const decided =
+      payload.decision === 'APPROVED'
+        ? 'acceptée'
+        : 'refusée';
+    const subject =
+      payload.decision === 'APPROVED'
+        ? `Demande de congé acceptée — ${payload.leaveTypeLabel}`
+        : `Demande de congé refusée — ${payload.leaveTypeLabel}`;
+    const lines: string[] = [
+      `Bonjour ${payload.teacherFirstName},`,
+      '',
+      `Votre demande de congé (${payload.leaveTypeLabel}, du ${payload.startDateStr} au ${payload.endDateStr}) a été ${decided} par la direction.`,
+    ];
+    if (payload.adminComment) {
+      lines.push('', 'Message de la direction :', payload.adminComment);
+    }
+    lines.push('', 'Cordialement,', 'La direction');
+    const text = lines.join('\n');
+    const html = `<p>Bonjour ${payload.teacherFirstName},</p><p>Votre demande de congé (<strong>${payload.leaveTypeLabel}</strong>, du <strong>${payload.startDateStr}</strong> au <strong>${payload.endDateStr}</strong>) a été <strong>${decided}</strong> par la direction.</p>${
+      payload.adminComment
+        ? `<p><strong>Message de la direction :</strong><br/>${payload.adminComment.replace(/\n/g, '<br/>')}</p>`
+        : ''
+    }<p>Cordialement,<br/>La direction</p>`;
+
+    if (transporter) {
+      const info = await transporter.sendMail({
+        from: getEmailFrom(),
+        to: payload.to,
+        subject,
+        text,
+        html,
+      });
+      return { success: true, messageId: info.messageId };
+    }
+
+    console.log('\n=== EMAIL DÉCISION CONGÉ ENSEIGNANT (SMTP non configuré) ===');
+    console.log(`Destinataire: ${payload.to}`);
+    console.log(`Sujet: ${subject}`);
+    console.log(text);
+    console.log('========================\n');
+
+    const messageId = `email_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    return { success: true, messageId };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur lors de l\'envoi de l\'email';
+    console.error('Erreur email décision congé:', error);
+    return { success: false, error: message };
   }
 };

@@ -31,6 +31,12 @@ import {
   enrollmentBadgeVariant,
   type EnrollmentStatusValue,
 } from '../../lib/enrollmentStatus';
+import {
+  STATE_ASSIGNMENT_LABELS,
+  normalizeStateAssignment,
+  stateAssignmentBadgeVariant,
+} from '../../lib/stateAssignment';
+import GdprUserRightsPanel from '../gdpr/GdprUserRightsPanel';
 
 function genderLabel(g?: string) {
   switch (g) {
@@ -181,13 +187,17 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
     : null;
 
   const enrollmentKey = ((profile?.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE');
+  const stateAssignmentKey = normalizeStateAssignment(profile?.stateAssignment);
 
   if (isLoading) {
     return (
       <Card>
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600" />
-          <p className="mt-4 text-gray-600">Chargement du profil...</p>
+          <div
+            className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-amber-200 border-t-amber-700"
+            aria-hidden
+          />
+          <p className="mt-4 text-stone-600">Chargement du profil…</p>
         </div>
       </Card>
     );
@@ -196,10 +206,10 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
   if (!profileMatchesSearch && searchQuery) {
     return (
       <Card>
-        <div className="text-center py-12 text-gray-500">
-          <FiSearch className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <p className="text-lg mb-2">Aucun résultat trouvé dans le profil</p>
-          <p className="text-sm">Essayez avec d&apos;autres mots-clés</p>
+        <div className="text-center py-12 text-stone-600">
+          <FiSearch className="w-16 h-16 mx-auto mb-4 text-stone-400" aria-hidden />
+          <p className="text-lg font-semibold text-stone-900 mb-2">Aucun résultat dans le profil</p>
+          <p className="text-sm">Essayez d&apos;autres mots-clés</p>
         </div>
       </Card>
     );
@@ -208,24 +218,24 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
   return (
     <div className="space-y-6">
       {searchQuery && (
-        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
-          <div className="flex items-center space-x-3">
-            <FiSearch className="w-5 h-5 text-purple-600" />
+        <Card className="bg-gradient-to-r from-violet-50/90 to-amber-50/50 border border-violet-200/80 ring-1 ring-amber-900/5">
+          <div className="flex items-center gap-3">
+            <FiSearch className="w-5 h-5 text-violet-700 shrink-0" aria-hidden />
             <div>
-              <p className="font-semibold text-gray-900">
-                Recherche : <span className="text-purple-600">&quot;{searchQuery}&quot;</span>
+              <p className="font-semibold text-stone-900">
+                Recherche : <span className="text-violet-800">&quot;{searchQuery}&quot;</span>
               </p>
-              <p className="text-sm text-gray-600">Résultats dans le profil</p>
+              <p className="text-sm text-stone-600">Résultats dans le profil</p>
             </div>
           </div>
         </Card>
       )}
 
-      <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/20 px-5 py-6 sm:px-8 sm:py-7 shadow-sm">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+      <div className="lux-card-surface px-5 py-6 sm:px-8 sm:py-7">
+        <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
           Profil et informations personnelles
         </h1>
-        <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-3xl">
+        <p className="mt-2 text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed">
           Mettez à jour l&apos;identité affichée sur votre compte, votre photo et les coordonnées utiles à
           l&apos;établissement. Les données administratives (email scolaire, classe, naissance) sont gérées par
           le secrétariat.
@@ -233,13 +243,13 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
       </div>
 
       {/* —— Profil (identité + photo + infos admin) —— */}
-      <Card className="border border-gray-200/80 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 bg-gray-50/80 px-5 py-4 sm:px-6">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <FiUser className="w-5 h-5 text-purple-600" aria-hidden />
+      <Card className="border border-stone-200/90 shadow-sm overflow-hidden">
+        <div className="border-b border-stone-200/80 bg-stone-50/90 px-5 py-4 sm:px-6">
+          <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+            <FiUser className="w-5 h-5 text-amber-800" aria-hidden />
             Profil
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-stone-600 mt-1">
             Photo, nom et téléphone élève ; informations de scolarité en lecture seule.
           </p>
         </div>
@@ -265,13 +275,13 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
 
             <div className="flex-1 space-y-8">
               <div>
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-4">
-                  <FiEdit3 className="w-4 h-4 text-purple-600" />
+                <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2 mb-4">
+                  <FiEdit3 className="w-4 h-4 text-amber-800" aria-hidden />
                   Identité (modifiable)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="student-firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="student-firstName" className="block text-sm font-medium text-stone-700 mb-1">
                       Prénom
                     </label>
                     <input
@@ -279,11 +289,11 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                       type="text"
                       value={identity.firstName}
                       onChange={(e) => setIdentity((s) => ({ ...s, firstName: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
                     />
                   </div>
                   <div>
-                    <label htmlFor="student-lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="student-lastName" className="block text-sm font-medium text-stone-700 mb-1">
                       Nom
                     </label>
                     <input
@@ -291,11 +301,11 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                       type="text"
                       value={identity.lastName}
                       onChange={(e) => setIdentity((s) => ({ ...s, lastName: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500"
+                      className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
                     />
                   </div>
                   <div className="md:col-span-2 max-w-md">
-                    <label htmlFor="student-phone" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="student-phone" className="block text-sm font-medium text-stone-700 mb-1">
                       Téléphone (élève)
                     </label>
                     <input
@@ -304,69 +314,78 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                       value={identity.phone}
                       onChange={(e) => setIdentity((s) => ({ ...s, phone: e.target.value }))}
                       placeholder="Optionnel"
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500"
+                      className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-4">
-                  <FiShield className="w-4 h-4 text-gray-500" />
+              <div className="rounded-xl border border-stone-200/80 bg-stone-50/70 p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2 mb-4">
+                  <FiShield className="w-4 h-4 text-stone-500" aria-hidden />
                   Informations administratives (lecture seule)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-start gap-2">
-                    <FiMail className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                    <FiMail className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">Email (connexion)</span>
-                      <span className="font-medium text-gray-900 break-all">{profile?.user.email}</span>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Email (connexion)</span>
+                      <span className="font-medium text-stone-900 break-all">{profile?.user.email}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiHash className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                    <FiHash className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">Numéro élève</span>
-                      <span className="font-mono font-semibold text-gray-900">{profile?.studentId}</span>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Numéro élève</span>
+                      <span className="font-mono font-semibold text-stone-900">{profile?.studentId}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiShield className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                    <FiShield className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">Statut d&apos;inscription</span>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Statut d&apos;inscription</span>
                       <Badge variant={enrollmentBadgeVariant(enrollmentKey)} size="sm" className="mt-1">
                         {ENROLLMENT_STATUS_LABELS[enrollmentKey]}
                       </Badge>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiCalendar className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                    <FiInfo className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">Date d&apos;inscription</span>
-                      <span className="font-medium text-gray-900">{formatDateFr(profile?.enrollmentDate)}</span>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Affectation État</span>
+                      <Badge variant={stateAssignmentBadgeVariant(stateAssignmentKey)} size="sm" className="mt-1">
+                        {STATE_ASSIGNMENT_LABELS[stateAssignmentKey]}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <FiCalendar className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" aria-hidden />
+                    <div>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Date d&apos;inscription</span>
+                      <span className="font-medium text-stone-900">{formatDateFr(profile?.enrollmentDate)}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2 sm:col-span-2">
-                    <FiBook className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
+                    <FiBook className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">Classe</span>
-                      <span className="font-medium text-gray-900">
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">Classe</span>
+                      <span className="font-medium text-stone-900">
                         {profile?.class?.name ?? 'Non assigné'}
                         {profile?.class?.level ? (
-                          <span className="text-gray-600 font-normal"> — {profile.class.level}</span>
+                          <span className="text-stone-600 font-normal"> — {profile.class.level}</span>
                         ) : null}
                       </span>
                       {teacherName && (
-                        <p className="text-xs text-gray-500 mt-1">Professeur principal : {teacherName}</p>
+                        <p className="text-xs text-stone-500 mt-1">Professeur principal : {teacherName}</p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-start gap-2 sm:col-span-2">
-                    <FiCalendar className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
+                    <FiCalendar className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" aria-hidden />
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase tracking-wide">État civil</span>
-                      <p className="font-medium text-gray-900">Naissance : {formatDateFr(profile?.dateOfBirth)}</p>
-                      <p className="text-gray-600 mt-0.5">Genre : {genderLabel(profile?.gender)}</p>
+                      <span className="text-stone-500 block text-xs uppercase tracking-wide">État civil</span>
+                      <p className="font-medium text-stone-900">Naissance : {formatDateFr(profile?.dateOfBirth)}</p>
+                      <p className="text-stone-600 mt-0.5">Genre : {genderLabel(profile?.gender)}</p>
                     </div>
                   </div>
                 </div>
@@ -377,20 +396,20 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
       </Card>
 
       {/* —— Informations personnelles (coordonnées) —— */}
-      <Card className="border border-gray-200/80 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 bg-gray-50/80 px-5 py-4 sm:px-6">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <FiMapPin className="w-5 h-5 text-purple-600" aria-hidden />
+      <Card className="border border-stone-200/90 shadow-sm overflow-hidden">
+        <div className="border-b border-stone-200/80 bg-stone-50/90 px-5 py-4 sm:px-6">
+          <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+            <FiMapPin className="w-5 h-5 text-amber-800" aria-hidden />
             Informations personnelles
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-stone-600 mt-1">
             Adresse, personne à prévenir et informations médicales utiles en cas d&apos;urgence.
           </p>
         </div>
 
         <div className="p-5 sm:p-6 lg:p-8 space-y-4">
           <div>
-            <label htmlFor="student-address" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="student-address" className="block text-sm font-medium text-stone-700 mb-1">
               Adresse
             </label>
             <input
@@ -399,12 +418,12 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
               value={contacts.address}
               onChange={(e) => setContacts((s) => ({ ...s, address: e.target.value }))}
               placeholder="Rue, ville, code postal…"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500"
+              className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
             />
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="student-emergency-name" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="student-emergency-name" className="block text-sm font-medium text-stone-700 mb-1">
                 Personne à contacter en urgence
               </label>
               <input
@@ -413,11 +432,11 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                 value={contacts.emergencyContact}
                 onChange={(e) => setContacts((s) => ({ ...s, emergencyContact: e.target.value }))}
                 placeholder="Nom et prénom"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
               />
             </div>
             <div>
-              <label htmlFor="student-emergency-phone" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="student-emergency-phone" className="block text-sm font-medium text-stone-700 mb-1">
                 Téléphone urgence
               </label>
               <input
@@ -425,14 +444,14 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                 type="tel"
                 value={contacts.emergencyPhone}
                 onChange={(e) => setContacts((s) => ({ ...s, emergencyPhone: e.target.value }))}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="student-medical" className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700 mb-1">
-              <FiAlertTriangle className="w-4 h-4 text-amber-500" />
+            <label htmlFor="student-medical" className="flex flex-wrap items-center gap-2 text-sm font-medium text-stone-700 mb-1">
+              <FiAlertTriangle className="w-4 h-4 text-amber-600" aria-hidden />
               Informations médicales utiles (allergies, traitements…)
             </label>
             <textarea
@@ -441,14 +460,14 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
               value={contacts.medicalInfo}
               onChange={(e) => setContacts((s) => ({ ...s, medicalInfo: e.target.value }))}
               placeholder="Visible par l’établissement pour votre sécurité. Laissez vide si sans objet."
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-purple-500 text-sm"
+              className="w-full rounded-xl border border-stone-200/90 px-3 py-2.5 text-sm text-stone-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
             />
           </div>
 
-          <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="mt-6 pt-6 border-t border-stone-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-2 max-w-2xl">
-              <p className="text-xs text-gray-500 flex items-start gap-2">
-                <FiInfo className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs text-stone-600 flex items-start gap-2">
+                <FiInfo className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
                 Les modifications du nom et du téléphone sont appliquées à votre compte ; l&apos;adresse et les
                 contacts d&apos;urgence sont enregistrés sur votre dossier élève.
               </p>
@@ -474,13 +493,13 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
 
       {/* Parents liés (lecture seule) */}
       {profile?.parents && profile.parents.length > 0 && (
-        <Card className="border border-gray-200/80 shadow-sm">
-          <div className="border-b border-gray-100 bg-gray-50/80 px-5 py-4 sm:px-6">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <FiUsers className="w-5 h-5 text-purple-600" />
+        <Card className="border border-stone-200/90 shadow-sm">
+          <div className="border-b border-stone-200/80 bg-stone-50/90 px-5 py-4 sm:px-6">
+            <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <FiUsers className="w-5 h-5 text-amber-800" aria-hidden />
               Parents & responsables
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-stone-600 mt-1">
               Comptes rattachés à votre dossier. Pour modifier ces liaisons, contactez le secrétariat.
             </p>
           </div>
@@ -492,15 +511,15 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
                 return (
                   <div
                     key={row.id}
-                    className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-purple-50/40 p-4"
+                    className="rounded-xl border border-stone-200/90 bg-gradient-to-br from-white to-amber-50/35 p-4 shadow-sm"
                   >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-900/80 mb-2">
                       {relationLabel(row.relation)}
                     </p>
-                    <p className="font-semibold text-gray-900">
+                    <p className="font-semibold text-stone-900">
                       {u.firstName} {u.lastName}
                     </p>
-                    <div className="mt-3 space-y-1 text-sm text-gray-600">
+                    <div className="mt-3 space-y-1 text-sm text-stone-600">
                       <p className="flex items-center gap-2">
                         <FiMail className="w-3.5 h-3.5 shrink-0" />
                         {u.email || '—'}
@@ -517,6 +536,8 @@ const StudentProfile = ({ searchQuery = '' }: { searchQuery?: string }) => {
           </div>
         </Card>
       )}
+
+      <GdprUserRightsPanel />
     </div>
   );
 };

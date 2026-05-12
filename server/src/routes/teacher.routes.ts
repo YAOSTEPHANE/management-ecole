@@ -2,6 +2,9 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
+import { decryptParentTeacherAppointmentRow } from '../utils/student-sensitive-crypto.util';
+import { notifyUsersImportant } from '../utils/notify-important.util';
+import { appointmentInclude } from '../utils/parent-teacher-appointment.util';
 
 const router = express.Router();
 
@@ -16,6 +19,83 @@ const getTeacherId = async (userId: string) => {
   });
   return teacher?.id;
 };
+
+router.get('/dashboard/kpis', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+    const ninetyAgo = new Date();
+    ninetyAgo.setDate(ninetyAgo.getDate() - 89);
+    ninetyAgo.setHours(0, 0, 0, 0);
+
+    const [gradesRecent, absencesCount, appointmentsPending, assignmentsCount, courses] =
+      await Promise.all([
+        prisma.grade.findMany({
+          where: { teacherId, date: { gte: ninetyAgo } },
+          select: { date: true, score: true, maxScore: true },
+        }),
+        prisma.absence.count({
+          where: { teacherId, date: { gte: ninetyAgo } },
+        }),
+        prisma.parentTeacherAppointment.count({
+          where: { teacherId, status: 'PENDING' },
+        }),
+        prisma.assignment.count({
+          where: { teacherId, createdAt: { gte: ninetyAgo } },
+        }),
+        prisma.course.count({ where: { teacherId } }),
+      ]);
+
+    const byMonth = new Map<string, { sum: number; n: number }>();
+    for (const g of gradesRecent) {
+      const d = new Date(g.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const m20 = g.maxScore > 0 ? (g.score / g.maxScore) * 20 : 0;
+      if (!byMonth.has(key)) byMonth.set(key, { sum: 0, n: 0 });
+      const b = byMonth.get(key)!;
+      b.sum += m20;
+      b.n += 1;
+    }
+    const gradesByMonth = [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, v]) => {
+        const [y, mo] = month.split('-');
+        return {
+          month,
+          label: `${mo}/${y}`,
+          average20: v.n > 0 ? Math.round((v.sum / v.n) * 100) / 100 : null,
+          gradesCount: v.n,
+        };
+      });
+
+    let sum20 = 0;
+    let n20 = 0;
+    for (const g of gradesRecent) {
+      if (g.maxScore <= 0) continue;
+      sum20 += (g.score / g.maxScore) * 20;
+      n20 += 1;
+    }
+    const avgGrade20Last90d = n20 > 0 ? Math.round((sum20 / n20) * 100) / 100 : null;
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      cards: {
+        coursesCount: courses,
+        gradesRecorded90d: gradesRecent.length,
+        averageGradeOn20Last90d: avgGrade20Last90d,
+        attendanceRows90d: absencesCount,
+        pendingParentAppointments: appointmentsPending,
+        assignmentsCreated90d: assignmentsCount,
+      },
+      charts: { gradesByMonth },
+    });
+  } catch (e: unknown) {
+    console.error('GET /teacher/dashboard/kpis:', e);
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
+  }
+});
 
 // ========== GESTION DES NOTES ==========
 
@@ -1078,11 +1158,39 @@ router.get('/schedule', async (req: AuthRequest, res) => {
       where: { teacherId },
       include: {
         class: { select: { id: true, name: true, level: true } },
-        schedule: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
+        schedule: {
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+          include: {
+            substituteTeacher: {
+              include: {
+                user: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    const slots = courses.flatMap((c) =>
+    const replacementSlots = await prisma.schedule.findMany({
+      where: { substituteTeacherId: teacherId },
+      include: {
+        course: {
+          include: {
+            class: { select: { id: true, name: true, level: true } },
+            teacher: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+
+    const courseSlots = courses.flatMap((c) =>
       c.schedule.map((s) => ({
         courseId: c.id,
         courseName: c.name,
@@ -1096,8 +1204,39 @@ router.get('/schedule', async (req: AuthRequest, res) => {
         startTime: s.startTime,
         endTime: s.endTime,
         room: s.room,
+        substituteTeacher: s.substituteTeacher
+          ? {
+              id: s.substituteTeacher.id,
+              firstName: s.substituteTeacher.user?.firstName,
+              lastName: s.substituteTeacher.user?.lastName,
+            }
+          : null,
+        isSubstitution: Boolean(s.substituteTeacherId),
       }))
     );
+
+    const replacementMapped = replacementSlots.map((s) => ({
+      courseId: s.course.id,
+      courseName: s.course.name,
+      courseCode: s.course.code,
+      classId: s.course.class.id,
+      className: s.course.class.name,
+      classLevel: s.course.class.level,
+      dayOfWeek: s.dayOfWeek,
+      dayLabel: DAY_LABELS[s.dayOfWeek] ?? `J${s.dayOfWeek}`,
+      dayShort: DAY_SHORT[s.dayOfWeek] ?? String(s.dayOfWeek),
+      startTime: s.startTime,
+      endTime: s.endTime,
+      room: s.room,
+      isSubstitution: true,
+      titularTeacher: {
+        id: s.course.teacher.id,
+        firstName: s.course.teacher.user?.firstName,
+        lastName: s.course.teacher.user?.lastName,
+      },
+    }));
+
+    const slots = [...courseSlots, ...replacementMapped];
 
     slots.sort((a, b) => {
       if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
@@ -1193,6 +1332,549 @@ router.post(
     }
   }
 );
+
+// ========== MESSAGERIE INTERNE ==========
+
+router.get('/messaging/messages', async (req: AuthRequest, res) => {
+  try {
+    const { unread } = req.query;
+    const receivedWhere: { receiverId: string; read?: boolean } = { receiverId: req.user!.id };
+    if (unread === 'true') receivedWhere.read = false;
+
+    const [received, sent] = await Promise.all([
+      prisma.message.findMany({
+        where: receivedWhere,
+        include: {
+          sender: {
+            select: { id: true, firstName: true, lastName: true, email: true, avatar: true, role: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+      prisma.message.findMany({
+        where: { senderId: req.user!.id },
+        include: {
+          receiver: {
+            select: { id: true, firstName: true, lastName: true, email: true, avatar: true, role: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+    ]);
+
+    res.json({ received, sent });
+  } catch (error: any) {
+    console.error('GET /teacher/messaging/messages:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/messaging/threads', async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.id;
+    const rows = await prisma.message.findMany({
+      where: {
+        OR: [{ senderId: uid }, { receiverId: uid }],
+      },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, role: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, role: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    const { effectiveThreadKey } = await import('../utils/internal-messaging.util');
+
+    type ThreadAgg = {
+      threadKey: string;
+      lastAt: Date;
+      lastPreview: string;
+      peerId: string;
+      peerName: string;
+      peerRole: string;
+      unread: number;
+    };
+
+    const map = new Map<string, ThreadAgg>();
+    for (const m of rows) {
+      const key = effectiveThreadKey(m);
+      const peer = m.senderId === uid ? m.receiver : m.sender;
+      const peerName = `${peer.firstName} ${peer.lastName}`.trim();
+      const existing = map.get(key);
+      const unreadInc = m.receiverId === uid && !m.read ? 1 : 0;
+      if (!existing) {
+        map.set(key, {
+          threadKey: key,
+          lastAt: m.createdAt,
+          lastPreview: m.content.slice(0, 160),
+          peerId: peer.id,
+          peerName,
+          peerRole: peer.role,
+          unread: unreadInc,
+        });
+      } else {
+        existing.unread += unreadInc;
+      }
+    }
+
+    res.json({ threads: [...map.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime()) });
+  } catch (error: any) {
+    console.error('GET /teacher/messaging/threads:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/messaging/thread', async (req: AuthRequest, res) => {
+  try {
+    const threadKey = typeof req.query.threadKey === 'string' ? req.query.threadKey.trim() : '';
+    if (!threadKey) {
+      return res.status(400).json({ error: 'threadKey requis' });
+    }
+    const uid = req.user!.id;
+
+    let list = await prisma.message.findMany({
+      where: {
+        threadKey,
+        OR: [{ senderId: uid }, { receiverId: uid }],
+      },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, role: true, avatar: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, role: true, avatar: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 300,
+    });
+
+    if (list.length === 0 && threadKey.startsWith('dm_')) {
+      const rest = threadKey.slice(3);
+      const parts = rest.split('__');
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        const [a, b] = parts[0] < parts[1] ? [parts[0], parts[1]] : [parts[1], parts[0]];
+        if (a === uid || b === uid) {
+          list = await prisma.message.findMany({
+            where: {
+              threadKey: null,
+              OR: [
+                { senderId: a, receiverId: b },
+                { senderId: b, receiverId: a },
+              ],
+            },
+            include: {
+              sender: { select: { id: true, firstName: true, lastName: true, role: true, avatar: true } },
+              receiver: { select: { id: true, firstName: true, lastName: true, role: true, avatar: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 300,
+          });
+        }
+      }
+    }
+
+    res.json({ threadKey, messages: list });
+  } catch (error: any) {
+    console.error('GET /teacher/messaging/thread:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/messaging/contacts', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+
+    const [admins, teachers, courses] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'ADMIN', isActive: true },
+        select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        orderBy: { lastName: 'asc' },
+        take: 80,
+      }),
+      prisma.user.findMany({
+        where: { role: 'TEACHER', isActive: true, id: { not: req.user!.id } },
+        select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        orderBy: { lastName: 'asc' },
+        take: 200,
+      }),
+      prisma.course.findMany({
+        where: { teacherId },
+        select: {
+          class: {
+            select: {
+              id: true,
+              name: true,
+              level: true,
+              students: {
+                where: { isActive: true },
+                select: {
+                  parents: {
+                    select: {
+                      parent: {
+                        select: {
+                          user: {
+                            select: { id: true, firstName: true, lastName: true, email: true, role: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const parentMap = new Map<string, (typeof admins)[0] & { _label?: string }>();
+    for (const c of courses) {
+      const cl = c.class;
+      if (!cl) continue;
+      for (const st of cl.students) {
+        for (const sp of st.parents) {
+          const u = sp.parent.user;
+          if (!parentMap.has(u.id)) {
+            parentMap.set(u.id, { ...u, _label: `Parent — ${cl.name}` });
+          }
+        }
+      }
+    }
+
+    res.json({
+      admins,
+      teachers,
+      parents: [...parentMap.values()],
+    });
+  } catch (error: any) {
+    console.error('GET /teacher/messaging/contacts:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/messaging/send', async (req: AuthRequest, res) => {
+  try {
+    const {
+      receiverId,
+      subject,
+      content,
+      category,
+      threadKey,
+      attachmentUrls,
+      broadcastClassId,
+    } = req.body as {
+      receiverId?: string;
+      subject?: string;
+      content?: string;
+      category?: string;
+      threadKey?: string;
+      attachmentUrls?: string[];
+      broadcastClassId?: string;
+    };
+
+    const {
+      createInternalPlatformMessage,
+      teacherTeachesClass,
+      teacherLinkedToParentUser,
+      makeDmThreadKey,
+    } = await import('../utils/internal-messaging.util');
+
+    const validCategories = [
+      'GENERAL',
+      'ACADEMIC',
+      'ABSENCE',
+      'PAYMENT',
+      'CONDUCT',
+      'URGENT',
+      'ANNOUNCEMENT',
+    ] as const;
+    const cat =
+      category && validCategories.includes(category as (typeof validCategories)[number])
+        ? (category as (typeof validCategories)[number])
+        : 'GENERAL';
+
+    if (broadcastClassId && typeof broadcastClassId === 'string' && broadcastClassId.trim()) {
+      const classId = broadcastClassId.trim();
+      const okClass = await teacherTeachesClass(req.user!.id, classId);
+      if (!okClass) {
+        return res.status(403).json({ error: 'Vous n’enseignez pas dans cette classe.' });
+      }
+      if (!content || typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ error: 'Contenu requis' });
+      }
+
+      const students = await prisma.student.findMany({
+        where: { classId, isActive: true },
+        select: {
+          parents: { select: { parent: { select: { userId: true } } } },
+        },
+      });
+      const parentUserIds = [
+        ...new Set(students.flatMap((s) => s.parents.map((p) => p.parent.userId))),
+      ];
+      if (parentUserIds.length === 0) {
+        return res.status(400).json({ error: 'Aucun parent à notifier dans cette classe.' });
+      }
+
+      const batchKey = `class_${classId}_${Date.now()}`;
+      const created: string[] = [];
+      for (const pid of parentUserIds) {
+        const msg = await createInternalPlatformMessage({
+          senderId: req.user!.id,
+          receiverId: pid,
+          subject: subject?.trim() || null,
+          content: content.trim(),
+          category: cat,
+          threadKey: batchKey,
+          attachmentUrls,
+        });
+        created.push(msg.id);
+      }
+      return res.status(201).json({ ok: true, count: created.length, threadKey: batchKey, messageIds: created });
+    }
+
+    if (!receiverId || typeof receiverId !== 'string' || !receiverId.trim()) {
+      return res.status(400).json({ error: 'receiverId requis (ou broadcastClassId).' });
+    }
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'Contenu requis' });
+    }
+
+    const recv = await prisma.user.findUnique({
+      where: { id: receiverId.trim() },
+      select: { id: true, role: true, isActive: true },
+    });
+    if (!recv || !recv.isActive) {
+      return res.status(404).json({ error: 'Destinataire introuvable' });
+    }
+
+    if (recv.role === 'TEACHER' && recv.id !== req.user!.id) {
+      /* autorisé : collègue */
+    } else if (recv.role === 'ADMIN') {
+      /* ok */
+    } else if (recv.role === 'PARENT') {
+      const ok = await teacherLinkedToParentUser(req.user!.id, recv.id);
+      if (!ok) {
+        return res.status(403).json({ error: 'Ce parent n’est pas rattaché à une de vos classes.' });
+      }
+    } else {
+      return res.status(400).json({ error: 'Destinataire non autorisé pour la messagerie enseignant.' });
+    }
+
+    const tk =
+      threadKey && String(threadKey).trim().length > 0
+        ? String(threadKey).trim()
+        : makeDmThreadKey(req.user!.id, recv.id);
+
+    const msg = await createInternalPlatformMessage({
+      senderId: req.user!.id,
+      receiverId: recv.id,
+      subject: subject?.trim() || null,
+      content: content.trim(),
+      category: cat,
+      threadKey: tk,
+      attachmentUrls,
+    });
+
+    res.status(201).json(msg);
+  } catch (error: any) {
+    console.error('POST /teacher/messaging/send:', error);
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.put('/messaging/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const existing = await prisma.message.findFirst({
+      where: { id: req.params.id, receiverId: req.user!.id },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Message introuvable' });
+    }
+    const message = await prisma.message.update({
+      where: { id: existing.id },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json(message);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+// --- Rendez-vous parents-enseignants ---
+
+router.get('/appointments', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+    const rows = await prisma.parentTeacherAppointment.findMany({
+      where: { teacherId },
+      orderBy: { scheduledStart: 'asc' },
+      include: appointmentInclude,
+    });
+    res.json(rows.map(decryptParentTeacherAppointmentRow));
+  } catch (error: unknown) {
+    console.error('GET /teacher/appointments:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/appointments/:id/confirm', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+    const { id } = req.params;
+    const { notesTeacher } = req.body as { notesTeacher?: string | null };
+
+    const existing = await prisma.parentTeacherAppointment.findFirst({
+      where: { id, teacherId },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+    }
+    if (existing.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Seules les demandes en attente peuvent être confirmées.' });
+    }
+
+    const updated = await prisma.parentTeacherAppointment.update({
+      where: { id },
+      data: {
+        status: 'CONFIRMED',
+        notesTeacher: notesTeacher?.trim() || null,
+        declineReason: null,
+        reminder24hSentAt: null,
+        reminder1hSentAt: null,
+      },
+      include: appointmentInclude,
+    });
+
+    const parentUser = await prisma.parent.findUnique({
+      where: { id: updated.parentId },
+      select: { userId: true },
+    });
+    if (parentUser?.userId) {
+      const when = updated.scheduledStart.toLocaleString('fr-FR', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+      await notifyUsersImportant([parentUser.userId], {
+        type: 'appointment',
+        title: 'Rendez-vous confirmé',
+        content: `Votre entretien avec l’enseignant est confirmé pour le ${when}.`,
+        link: '/parent?tab=appointments',
+      });
+    }
+
+    res.json(decryptParentTeacherAppointmentRow(updated));
+  } catch (error: unknown) {
+    console.error('PUT /teacher/appointments/:id/confirm:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/appointments/:id/decline', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+    const { id } = req.params;
+    const { reason } = req.body as { reason?: string | null };
+
+    const existing = await prisma.parentTeacherAppointment.findFirst({
+      where: { id, teacherId },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+    }
+    if (existing.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Seules les demandes en attente peuvent être refusées.' });
+    }
+
+    const updated = await prisma.parentTeacherAppointment.update({
+      where: { id },
+      data: {
+        status: 'DECLINED',
+        declineReason: reason?.trim() || null,
+      },
+      include: appointmentInclude,
+    });
+
+    const parentUser = await prisma.parent.findUnique({
+      where: { id: updated.parentId },
+      select: { userId: true },
+    });
+    if (parentUser?.userId) {
+      await notifyUsersImportant([parentUser.userId], {
+        type: 'appointment',
+        title: 'Rendez-vous non retenu',
+        content: reason?.trim()
+          ? `L’enseignant a décliné la proposition. Motif : ${reason.trim()}`
+          : 'L’enseignant a décliné la proposition de rendez-vous.',
+        link: '/parent?tab=appointments',
+      });
+    }
+
+    res.json(decryptParentTeacherAppointmentRow(updated));
+  } catch (error: unknown) {
+    console.error('PUT /teacher/appointments/:id/decline:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/appointments/:id/cancel', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+    const { id } = req.params;
+
+    const existing = await prisma.parentTeacherAppointment.findFirst({
+      where: { id, teacherId },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+    }
+    if (existing.status !== 'PENDING' && existing.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'Ce rendez-vous ne peut plus être annulé.' });
+    }
+
+    const updated = await prisma.parentTeacherAppointment.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        cancelledBy: 'TEACHER',
+      },
+      include: appointmentInclude,
+    });
+
+    const parentUser = await prisma.parent.findUnique({
+      where: { id: updated.parentId },
+      select: { userId: true },
+    });
+    if (parentUser?.userId) {
+      await notifyUsersImportant([parentUser.userId], {
+        type: 'appointment',
+        title: 'Rendez-vous annulé',
+        content: 'L’enseignant a annulé le rendez-vous.',
+        link: '/parent?tab=appointments',
+      });
+    }
+
+    res.json(decryptParentTeacherAppointmentRow(updated));
+  } catch (error: unknown) {
+    console.error('PUT /teacher/appointments/:id/cancel:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
 
 export default router;
 

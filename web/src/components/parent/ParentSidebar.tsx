@@ -24,35 +24,37 @@ const ParentSidebar = ({ items, activeTab, onTabChange, selectedChild, isOpen, o
   return (
     <>
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+        <button
+          type="button"
+          className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 lg:hidden cursor-default border-0 p-0"
           onClick={onToggle}
-          aria-hidden
+          aria-label="Fermer la navigation"
         />
       )}
 
       <aside
         className={`fixed top-16 left-0 h-[calc(100vh-4rem)] z-50 transition-transform duration-300 ease-in-out w-64
-          bg-white/80 backdrop-blur-xl border-r border-slate-200/80 shadow-sm
+          bg-white/92 backdrop-blur-xl border-r border-stone-200/90 shadow-[0_12px_40px_-20px_rgba(12,10,9,0.12)]
           ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        aria-label="Navigation espace parent"
       >
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between px-2.5 py-2 border-b border-slate-200/80 shrink-0">
+        <div className="flex flex-col h-full min-h-0">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-stone-200/80 shrink-0">
             <div>
-              <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
-              <h2 className="text-sm font-bold text-slate-900">Espace parent</h2>
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">Menu</p>
+              <h2 className="text-sm font-bold text-stone-900 tracking-tight">Espace parent</h2>
             </div>
             <button
               type="button"
               onClick={onToggle}
-              className="lg:hidden p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"
+              className="lg:hidden p-2 rounded-xl hover:bg-stone-100 transition-colors text-stone-600 min-h-[40px] min-w-[40px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
               aria-label="Fermer le menu"
             >
-              <FiX className="w-4 h-4" />
+              <FiX className="w-4 h-4" aria-hidden />
             </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5 min-h-0 text-[10px] leading-tight">
+          <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-2 space-y-1 min-h-0 text-xs leading-snug">
             {items.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -71,12 +73,12 @@ const ParentSidebar = ({ items, activeTab, onTabChange, selectedChild, isOpen, o
                     }
                   }}
                   disabled={isDisabled}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md font-medium transition-all min-h-[34px] ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl font-medium transition-all min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 ${
                     isActive
-                      ? `bg-gradient-to-r ${item.color} text-white shadow-sm`
+                      ? `bg-gradient-to-r ${item.color} text-white shadow-md ring-1 ring-white/20`
                       : isDisabled
-                        ? 'text-slate-400 cursor-not-allowed bg-slate-50'
-                        : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
+                        ? 'text-stone-400 cursor-not-allowed bg-stone-50/80'
+                        : 'text-stone-600 hover:bg-stone-100/90 hover:text-stone-900'
                   }`}
                   title={isDisabled ? 'Sélectionnez d’abord un enfant' : item.label}
                 >
@@ -97,10 +99,10 @@ const ParentSidebar = ({ items, activeTab, onTabChange, selectedChild, isOpen, o
           </nav>
 
           {selectedChild && (
-            <div className="px-2.5 py-2 border-t border-slate-200/80 bg-amber-50/50 shrink-0">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" aria-hidden />
-                <p className="text-[9px] font-semibold text-slate-700">Enfant sélectionné</p>
+            <div className="px-2.5 py-2.5 border-t border-stone-200/80 bg-amber-50/60 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse shrink-0 ring-2 ring-emerald-500/30" aria-hidden />
+                <p className="text-xs font-semibold text-stone-800">Enfant sélectionné</p>
               </div>
             </div>
           )}

@@ -8,6 +8,19 @@ import api from '../services/api';
 const ServerConnectionError: React.FC = () => {
   const [isServerDown, setIsServerDown] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [browserOffline, setBrowserOffline] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncOffline = () => setBrowserOffline(!navigator.onLine);
+    syncOffline();
+    window.addEventListener('online', syncOffline);
+    window.addEventListener('offline', syncOffline);
+    return () => {
+      window.removeEventListener('online', syncOffline);
+      window.removeEventListener('offline', syncOffline);
+    };
+  }, []);
 
   useEffect(() => {
     checkServerConnection();
@@ -29,7 +42,7 @@ const ServerConnectionError: React.FC = () => {
     }
   };
 
-  if (!isServerDown) {
+  if (!isServerDown || browserOffline) {
     return null;
   }
 

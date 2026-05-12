@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../services/api';
 import Card from '../../ui/Card';
@@ -7,6 +7,10 @@ import Modal from '../../ui/Modal';
 import SearchBar from '../../ui/SearchBar';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import {
+  MATERIAL_EQUIPMENT_PRESET_CATEGORIES,
+  isPresetMaterialEquipmentCategory,
+} from './materialEquipmentPresetCategories';
 
 const CONDITIONS = [
   { value: 'GOOD', label: 'Bon' },
@@ -15,31 +19,70 @@ const CONDITIONS = [
   { value: 'OUT_OF_SERVICE', label: 'Hors service' },
 ];
 
-const emptyForm = {
-  roomId: '' as string,
+const CUSTOM_CATEGORY = '__CUSTOM__';
+
+type EquipmentFormState = {
+  roomId: string;
+  name: string;
+  categorySelect: string;
+  categoryCustom: string;
+  serialNumber: string;
+  quantity: number;
+  condition: string;
+  notes: string;
+  purchasedAt: string;
+  isActive: boolean;
+};
+
+const emptyForm: EquipmentFormState = {
+  roomId: '',
   name: '',
-  category: '',
+  categorySelect: MATERIAL_EQUIPMENT_PRESET_CATEGORIES[0].value,
+  categoryCustom: '',
   serialNumber: '',
   quantity: 1,
   condition: 'GOOD',
   notes: '',
-  purchasedAt: '' as string,
+  purchasedAt: '',
   isActive: true,
 };
+
+function resolvedCategory(form: EquipmentFormState): string {
+  if (form.categorySelect === CUSTOM_CATEGORY) {
+    return form.categoryCustom.trim();
+  }
+  return String(form.categorySelect).trim();
+}
 
 const MaterialEquipmentPanel: React.FC = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<EquipmentFormState>(emptyForm);
 
   const { data: equipment, isLoading } = useQuery({
-    queryKey: ['material-equipment', search],
-    queryFn: () =>
-      adminApi.getMaterialEquipment({
+    queryKey: ['material-equipment', search, categoryFilter],
+    queryFn: async () => {
+      const params: { search?: string; category?: string } = {
         ...(search.trim() && { search: search.trim() }),
-      }),
+      };
+      if (categoryFilter !== 'all' && categoryFilter !== '__OTHER__') {
+        params.category = categoryFilter;
+      }
+      const rows = await adminApi.getMaterialEquipment(params);
+      if (categoryFilter === '__OTHER__') {
+        return (rows as any[]).filter((e) => !isPresetMaterialEquipmentCategory(e.category || ''));
+      }
+      return rows;
+    },
+  });
+
+  const { data: countSnapshot } = useQuery({
+    queryKey: ['material-equipment', '_counts'],
+    queryFn: () => adminApi.getMaterialEquipment({}),
+    staleTime: 30_000,
   });
 
   const { data: rooms } = useQuery({
@@ -49,10 +92,14 @@ const MaterialEquipmentPanel: React.FC = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const category = resolvedCategory(form);
+      if (!category) {
+        throw new Error('Choisissez une catégorie ou saisissez une catégorie personnalisée');
+      }
       const payload = {
         roomId: form.roomId || null,
         name: form.name.trim(),
-        category: form.category.trim(),
+        category,
         serialNumber: form.serialNumber || null,
         quantity: Number(form.quantity) || 1,
         condition: form.condition,
@@ -71,16 +118,17 @@ const MaterialEquipmentPanel: React.FC = () => {
       toast.success(editId ? 'Équipement mis à jour' : 'Équipement ajouté');
       setModalOpen(false);
       setEditId(null);
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
     },
-    onError: (err: any) => toast.error(err.response?.data?.error || 'Erreur'),
+    onError: (err: any) =>
+      toast.error(err?.message || err.response?.data?.error || 'Erreur'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: adminApi.deleteMaterialEquipment,
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['material-equipment'] });
-      toast.success(data?.deactivated ? 'Équipement désactivé (allocations actives)' : 'Équipement supprimé');
+      toast.success(data?.deactivated ? 'Équipement désactivé (prêts actifs)' : 'Équipement supprimé');
     },
     onError: (err: any) => toast.error(err.response?.data?.error || 'Suppression impossible'),
   });
@@ -90,15 +138,73 @@ const MaterialEquipmentPanel: React.FC = () => {
 
   const condLabel = (c: string) => CONDITIONS.find((x) => x.value === c)?.label ?? c;
 
+  const countsByPreset = useMemo(() => {
+    const src = (countSnapshot as any[]) ?? [];
+    const map: Record<string, number> = {};
+    for (const p of MATERIAL_EQUIPMENT_PRESET_CATEGORIES) {
+      map[p.value] = src.filter((e) => e.category === p.value).length;
+    }
+    return map;
+  }, [countSnapshot]);
+
+  const otherCount = useMemo(() => {
+    const src = (countSnapshot as any[]) ?? [];
+    return src.filter((e) => !isPresetMaterialEquipmentCategory(e.category || '')).length;
+  }, [countSnapshot]);
+
+  const totalInventory = (countSnapshot as any[])?.length ?? 0;
+
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600 leading-relaxed">
+        Inventaire du matériel pédagogique, informatique, sportif et de laboratoire. Chaque article est classé par
+        famille ; les prêts et la maintenance se gèrent dans les onglets dédiés.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setCategoryFilter('all')}
+          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+            categoryFilter === 'all'
+              ? 'bg-indigo-600 text-white border-indigo-600'
+              : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-200'
+          }`}
+        >
+          Toutes ({totalInventory})
+        </button>
+        {MATERIAL_EQUIPMENT_PRESET_CATEGORIES.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => setCategoryFilter(p.value)}
+            className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+              categoryFilter === p.value
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-200'
+            }`}
+          >
+            {p.label} ({countsByPreset[p.value] ?? 0})
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCategoryFilter('__OTHER__')}
+          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+            categoryFilter === '__OTHER__'
+              ? 'bg-indigo-600 text-white border-indigo-600'
+              : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-200'
+          }`}
+        >
+          Autre catégorie ({otherCount})
+        </button>
+      </div>
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
         <SearchBar value={search} onChange={setSearch} placeholder="Nom, n° de série…" />
         <Button
           type="button"
           onClick={() => {
             setEditId(null);
-            setForm(emptyForm);
+            setForm({ ...emptyForm });
             setModalOpen(true);
           }}
         >
@@ -147,10 +253,13 @@ const MaterialEquipmentPanel: React.FC = () => {
                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"
                           onClick={() => {
                             setEditId(e.id);
+                            const cat = e.category || '';
+                            const isPreset = isPresetMaterialEquipmentCategory(cat);
                             setForm({
                               roomId: e.roomId || '',
                               name: e.name,
-                              category: e.category,
+                              categorySelect: isPreset ? cat : CUSTOM_CATEGORY,
+                              categoryCustom: isPreset ? '' : cat,
                               serialNumber: e.serialNumber || '',
                               quantity: e.quantity,
                               condition: e.condition,
@@ -191,7 +300,7 @@ const MaterialEquipmentPanel: React.FC = () => {
         onClose={() => {
           setModalOpen(false);
           setEditId(null);
-          setForm(emptyForm);
+          setForm({ ...emptyForm });
         }}
         title={editId ? 'Modifier l’équipement' : 'Nouvel équipement'}
       >
@@ -205,14 +314,31 @@ const MaterialEquipmentPanel: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Catégorie *</label>
-            <input
+            <label className="block text-xs font-medium text-gray-600 mb-1">Famille d’inventaire *</label>
+            <select
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              placeholder="Ex. Informatique, Mobilier…"
-            />
+              value={form.categorySelect}
+              onChange={(e) => setForm((f) => ({ ...f, categorySelect: e.target.value }))}
+            >
+              {MATERIAL_EQUIPMENT_PRESET_CATEGORIES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+              <option value={CUSTOM_CATEGORY}>Autre (saisie libre)…</option>
+            </select>
           </div>
+          {form.categorySelect === CUSTOM_CATEGORY && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Catégorie personnalisée *</label>
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={form.categoryCustom}
+                onChange={(e) => setForm((f) => ({ ...f, categoryCustom: e.target.value }))}
+                placeholder="Ex. Mobilier, restauration…"
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Quantité (stock)</label>
@@ -296,7 +422,7 @@ const MaterialEquipmentPanel: React.FC = () => {
               onClick={() => {
                 setModalOpen(false);
                 setEditId(null);
-                setForm(emptyForm);
+                setForm({ ...emptyForm });
               }}
             >
               Annuler

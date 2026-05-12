@@ -6,6 +6,7 @@ import Badge from '../ui/Badge';
 import { FiBook, FiCalendar, FiClipboard, FiAward, FiAlertCircle, FiSearch } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import PortalSchoolFeed from '../portal/PortalSchoolFeed';
 
 const StudentOverview = ({ searchQuery = '', searchCategory = 'all' }: { searchQuery?: string; searchCategory?: string }) => {
   const { data: grades, isLoading: gradesLoading } = useQuery({
@@ -144,34 +145,37 @@ const StudentOverview = ({ searchQuery = '', searchCategory = 'all' }: { searchQ
   return (
     <div className="space-y-6">
       {!searchQuery && (
-        <div className="rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 p-[1px] shadow-lg shadow-fuchsia-500/15">
-          <div className="rounded-[15px] bg-white/97 backdrop-blur-xl px-5 py-4 sm:px-6 sm:py-5">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
-              Synthèse personnelle
-            </p>
-            <p className="font-display text-lg sm:text-xl font-bold text-slate-900 mt-1">
-              {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
-            </p>
-            <p className="text-sm text-slate-600 mt-2 max-w-3xl leading-relaxed">
-              Indicateurs consolidés à partir de vos notes, absences et devoirs. Les données reflètent l’état au moment de
-              votre connexion — consultez chaque section pour le détail et les justificatifs.
-            </p>
-            {(overdueAssignments > 0 || unexcusedAbsences > 0) && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {overdueAssignments > 0 && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 border border-red-200/80">
-                    {overdueAssignments} devoir(s) en retard
-                  </span>
-                )}
-                {unexcusedAbsences > 0 && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80">
-                    {unexcusedAbsences} absence(s) non justifiée(s)
-                  </span>
-                )}
-              </div>
-            )}
+        <>
+          <div className="rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 p-[1px] shadow-lg shadow-fuchsia-500/15">
+            <div className="rounded-[15px] bg-white/97 backdrop-blur-xl px-5 py-4 sm:px-6 sm:py-5">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em]">
+                Synthèse personnelle
+              </p>
+              <p className="font-display text-lg sm:text-xl font-bold text-slate-900 mt-1">
+                {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+              </p>
+              <p className="text-sm text-slate-600 mt-2 max-w-3xl leading-relaxed">
+                Indicateurs consolidés à partir de vos notes, absences et devoirs. Les données reflètent l’état au moment de
+                votre connexion — consultez chaque section pour le détail et les justificatifs.
+              </p>
+              {(overdueAssignments > 0 || unexcusedAbsences > 0) && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {overdueAssignments > 0 && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 border border-red-200/80">
+                      {overdueAssignments} devoir(s) en retard
+                    </span>
+                  )}
+                  {unexcusedAbsences > 0 && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80">
+                      {unexcusedAbsences} absence(s) non justifiée(s)
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+          <PortalSchoolFeed role="student" compact />
+        </>
       )}
 
       {/* Indicateur de recherche */}

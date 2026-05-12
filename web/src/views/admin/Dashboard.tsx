@@ -6,7 +6,10 @@ import StudentsList from '../../components/admin/StudentsList';
 import ClassesList from '../../components/admin/ClassesList';
 import TeachersList from '../../components/admin/TeachersList';
 import EducatorsList from '../../components/admin/EducatorsList';
+import StaffPersonnelModule from '../../components/admin/staff/StaffPersonnelModule';
+import ParentGuardiansModule from '../../components/admin/parents/ParentGuardiansModule';
 import DashboardStats from '../../components/admin/DashboardStats';
+import SchoolOverviewCharts from '../../components/admin/SchoolOverviewCharts';
 import AllActivities from './AllActivities';
 import AllNotifications from './AllNotifications';
 import CompleteManagement from '../../components/admin/CompleteManagement';
@@ -24,14 +27,18 @@ import SecurityPrivacyManagement from '../../components/admin/SecurityPrivacyMan
 import PerformanceManagement from '../../components/admin/PerformanceManagement';
 import TuitionFeesManagement from '../../components/admin/TuitionFeesManagement';
 import PaymentsManagement from '../../components/admin/PaymentsManagement';
-import NFCStudentScanner from '../../components/admin/NFCStudentScanner';
-import NFCTeacherScanner from '../../components/admin/NFCTeacherScanner';
+import AccountingManagementModule from '../../components/admin/AccountingManagementModule';
+import AccessControlModule from '../../components/admin/AccessControlModule';
 import PointageEleves from '../../components/admin/PointageEleves';
 import AttendanceManagementModule from '../../components/admin/AttendanceManagementModule';
 import HRManagementModule from '../../components/admin/hr/HRManagementModule';
 import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
 import MaterialManagementModule from '../../components/admin/material/MaterialManagementModule';
+import DisciplineAdminModule from '../../components/admin/DisciplineAdminModule';
+import ExtracurricularAdminModule from '../../components/admin/ExtracurricularAdminModule';
+import OrientationAdminModule from '../../components/admin/OrientationAdminModule';
 import ReportsStatisticsModule from '../../components/admin/reports/ReportsStatisticsModule';
+import AdminModulesHub from '../../components/admin/AdminModulesHub';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -74,6 +81,12 @@ import {
   FiMenu,
   FiChevronLeft,
   FiChevronRight,
+  FiGitBranch,
+  FiHeart,
+  FiClipboard,
+  FiAlertTriangle,
+  FiMap,
+  FiNavigation,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -88,9 +101,14 @@ const VALID_TAB_IDS = [
   'classes',
   'teachers',
   'educators',
+  'staff-personnel',
+  'parent-guardians',
   'management',
   'roles',
   'pedagogical',
+  'discipline',
+  'extracurricular',
+  'orientation',
   'communication',
   'library',
   'material',
@@ -105,6 +123,7 @@ const VALID_TAB_IDS = [
   'fees',
   'tuition-fees',
   'payments',
+  'accounting',
   'nfc-scanner',
   'security',
   'performance',
@@ -185,16 +204,51 @@ const AdminDashboard = () => {
     { id: 'classes', label: 'Classes', icon: FiBook, color: 'from-purple-500 to-purple-600', description: 'Gestion des classes' },
     { id: 'teachers', label: 'Enseignants', icon: FiUserCheck, color: 'from-indigo-500 to-indigo-600', description: 'Gestion des enseignants' },
     { id: 'educators', label: 'Éducateurs', icon: FiShield, color: 'from-purple-500 to-purple-600', description: 'Gestion des éducateurs' },
+    {
+      id: 'staff-personnel',
+      label: 'Personnel administratif',
+      icon: FiGitBranch,
+      color: 'from-teal-600 to-emerald-800',
+      description: 'Administration, soutien, sécurité, organigramme, fiches de poste et présences',
+    },
+    {
+      id: 'parent-guardians',
+      label: 'Parents & tuteurs',
+      icon: FiHeart,
+      color: 'from-rose-500 to-orange-500',
+      description: 'Profils, portail, contacts, journal, consentements et autorisations de récupération',
+    },
     { id: 'management', label: 'Gestion complète', icon: FiBarChart, color: 'from-cyan-500 to-cyan-600', description: 'Notes, absences, devoirs et bulletins' },
     { id: 'roles', label: 'Multi-rôles', icon: FiUsers, color: 'from-pink-500 to-pink-600', description: 'Utilisateurs et rôles' },
     { id: 'pedagogical', label: 'Suivi pédagogique', icon: FiAward, color: 'from-yellow-500 to-yellow-600', description: 'Suivi pédagogique et indicateurs' },
+    {
+      id: 'discipline',
+      label: 'Discipline & règlement',
+      icon: FiAlertTriangle,
+      color: 'from-amber-700 to-orange-800',
+      description: 'Règlement intérieur, sanctions, exclusions, conseils de discipline et contrats',
+    },
+    {
+      id: 'extracurricular',
+      label: 'Activités parascolaires',
+      icon: FiMap,
+      color: 'from-teal-600 to-emerald-700',
+      description: 'Clubs, sports, culture, sorties, voyages, inscriptions et calendrier des événements',
+    },
+    {
+      id: 'orientation',
+      label: 'Orientation',
+      icon: FiNavigation,
+      color: 'from-indigo-600 to-violet-700',
+      description: 'Filières, tests d’aptitude, conseils, partenariats, suivi des élèves, stages et apprentissages',
+    },
     { id: 'communication', label: 'Communication', icon: FiBell, color: 'from-rose-500 to-rose-600', description: 'Messagerie, alertes, circulaires, actualités et demandes' },
     { id: 'library', label: 'Bibliothèque', icon: FiBookOpen, color: 'from-sky-500 to-indigo-600', description: 'Catalogue, emprunts, réservations, pénalités et inventaire' },
     { id: 'material', label: 'Gestion matérielle', icon: FiTool, color: 'from-slate-500 to-slate-700', description: 'Salles, inventaire, maintenance et allocations de matériel' },
     { id: 'reports', label: 'Rapports & statistiques', icon: FiPieChart, color: 'from-cyan-500 to-blue-700', description: 'Tableaux de bord, finances, académique, inscriptions et performances' },
     { id: 'analytics', label: 'Analytique avancée', icon: FiBarChart, color: 'from-emerald-500 to-emerald-600', description: 'Statistiques et analyses' },
     { id: 'schedule', label: 'Emploi du temps', icon: FiCalendar, color: 'from-orange-500 to-orange-600', description: 'Emplois du temps' },
-    { id: 'pointage', label: 'Pointage des élèves', icon: FiUserCheck, color: 'from-emerald-500 to-emerald-600', description: 'Pointage des élèves par badge NFC' },
+    { id: 'pointage', label: 'Pointage des élèves', icon: FiUserCheck, color: 'from-emerald-500 to-emerald-600', description: 'Carte scolaire, empreinte digitale ou appel manuel' },
     { id: 'attendance', label: 'Gestion des présences', icon: FiCheckSquare, color: 'from-teal-500 to-cyan-600', description: 'Appel, absences, rapports d’assiduité et notifications aux parents' },
     { id: 'hr', label: 'Ressources humaines', icon: FiPackage, color: 'from-rose-500 to-pink-600', description: 'Contrats, paie indicative, avantages, évaluations et congés' },
     { id: 'administrative', label: 'Gestion administrative', icon: FiBriefcase, color: 'from-teal-500 to-teal-600', description: 'Vue d’ensemble administrative' },
@@ -202,7 +256,14 @@ const AdminDashboard = () => {
     { id: 'fees', label: 'Gestion des frais', icon: FiCreditCard, color: 'from-teal-500 to-teal-600', description: 'Facturation, paiements, rappels, reçus et historique' },
     { id: 'tuition-fees', label: 'Frais de scolarité', icon: FiDollarSign, color: 'from-amber-500 to-amber-600', description: 'Frais de scolarité' },
     { id: 'payments', label: 'Paiements', icon: FiDollarSign, color: 'from-green-500 to-green-600', description: 'Paiements reçus' },
-    { id: 'nfc-scanner', label: 'Scanner NFC', icon: FiWifi, color: 'from-cyan-500 to-cyan-600', description: 'Association des badges NFC' },
+    {
+      id: 'accounting',
+      label: 'Comptabilité',
+      icon: FiClipboard,
+      color: 'from-slate-600 to-slate-800',
+      description: 'Grand livre, journal, bilan simplifié, budget, dépenses, fournisseurs, petite caisse et exports',
+    },
+    { id: 'nfc-scanner', label: "Contrôle d'accès", icon: FiWifi, color: 'from-cyan-500 to-cyan-600', description: 'Badges, biométrie, entrées/sorties, visiteurs, CCTV et alarme' },
     { id: 'security', label: 'Sécurité & confidentialité', icon: FiShield, color: 'from-red-500 to-red-600', description: 'Sécurité et confidentialité' },
     { id: 'performance', label: 'Performance & rapidité', icon: FiZap, color: 'from-yellow-500 to-yellow-600', description: 'Performance et monitoring' },
     { id: 'settings', label: 'Paramètres', icon: FiSettings, color: 'from-gray-500 to-gray-600', description: 'Paramètres de l’établissement' },
@@ -238,7 +299,7 @@ const AdminDashboard = () => {
 
   return (
     <Layout user={user} onLogout={logout} role="ADMIN">
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/50">
+      <div className="min-h-screen premium-body">
         <AdminSidebar
           mainTabs={mainTabs}
           bottomTabs={bottomTabs}
@@ -256,14 +317,14 @@ const AdminDashboard = () => {
           }`}
         >
           {/* Header */}
-          <header className="sticky top-16 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm shadow-slate-900/5">
-            <div className="px-2.5 sm:px-5 py-1.5 sm:py-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
+          <header className="sticky top-16 z-20 glass-nav shadow-[0_8px_30px_-12px_rgba(12,10,9,0.08)]">
+            <div className="px-2.5 sm:px-5 py-2 sm:py-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => setSidebarOpen((o) => !o)}
-                    className="flex min-h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-md p-1.5 text-slate-700 transition-colors hover:bg-slate-100 lg:hidden"
+                    className="flex min-h-[40px] min-w-[40px] shrink-0 items-center justify-center rounded-xl p-2 text-stone-700 transition-colors hover:bg-stone-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 lg:hidden"
                     aria-label="Ouvrir le menu de navigation"
                   >
                     <FiMenu className="h-4 w-4" />
@@ -271,8 +332,8 @@ const AdminDashboard = () => {
                   <button
                     type="button"
                     onClick={() => setSidebarCollapsed((c) => !c)}
-                    className="hidden min-h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-md border border-slate-200/80 bg-white/90 p-1.5 text-slate-600 shadow-sm transition-colors hover:border-amber-200 hover:bg-amber-50/50 hover:text-slate-900 lg:flex"
-                    aria-expanded={sidebarCollapsed ? false : true}
+                    className="hidden min-h-[40px] min-w-[40px] shrink-0 items-center justify-center rounded-xl border border-stone-200/90 bg-white/95 p-2 text-stone-600 shadow-sm transition-colors hover:border-amber-300/70 hover:bg-amber-50/40 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 lg:flex"
+                    aria-expanded={!sidebarCollapsed}
                     aria-label={
                       sidebarCollapsed ? 'Développer le menu latéral' : 'Réduire le menu latéral'
                     }
@@ -284,23 +345,23 @@ const AdminDashboard = () => {
                     )}
                   </button>
                   <div className="min-w-0">
-                    <h1 className="font-display text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight break-words leading-tight">
+                    <h1 className="font-display text-base sm:text-lg md:text-xl font-bold text-stone-900 tracking-tight break-words leading-snug">
                       {getGreeting()}, {user?.firstName}
                     </h1>
-                    <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0 line-clamp-1">
+                    <p className="text-xs text-stone-600 mt-0.5 line-clamp-2 sm:line-clamp-1 max-w-md">
                       Pilotage — stratégique, opérationnel et conformité
                     </p>
-                    <p className="text-[8px] sm:text-[9px] text-slate-400 mt-0 tabular-nums">
+                    <p className="text-[11px] sm:text-xs text-stone-500 mt-1 tabular-nums">
                       {format(new Date(), "EEE d MMM yyyy • HH:mm", { locale: fr })}
                     </p>
                   </div>
                 </div>
-                <div className="relative w-full sm:w-56 shrink-0">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-slate-400">
-                    <FiSearch className="w-3.5 h-3.5" />
+                <div className="relative w-full sm:max-w-xs shrink-0">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
+                    <FiSearch className="w-4 h-4" aria-hidden />
                   </div>
                   <input
-                    type="text"
+                    type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -308,31 +369,41 @@ const AdminDashboard = () => {
                         router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
                       }
                     }}
-                    placeholder="Rechercher… (Entrée)"
-                    className="w-full pl-8 pr-2 py-1 sm:py-1.5 bg-white/90 border border-slate-200 rounded-md text-[10px] sm:text-xs focus:ring-1 focus:ring-indigo-500/25 focus:border-indigo-400"
+                    placeholder="Recherche globale…"
+                    aria-label="Recherche globale, valider avec Entrée"
+                    autoComplete="off"
+                    className="w-full pl-10 pr-3 py-2 sm:py-2.5 bg-white/95 border border-stone-200/90 rounded-xl text-sm text-stone-900 placeholder:text-stone-400 shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-amber-500/35 focus:border-amber-400/50 hover:border-stone-300"
                   />
                 </div>
               </div>
             </div>
           </header>
 
-          <main className="flex-1 px-2.5 sm:px-5 py-3 sm:py-4 overflow-y-auto overflow-x-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <div className="max-w-[1200px] mx-auto space-y-3 sm:space-y-4">
-              <div className={`rounded-xl bg-gradient-to-r ${activeTabMeta.color} p-px shadow-sm`}>
-                <div className="rounded-[11px] bg-white/95 backdrop-blur-xl px-3 py-2 sm:px-4 sm:py-2.5">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
-                    <div className="flex items-start gap-2 min-w-0">
-                      <div className={`mt-0.5 w-8 h-8 shrink-0 rounded-lg bg-gradient-to-r ${activeTabMeta.color} text-white flex items-center justify-center shadow-sm`}>
-                        <ActiveTabIcon className="w-4 h-4" />
+          <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 overflow-y-auto overflow-x-hidden pb-[max(1.25rem,env(safe-area-inset-bottom))] scroll-smooth">
+            <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-5">
+              <div
+                className={`rounded-2xl bg-gradient-to-r ${activeTabMeta.color} p-[1px] shadow-[0_20px_40px_-18px_rgba(12,10,9,0.18)] ring-1 ring-amber-900/10`}
+              >
+                <div className="rounded-[15px] bg-white/95 backdrop-blur-xl px-3 py-3 sm:px-5 sm:py-4 border border-white/60">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`mt-0.5 w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br ${activeTabMeta.color} text-white flex items-center justify-center shadow-md ring-1 ring-white/25`}
+                      >
+                        <ActiveTabIcon className="w-5 h-5" aria-hidden />
                       </div>
                       <div className="min-w-0">
-                        <h2 className="text-sm sm:text-base font-bold text-slate-900">{activeTabMeta.label}</h2>
-                        <p className="text-[9px] sm:text-xs text-slate-500 mt-0 line-clamp-2">{activeTabMeta.description}</p>
+                        <h2 className="text-base sm:text-lg font-bold text-stone-900 tracking-tight">
+                          {activeTabMeta.label}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-2 leading-relaxed">
+                          {activeTabMeta.description}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-100 text-slate-700">
-                        <FiCommand className="w-3 h-3" />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 ring-1 ring-stone-200/80">
+                        <FiCommand className="w-3.5 h-3.5 text-amber-700/90" aria-hidden />
                         Admin
                       </span>
                       {quickActions.slice(0, 2).map((qa) => (
@@ -340,10 +411,10 @@ const AdminDashboard = () => {
                           key={qa.label}
                           type="button"
                           onClick={qa.action}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-br from-stone-900 to-stone-800 text-amber-50 shadow-sm hover:from-stone-800 hover:to-stone-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2"
                         >
                           {qa.label}
-                          <FiArrowRight className="w-3 h-3" />
+                          <FiArrowRight className="w-3.5 h-3.5 shrink-0" aria-hidden />
                         </button>
                       ))}
                     </div>
@@ -356,15 +427,22 @@ const AdminDashboard = () => {
               ) : activeTab === 'notifications' ? (
                 <AllNotifications />
               ) : activeTab === 'dashboard' && (
-                <DashboardStats 
-                  onAddStudent={() => setIsAddStudentModalOpen(true)}
-                  onCreateClass={() => setIsAddClassModalOpen(true)}
-                  onAddTeacher={() => setIsAddTeacherModalOpen(true)}
-                  onAddEducator={() => setIsAddEducatorModalOpen(true)}
-                  onGenerateReport={() => setIsGenerateReportModalOpen(true)}
-                  onExportData={() => setIsExportDataModalOpen(true)}
-                  onSettings={() => setIsSettingsModalOpen(true)}
-                />
+                <div className="space-y-4 sm:space-y-5">
+                  <DashboardStats
+                    onAddStudent={() => setIsAddStudentModalOpen(true)}
+                    onCreateClass={() => setIsAddClassModalOpen(true)}
+                    onAddTeacher={() => setIsAddTeacherModalOpen(true)}
+                    onAddEducator={() => setIsAddEducatorModalOpen(true)}
+                    onGenerateReport={() => setIsGenerateReportModalOpen(true)}
+                    onExportData={() => setIsExportDataModalOpen(true)}
+                    onSettings={() => setIsSettingsModalOpen(true)}
+                  />
+                  <SchoolOverviewCharts />
+                  <AdminModulesHub
+                    allTabs={tabs.filter((t) => t.id !== 'dashboard')}
+                    onNavigate={changeTab}
+                  />
+                </div>
               )}
               {activeTab === 'students' && <StudentsList searchQuery={searchQuery} />}
               {activeTab === 'academic' && <AcademicManagement />}
@@ -372,9 +450,14 @@ const AdminDashboard = () => {
               {activeTab === 'classes' && <ClassesList searchQuery={searchQuery} />}
               {activeTab === 'teachers' && <TeachersList searchQuery={searchQuery} />}
               {activeTab === 'educators' && <EducatorsList searchQuery={searchQuery} />}
+              {activeTab === 'staff-personnel' && <StaffPersonnelModule />}
+              {activeTab === 'parent-guardians' && <ParentGuardiansModule />}
               {activeTab === 'management' && <CompleteManagement />}
               {activeTab === 'roles' && <MultiRolesManagement />}
               {activeTab === 'pedagogical' && <PedagogicalTracking />}
+              {activeTab === 'discipline' && <DisciplineAdminModule />}
+              {activeTab === 'extracurricular' && <ExtracurricularAdminModule />}
+              {activeTab === 'orientation' && <OrientationAdminModule />}
               {activeTab === 'communication' && <CommunicationHubModule />}
               {activeTab === 'library' && <LibraryManagementModule />}
               {activeTab === 'material' && <MaterialManagementModule />}
@@ -389,20 +472,8 @@ const AdminDashboard = () => {
               {activeTab === 'fees' && <FeesManagementModule />}
               {activeTab === 'tuition-fees' && <TuitionFeesManagement />}
               {activeTab === 'payments' && <PaymentsManagement />}
-              {activeTab === 'nfc-scanner' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 mb-2">Scanner NFC - Élèves</h3>
-                      <NFCStudentScanner />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 mb-2">Scanner NFC - Enseignants</h3>
-                      <NFCTeacherScanner />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {activeTab === 'accounting' && <AccountingManagementModule />}
+              {activeTab === 'nfc-scanner' && <AccessControlModule />}
               {activeTab === 'security' && <SecurityPrivacyManagement />}
               {activeTab === 'performance' && <PerformanceManagement />}
               {activeTab === 'settings' && (

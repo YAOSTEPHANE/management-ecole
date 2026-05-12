@@ -1,9 +1,24 @@
 import express from 'express';
+import type { Prisma } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
+import { autoReceiptUrl } from '../utils/tuition-financial-automation.util';
 import { academicYearFromDate } from '../utils/academicYear.util';
 import { deleteUploadedFileByPublicUrl } from '../utils/deleteUpload.util';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
+import {
+  decryptStudentRecord,
+  encryptStudentSensitiveWritePayload,
+} from '../utils/student-sensitive-crypto.util';
+import {
+  diffStudentSelfProfile,
+  recordAuditLog,
+  studentSelfProfileSnapshotForAudit,
+} from '../utils/audit-log.util';
+import {
+  buildPortalOfferingWhere,
+  registerStudentForExtracurricular,
+} from '../utils/extracurricular.util';
 
 const router = express.Router();
 
@@ -29,6 +44,53 @@ router.use(async (req: AuthRequest, res, next) => {
     next();
   } catch (err) {
     next(err);
+  }
+});
+
+router.get('/notifications', async (req: AuthRequest, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(notifications);
+  } catch (error: unknown) {
+    console.error('GET /student/notifications:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/read-all', async (req: AuthRequest, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user!.id, read: false },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error('PUT /student/notifications/read-all:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.notification.findFirst({
+      where: { id, userId: req.user!.id },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Notification non trouvée' });
+    }
+    const notification = await prisma.notification.update({
+      where: { id },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json(notification);
+  } catch (error: unknown) {
+    console.error('PUT /student/notifications/:id/read:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
 
@@ -89,7 +151,7 @@ router.get('/profile', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Profil élève non trouvé' });
     }
 
-    res.json(student);
+    res.json(decryptStudentRecord(student as Record<string, unknown>));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -156,16 +218,36 @@ router.put(
         if (!current) {
           return res.status(404).json({ error: 'Profil élève non trouvé' });
         }
-        return res.json(current);
+        return res.json(decryptStudentRecord(current as Record<string, unknown>));
       }
+
+      const encryptedData = encryptStudentSensitiveWritePayload(data);
+
+      const beforeProfile = studentSelfProfileSnapshotForAudit(student);
 
       const updated = await prisma.student.update({
         where: { id: student.id },
-        data,
+        data: encryptedData,
         include: profileInclude,
       });
 
-      res.json(updated);
+      const profileChanges = diffStudentSelfProfile(
+        beforeProfile,
+        studentSelfProfileSnapshotForAudit(updated)
+      );
+      if (profileChanges) {
+        await recordAuditLog({
+          req,
+          actor: req.user!,
+          action: 'UPDATE',
+          entityType: 'Student',
+          entityId: student.id,
+          summary: `Profil élève (coordonnées / urgence / santé) modifié par l’élève (${req.user!.email})`,
+          changes: profileChanges,
+        });
+      }
+
+      res.json(decryptStudentRecord(updated as Record<string, unknown>));
     } catch (error: any) {
       console.error('PUT /student/profile:', error);
       res.status(500).json({ error: error.message || 'Erreur serveur' });
@@ -269,6 +351,16 @@ router.get('/schedule', async (req: AuthRequest, res) => {
                     lastName: true,
                   },
                 },
+              },
+            },
+          },
+        },
+        substituteTeacher: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -587,6 +679,12 @@ router.post('/messages', async (req: AuthRequest, res) => {
     const cat =
       category && validCategories.includes(category) ? category : 'GENERAL';
 
+    const { makeDmThreadKey } = await import('../utils/internal-messaging.util');
+    const dmKey = makeDmThreadKey(req.user!.id, admin.id);
+    const attachmentUrls = Array.isArray(req.body.attachmentUrls)
+      ? (req.body.attachmentUrls as unknown[]).filter((u) => typeof u === 'string' && u.trim()).map((u) => String(u).trim())
+      : [];
+
     const message = await prisma.message.create({
       data: {
         senderId: req.user!.id,
@@ -595,6 +693,8 @@ router.post('/messages', async (req: AuthRequest, res) => {
         content: content.trim(),
         category: cat,
         channels: ['PLATFORM'],
+        threadKey: dmKey,
+        attachmentUrls,
       },
       include: {
         receiver: {
@@ -645,52 +745,41 @@ router.get('/announcements', async (req: AuthRequest, res) => {
       where: {
         userId: req.user!.id,
       },
-      include: {
-        class: true,
-      },
+      select: { classId: true },
     });
-
-    const announcements = await prisma.announcement.findMany({
-      where: {
-        published: true,
-        OR: [
-          { targetRole: 'STUDENT' },
-          { targetRole: null },
-          ...(student?.classId ? [{ targetClassId: student.classId }] : []),
-        ],
-        AND: [
-          {
-            OR: [
-              { expiresAt: null },
-              { expiresAt: { gte: new Date() } },
-            ],
-          },
-        ],
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        targetClass: {
-          select: {
-            id: true,
-            name: true,
-            level: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
+    const { fetchAnnouncementsForPortal } = await import('../utils/portal-feed.util');
+    const classIds = student?.classId ? [student.classId] : [];
+    const announcements = await fetchAnnouncementsForPortal('STUDENT', classIds);
     res.json(announcements);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/school-calendar-events', async (req: AuthRequest, res) => {
+  try {
+    const academicYear =
+      typeof req.query.academicYear === 'string' ? req.query.academicYear : undefined;
+    const { fetchSchoolCalendarForPortal } = await import('../utils/portal-feed.util');
+    const events = await fetchSchoolCalendarForPortal(academicYear);
+    res.json(events);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/portal-feed', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { classId: true },
+    });
+    const classIds = student?.classId ? [student.classId] : [];
+    const academicYear =
+      typeof req.query.academicYear === 'string' ? req.query.academicYear : undefined;
+    const { buildPortalFeed } = await import('../utils/portal-feed.util');
+    const feed = await buildPortalFeed({ role: 'STUDENT', classIds, academicYear });
+    res.json(feed);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -714,6 +803,7 @@ router.get('/report-cards', async (req: AuthRequest, res) => {
     const reportCards = await prisma.reportCard.findMany({
       where: {
         studentId: student.id,
+        published: true,
         ...(period && { period: period as string }),
         ...(academicYear && { academicYear: academicYear as string }),
       },
@@ -767,6 +857,271 @@ router.get('/conduct', async (req: AuthRequest, res) => {
     res.json(conducts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/discipline/rulebook', async (req: AuthRequest, res) => {
+  try {
+    const row = await prisma.schoolDisciplinaryRulebook.findFirst({
+      where: { isPublished: true },
+      orderBy: [{ effectiveFrom: 'desc' }, { sortOrder: 'asc' }],
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        academicYear: true,
+        effectiveFrom: true,
+        updatedAt: true,
+      },
+    });
+    res.json(row);
+  } catch (error: unknown) {
+    console.error('GET /student/discipline/rulebook:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/discipline/records', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Élève non trouvé' });
+    }
+    const { academicYear } = req.query;
+    const records = await prisma.studentDisciplinaryRecord.findMany({
+      where: {
+        studentId: student.id,
+        ...(typeof academicYear === 'string' && academicYear ? { academicYear } : {}),
+      },
+      orderBy: { incidentDate: 'desc' },
+      select: {
+        id: true,
+        category: true,
+        title: true,
+        description: true,
+        incidentDate: true,
+        academicYear: true,
+        exclusionStartDate: true,
+        exclusionEndDate: true,
+        councilSessionDate: true,
+        councilDecisionSummary: true,
+        behaviorContractGoals: true,
+        behaviorContractReviewAt: true,
+        behaviorContractStatus: true,
+        recordedBy: { select: { firstName: true, lastName: true, role: true } },
+      },
+    });
+    res.json(records);
+  } catch (error: unknown) {
+    console.error('GET /student/discipline/records:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/extracurricular/offerings', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const academicYear =
+      typeof req.query.academicYear === 'string' ? req.query.academicYear : undefined;
+    const where = await buildPortalOfferingWhere(student.id, academicYear);
+    if (!where) return res.json([]);
+    const rows = await prisma.extracurricularOffering.findMany({
+      where,
+      orderBy: [{ kind: 'asc' }, { startAt: 'asc' }, { title: 'asc' }],
+      select: {
+        id: true,
+        kind: true,
+        category: true,
+        title: true,
+        description: true,
+        academicYear: true,
+        supervisorName: true,
+        meetSchedule: true,
+        startAt: true,
+        endAt: true,
+        location: true,
+        registrationDeadline: true,
+        maxParticipants: true,
+        class: { select: { name: true, level: true } },
+        _count: { select: { registrations: true } },
+      },
+    });
+    res.json(rows);
+  } catch (error: unknown) {
+    console.error('GET /student/extracurricular/offerings:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/extracurricular/registrations', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const academicYear =
+      typeof req.query.academicYear === 'string' ? req.query.academicYear : undefined;
+    const rows = await prisma.extracurricularRegistration.findMany({
+      where: {
+        studentId: student.id,
+        ...(academicYear?.trim() ? { offering: { academicYear: academicYear.trim() } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        offering: {
+          select: {
+            id: true,
+            title: true,
+            kind: true,
+            category: true,
+            startAt: true,
+            endAt: true,
+            location: true,
+            academicYear: true,
+          },
+        },
+      },
+    });
+    res.json(rows);
+  } catch (error: unknown) {
+    console.error('GET /student/extracurricular/registrations:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/extracurricular/registrations', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const { offeringId } = req.body as { offeringId?: string };
+    if (!offeringId) return res.status(400).json({ error: 'offeringId est requis.' });
+    const { registration, status } = await registerStudentForExtracurricular(student.id, offeringId);
+    res.status(201).json({ ...(registration as object), _placement: status });
+  } catch (error: unknown) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2002'
+    ) {
+      return res.status(409).json({ error: 'Inscription déjà enregistrée.' });
+    }
+    const msg = error instanceof Error ? error.message : 'Erreur serveur';
+    console.error('POST /student/extracurricular/registrations:', error);
+    res.status(400).json({ error: msg });
+  }
+});
+
+router.delete('/extracurricular/registrations/:id', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const reg = await prisma.extracurricularRegistration.findFirst({
+      where: { id: req.params.id, studentId: student.id },
+    });
+    if (!reg) return res.status(404).json({ error: 'Inscription introuvable.' });
+    await prisma.extracurricularRegistration.delete({ where: { id: reg.id } });
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error('DELETE /student/extracurricular/registrations/:id:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/orientation/catalog', async (req: AuthRequest, res) => {
+  try {
+    const academicYear = typeof req.query.academicYear === 'string' ? req.query.academicYear.trim() : '';
+    const testWhere: Prisma.OrientationAptitudeTestWhereInput = {
+      isPublished: true,
+      ...(academicYear
+        ? { OR: [{ academicYear: null }, { academicYear: academicYear }] }
+        : {}),
+    };
+    const adviceWhere: Prisma.OrientationAdviceWhereInput = {
+      isPublished: true,
+      OR: [{ audience: 'ALL' }, { audience: 'STUDENT' }],
+    };
+    const [filieres, partnerships, aptitudeTests, advice] = await Promise.all([
+      prisma.orientationFiliere.findMany({
+        where: { isPublished: true },
+        orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+      }),
+      prisma.orientationPartnership.findMany({
+        where: { isPublished: true },
+        orderBy: [{ sortOrder: 'asc' }, { organizationName: 'asc' }],
+      }),
+      prisma.orientationAptitudeTest.findMany({
+        where: testWhere,
+        orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+      }),
+      prisma.orientationAdvice.findMany({
+        where: adviceWhere,
+        orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+      }),
+    ]);
+    res.json({ filieres, partnerships, aptitudeTests, advice });
+  } catch (error: unknown) {
+    console.error('GET /student/orientation/catalog:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/orientation/follow-ups', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const academicYear =
+      typeof req.query.academicYear === 'string' ? req.query.academicYear.trim() : undefined;
+    const rows = await prisma.studentOrientationFollowUp.findMany({
+      where: {
+        studentId: student.id,
+        ...(academicYear ? { academicYear } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        counselor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    res.json(rows);
+  } catch (error: unknown) {
+    console.error('GET /student/orientation/follow-ups:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/orientation/placements', async (req: AuthRequest, res) => {
+  try {
+    const student = await prisma.student.findFirst({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!student) return res.status(404).json({ error: 'Élève non trouvé' });
+    const rows = await prisma.studentOrientationPlacement.findMany({
+      where: { studentId: student.id },
+      orderBy: { startDate: 'desc' },
+      include: { createdBy: { select: { id: true, firstName: true, lastName: true } } },
+    });
+    res.json(rows);
+  } catch (error: unknown) {
+    console.error('GET /student/orientation/placements:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
 
@@ -1189,22 +1544,30 @@ router.post('/payments/:id/confirm', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Ce paiement ne peut plus être modifié' });
     }
 
-    // Mettre à jour le paiement comme complété
     const updatedPayment = await prisma.payment.update({
       where: { id },
       data: {
         status: 'COMPLETED',
         transactionId: transactionId || `TXN-${Date.now()}`,
         paidAt: new Date(),
+        receiptUrl: autoReceiptUrl(payment.paymentReference || id),
       },
     });
 
-    // Mettre à jour le frais de scolarité comme payé
+    const completedPayments = await prisma.payment.findMany({
+      where: {
+        tuitionFeeId: payment.tuitionFeeId,
+        status: 'COMPLETED',
+      },
+    });
+    const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+    const isFullyPaid = totalPaid >= payment.tuitionFee.amount;
+
     await prisma.tuitionFee.update({
       where: { id: payment.tuitionFeeId },
       data: {
-        isPaid: true,
-        paidAt: new Date(),
+        isPaid: isFullyPaid,
+        paidAt: isFullyPaid ? new Date() : null,
       },
     });
 

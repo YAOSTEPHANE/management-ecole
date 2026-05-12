@@ -13,6 +13,14 @@ const IDENTITY_TYPES = [
   'OTHER',
 ] as const;
 
+const TEACHER_ADMIN_DOC_TYPES = [
+  'CONTRACT',
+  'DIPLOMA_COPY',
+  'HR_LETTER',
+  'CERTIFICATE',
+  'OTHER',
+] as const;
+
 const router = express.Router();
 
 router.use(authenticate);
@@ -159,6 +167,79 @@ router.post(
         }
       }
       console.error('POST /upload/identity-document:', error);
+      res.status(500).json({ error: error.message || 'Erreur serveur' });
+    }
+  }
+);
+
+// Document administratif enseignant (contrat, copie diplôme, etc.) — admin uniquement
+router.post(
+  '/teacher-admin-document',
+  identityUpload.single('teacherAdminDocument'),
+  async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Aucun fichier fourni' });
+      }
+
+      if (req.user?.role !== 'ADMIN') {
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ error: 'Réservé aux administrateurs' });
+      }
+
+      const { type, label, notes, teacherId: bodyTeacherId } = req.body;
+
+      if (!bodyTeacherId) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'teacherId requis' });
+      }
+
+      if (!type || !TEACHER_ADMIN_DOC_TYPES.includes(type as (typeof TEACHER_ADMIN_DOC_TYPES)[number])) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'Type de document invalide' });
+      }
+
+      const t = await prisma.teacher.findUnique({ where: { id: String(bodyTeacherId) } });
+      if (!t) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: 'Enseignant introuvable' });
+      }
+
+      const fileUrl = `${req.protocol}://${req.get('host')}${getFileUrl(
+        req.file.filename,
+        'teacher-admin-documents'
+      )}`;
+
+      const doc = await prisma.teacherAdministrativeDocument.create({
+        data: {
+          teacherId: t.id,
+          type: type as (typeof TEACHER_ADMIN_DOC_TYPES)[number],
+          label:
+            type === 'OTHER' && label && String(label).trim()
+              ? String(label).trim().slice(0, 120)
+              : null,
+          fileUrl,
+          originalName: req.file.originalname.slice(0, 255),
+          mimeType: req.file.mimetype,
+          fileSize: req.file.size,
+          notes: notes && String(notes).trim() ? String(notes).trim().slice(0, 500) : null,
+          uploadedById: req.user.id,
+        },
+        include: {
+          uploadedBy: { select: { firstName: true, lastName: true, role: true } },
+        },
+      });
+
+      res.status(201).json({ message: 'Document enregistré', document: doc });
+    } catch (error: any) {
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch {
+          /* ignore */
+        }
+      }
+      console.error('POST /upload/teacher-admin-document:', error);
       res.status(500).json({ error: error.message || 'Erreur serveur' });
     }
   }

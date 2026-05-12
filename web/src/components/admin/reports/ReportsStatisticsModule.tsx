@@ -5,6 +5,7 @@ import Button from '../../ui/Button';
 import ReportsDashboardPanel from './ReportsDashboardPanel';
 import ReportsFinancialPanel from './ReportsFinancialPanel';
 import ReportsAcademicPanel from './ReportsAcademicPanel';
+import ReportsAdministrativePanel from './ReportsAdministrativePanel';
 import ReportsAdmissionsPanel from './ReportsAdmissionsPanel';
 import ReportsPerformancePanel from './ReportsPerformancePanel';
 import {
@@ -14,10 +15,11 @@ import {
   FiUserPlus,
   FiTrendingUp,
   FiRefreshCw,
+  FiBriefcase,
 } from 'react-icons/fi';
 import { ADM } from '../adminModuleLayout';
 
-type RepTab = 'dashboard' | 'financial' | 'academic' | 'admissions' | 'performance';
+type RepTab = 'dashboard' | 'financial' | 'academic' | 'administrative' | 'admissions' | 'performance';
 
 const ReportsStatisticsModule: React.FC = () => {
   const [tab, setTab] = useState<RepTab>('dashboard');
@@ -32,6 +34,7 @@ const ReportsStatisticsModule: React.FC = () => {
     { id: 'dashboard', label: 'Tableaux de bord', icon: FiGrid },
     { id: 'financial', label: 'Rapports financiers', icon: FiDollarSign },
     { id: 'academic', label: 'Rapports académiques', icon: FiBook },
+    { id: 'administrative', label: 'Rapports administratifs', icon: FiBriefcase },
     { id: 'admissions', label: 'Statistiques d’inscription', icon: FiUserPlus },
     { id: 'performance', label: 'Analyses de performances', icon: FiTrendingUp },
   ];
@@ -90,6 +93,7 @@ const ReportsStatisticsModule: React.FC = () => {
       {tab === 'dashboard' && <ReportsDashboardPanel summary={data} isLoading={isLoading} />}
       {tab === 'financial' && <ReportsFinancialPanel summary={data} isLoading={isLoading} />}
       {tab === 'academic' && <ReportsAcademicPanel summary={data} isLoading={isLoading} />}
+      {tab === 'administrative' && <ReportsAdministrativePanel />}
       {tab === 'admissions' && <ReportsAdmissionsPanel summary={data} isLoading={isLoading} />}
       {tab === 'performance' && <ReportsPerformancePanel summary={data} isLoading={isLoading} />}
     </div>

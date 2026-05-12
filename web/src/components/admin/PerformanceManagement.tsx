@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
+
+function formatUptime(totalSeconds: number): string {
+  if (totalSeconds < 1) return '0 min';
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (d > 0) return `${d} j ${h} h`;
+  if (h > 0) return `${h} h ${m} min`;
+  return `${m} min`;
+}
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
@@ -43,6 +53,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { chartBlueRed, CHART_BLUE, CHART_RED, CHART_ANIMATION_MS } from '../charts';
 
 type PerformanceTab = 'overview' | 'metrics' | 'usage' | 'optimization' | 'monitoring';
 
@@ -82,6 +93,12 @@ const PerformanceManagement = () => {
   const { data: stats } = useQuery({
     queryKey: ['admin-dashboard'],
     queryFn: adminApi.getDashboard,
+  });
+
+  const { data: sysMetrics, isLoading: sysLoading } = useQuery({
+    queryKey: ['admin-system-metrics'],
+    queryFn: adminApi.getSystemMetrics,
+    refetchInterval: refreshInterval,
   });
 
   const usageData = [
@@ -149,21 +166,23 @@ const PerformanceManagement = () => {
           <div className="hidden shrink-0 items-center space-x-3 md:flex">
             <div className="text-center">
               <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
-                {performanceMetrics.uptime.toFixed(1)}%
+                {sysLoading ? '…' : sysMetrics ? formatUptime(sysMetrics.uptimeSeconds) : '—'}
               </div>
-              <div className="text-[10px] text-yellow-100 sm:text-xs">Disponibilité</div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">Uptime processus</div>
             </div>
             <div className="text-center">
               <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
-                {performanceMetrics.responseTime.toFixed(0)}ms
+                {sysMetrics?.memory?.heapUsedMb != null ? `${sysMetrics.memory.heapUsedMb}` : '—'}
               </div>
-              <div className="text-[10px] text-yellow-100 sm:text-xs">Temps réponse</div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">Heap (Mo)</div>
             </div>
-            <div className="text-center">
-              <div className="text-base font-bold tabular-nums text-amber-50 sm:text-lg">
-                {performanceMetrics.activeUsers}
+            <div className="text-center max-w-[7rem]">
+              <div className="text-[10px] font-bold tabular-nums text-amber-50 sm:text-xs leading-tight truncate">
+                {sysMetrics?.nodeVersion ?? '—'}
               </div>
-              <div className="text-[10px] text-yellow-100 sm:text-xs">Actifs</div>
+              <div className="text-[10px] text-yellow-100 sm:text-xs">
+                {sysMetrics?.env ?? '—'}
+              </div>
             </div>
           </div>
         </div>
@@ -231,6 +250,57 @@ const PerformanceManagement = () => {
       <div className="animate-slide-up">
         {activeTab === 'overview' && (
           <div className="space-y-4">
+            <Card className="p-3 border border-blue-100 bg-blue-50/50">
+              <p className="text-xs text-gray-700 leading-snug">
+                <strong>Données réelles</strong> : temps de fonctionnement du processus Node, mémoire et
+                version (endpoint <code className="text-[10px] bg-white/80 px-1 rounded">/api/admin/system/metrics</code>
+                ). Les cartes et graphiques « charge serveur / cache » ci-dessous restent des{' '}
+                <strong>illustrations</strong> tant qu’aucun outil APM n’est branché.
+              </p>
+            </Card>
+
+            <div className={ADM.grid4}>
+              <Card className={`border-l-4 border-slate-600 bg-gradient-to-br from-slate-50 to-slate-100 ${ADM.statCard}`}>
+                <div className="min-w-0">
+                  <p className={ADM.statLabel}>Uptime (API)</p>
+                  <p className={`${ADM.statVal} text-slate-800`}>
+                    {sysMetrics ? formatUptime(sysMetrics.uptimeSeconds) : sysLoading ? '…' : '—'}
+                  </p>
+                </div>
+              </Card>
+              <Card className={`border-l-4 border-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100 ${ADM.statCard}`}>
+                <div className="min-w-0">
+                  <p className={ADM.statLabel}>Mémoire RSS (Mo)</p>
+                  <p className={`${ADM.statVal} text-indigo-700`}>
+                    {sysMetrics?.memory?.rssMb ?? (sysLoading ? '…' : '—')}
+                  </p>
+                </div>
+              </Card>
+              <Card className={`border-l-4 border-cyan-500 bg-gradient-to-br from-cyan-50 to-cyan-100 ${ADM.statCard}`}>
+                <div className="min-w-0">
+                  <p className={ADM.statLabel}>Heap utilisé / total</p>
+                  <p className={`${ADM.statVal} text-cyan-800 text-base`}>
+                    {sysMetrics
+                      ? `${sysMetrics.memory.heapUsedMb} / ${sysMetrics.memory.heapTotalMb}`
+                      : sysLoading
+                        ? '…'
+                        : '—'}
+                  </p>
+                </div>
+              </Card>
+              <Card className={`border-l-4 border-gray-500 bg-gradient-to-br from-gray-50 to-gray-100 ${ADM.statCard}`}>
+                <div className="min-w-0">
+                  <p className={ADM.statLabel}>Plateforme</p>
+                  <p className={`${ADM.statVal} text-gray-800 text-sm`}>
+                    {sysMetrics ? `${sysMetrics.platform} · ${sysMetrics.nodeVersion}` : sysLoading ? '…' : '—'}
+                  </p>
+                </div>
+              </Card>
+            </div>
+
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              Illustration (démonstration)
+            </p>
             {/* Métriques principales */}
             <div className={ADM.grid4}>
               <Card className={`border-l-4 border-green-500 bg-gradient-to-br from-green-50 to-green-100 ${ADM.statCard}`}>
@@ -319,9 +389,11 @@ const PerformanceManagement = () => {
                     <Area
                       type="monotone"
                       dataKey="responseTime"
-                      stroke="#3B82F6"
-                      fill="#3B82F6"
-                      fillOpacity={0.6}
+                      stroke={CHART_BLUE}
+                      fill={CHART_BLUE}
+                      fillOpacity={0.55}
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -336,9 +408,31 @@ const PerformanceManagement = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="load" stroke="#EF4444" name="Charge" />
-                    <Line type="monotone" dataKey="memory" stroke="#3B82F6" name="Mémoire" />
-                    <Line type="monotone" dataKey="cpu" stroke="#10B981" name="CPU" />
+                    <Line
+                      type="monotone"
+                      dataKey="load"
+                      stroke={CHART_RED}
+                      name="Charge"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="memory"
+                      stroke={CHART_BLUE}
+                      name="Mémoire"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="cpu"
+                      stroke={CHART_BLUE}
+                      strokeDasharray="6 4"
+                      name="CPU"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </Card>
@@ -482,9 +576,11 @@ const PerformanceManagement = () => {
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
                     >
-                      {usageData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {usageData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={chartBlueRed(index)} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -500,7 +596,12 @@ const PerformanceManagement = () => {
                     <XAxis dataKey="time" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="requests" fill="#3B82F6" />
+                    <Bar
+                      dataKey="requests"
+                      fill={CHART_BLUE}
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -672,19 +773,23 @@ const PerformanceManagement = () => {
                     type="monotone"
                     dataKey="responseTime"
                     stackId="1"
-                    stroke="#3B82F6"
-                    fill="#3B82F6"
-                    fillOpacity={0.6}
+                    stroke={CHART_BLUE}
+                    fill={CHART_BLUE}
+                    fillOpacity={0.55}
                     name="Temps de réponse"
+                    isAnimationActive
+                    animationDuration={CHART_ANIMATION_MS}
                   />
                   <Area
                     type="monotone"
                     dataKey="requests"
                     stackId="2"
-                    stroke="#10B981"
-                    fill="#10B981"
-                    fillOpacity={0.6}
+                    stroke={CHART_RED}
+                    fill={CHART_RED}
+                    fillOpacity={0.45}
                     name="Requêtes"
+                    isAnimationActive
+                    animationDuration={CHART_ANIMATION_MS}
                   />
                 </AreaChart>
               </ResponsiveContainer>

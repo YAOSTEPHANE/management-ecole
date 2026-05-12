@@ -50,6 +50,10 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
     contractType: 'CDI',
     salary: '',
     isActive: true,
+    nfcId: '',
+    biometricId: '',
+    bio: '',
+    maxWeeklyHours: '',
   });
 
   // Load teacher data into form
@@ -64,6 +68,11 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
         contractType: teacher.contractType || 'CDI',
         salary: teacher.salary ? teacher.salary.toString() : '',
         isActive: teacher.user?.isActive !== undefined ? teacher.user.isActive : true,
+        nfcId: teacher.nfcId || '',
+        biometricId: teacher.biometricId || '',
+        bio: (teacher as any).bio || '',
+        maxWeeklyHours:
+          (teacher as any).maxWeeklyHours != null ? String((teacher as any).maxWeeklyHours) : '',
       });
     }
   }, [teacher]);
@@ -194,6 +203,15 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
       contractType: formData.contractType,
       salary: formData.salary || undefined,
       isActive: formData.isActive,
+      nfcId: formData.nfcId.trim() || null,
+      biometricId: formData.biometricId.trim() || null,
+      bio: formData.bio.trim() ? formData.bio.trim() : null,
+      maxWeeklyHours: (() => {
+        const raw = formData.maxWeeklyHours.trim();
+        if (!raw) return null;
+        const n = parseFloat(raw.replace(',', '.'));
+        return Number.isNaN(n) ? null : n;
+      })(),
     };
 
     updateTeacherMutation.mutate(updateData);
@@ -481,6 +499,70 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                     />
                   </div>
                   <p className="mt-0.5 text-[10px] text-stone-500">Montant en FCFA</p>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-teacher-max-hours" className="block text-xs font-semibold text-stone-700 mb-1">
+                    Plafond horaire hebdomadaire (h)
+                  </label>
+                  <input
+                    id="edit-teacher-max-hours"
+                    type="number"
+                    name="maxWeeklyHours"
+                    value={formData.maxWeeklyHours}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.5"
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg"
+                    placeholder="Ex. 18"
+                    aria-label="Plafond horaire hebdomadaire en heures"
+                  />
+                  <p className="mt-0.5 text-[10px] text-stone-500">Charge contractuelle max. (h/semaine)</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="edit-teacher-bio" className="block text-xs font-semibold text-stone-700 mb-1">
+                    Profil / présentation
+                  </label>
+                  <textarea
+                    id="edit-teacher-bio"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg resize-none"
+                    placeholder="Parcours, compétences, langues…"
+                    aria-label="Biographie ou présentation"
+                  />
+                </div>
+
+                <div className="md:col-span-2 rounded-lg border border-stone-200/80 bg-stone-50/50 p-2.5 space-y-2">
+                  <p className="text-[10px] font-semibold text-stone-700 uppercase tracking-wide">Pointage (carte / empreinte)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">ID carte NFC</label>
+                      <input
+                        type="text"
+                        name="nfcId"
+                        value={formData.nfcId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg font-mono focus:ring-2 focus:ring-amber-500/25"
+                        placeholder="Identifiant badge"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">ID empreinte digitale</label>
+                      <input
+                        type="text"
+                        name="biometricId"
+                        value={formData.biometricId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg font-mono focus:ring-2 focus:ring-amber-500/25"
+                        placeholder="Identifiant lecteur biométrique"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-stone-500">Les deux peuvent coexister ; le pointage accepte l’un ou l’autre.</p>
                 </div>
 
                 <div>

@@ -27,6 +27,12 @@ const STATUS_LABEL: Record<string, string> = {
 const HRLeavesPanel: React.FC = () => {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
+  const [rejectTarget, setRejectTarget] = useState<{
+    teacherId: string;
+    leaveId: string;
+    teacherName: string;
+  } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { data: leaves, isLoading } = useQuery({
     queryKey: ['admin-hr-teacher-leaves', filter],
@@ -37,22 +43,49 @@ const HRLeavesPanel: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({
-      teacherId,
-      leaveId,
-      status,
-    }: {
+    mutationFn: (payload: {
       teacherId: string;
       leaveId: string;
       status: 'APPROVED' | 'REJECTED';
-    }) => adminApi.updateTeacherLeaveStatus(teacherId, leaveId, { status }),
+      adminComment?: string;
+    }) =>
+      adminApi.updateTeacherLeaveStatus(payload.teacherId, payload.leaveId, {
+        status: payload.status,
+        ...(payload.adminComment !== undefined && { adminComment: payload.adminComment }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-hr-teacher-leaves'] });
-      toast.success('Demande mise à jour');
+      toast.success('Demande mise à jour — un courriel a été envoyé à l’enseignant si SMTP est configuré.');
+      setRejectTarget(null);
+      setRejectReason('');
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.error || 'Mise à jour impossible'),
   });
+
+  const openRejectModal = (lv: any) => {
+    setRejectTarget({
+      teacherId: lv.teacherId,
+      leaveId: lv.id,
+      teacherName: `${lv.teacher?.user?.firstName ?? ''} ${lv.teacher?.user?.lastName ?? ''}`.trim(),
+    });
+    setRejectReason('');
+  };
+
+  const confirmReject = () => {
+    const trimmed = rejectReason.trim();
+    if (!trimmed) {
+      toast.error('Le motif de refus est obligatoire.');
+      return;
+    }
+    if (!rejectTarget) return;
+    updateMutation.mutate({
+      teacherId: rejectTarget.teacherId,
+      leaveId: rejectTarget.leaveId,
+      status: 'REJECTED',
+      adminComment: trimmed,
+    });
+  };
 
   const list = (leaves as any[]) ?? [];
 
@@ -61,8 +94,8 @@ const HRLeavesPanel: React.FC = () => {
       <Card className="p-4 border border-orange-100 bg-orange-50/40">
         <p className="text-sm text-gray-700 flex items-start gap-2">
           <FiCalendar className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-          Demandes de <strong>congés et permissions</strong> déposées par les enseignants. Validez ou
-          refusez depuis la direction (les enseignants créent leurs demandes depuis leur espace).
+          Demandes de <strong>congés et permissions</strong> déposées par les enseignants. Validez ou refusez depuis la
+          direction (refus : motif obligatoire ; un courriel informe l’enseignant après décision).
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {(['all', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as const).map((f) => (
@@ -97,6 +130,7 @@ const HRLeavesPanel: React.FC = () => {
                   <th className="py-3 px-4 font-semibold">Du</th>
                   <th className="py-3 px-4 font-semibold">Au</th>
                   <th className="py-3 px-4 font-semibold">Statut</th>
+                  <th className="py-3 px-4 font-semibold max-w-[220px]">Direction</th>
                   <th className="py-3 px-4 font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -135,6 +169,15 @@ const HRLeavesPanel: React.FC = () => {
                         {STATUS_LABEL[lv.status] ?? lv.status}
                       </Badge>
                     </td>
+                    <td className="py-3 px-4 text-xs text-gray-600 max-w-[220px]">
+                      {lv.adminComment ? (
+                        <span className="line-clamp-3" title={lv.adminComment}>
+                          {lv.adminComment}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       {lv.status === 'PENDING' ? (
                         <div className="flex flex-wrap gap-1">
@@ -159,13 +202,7 @@ const HRLeavesPanel: React.FC = () => {
                             size="sm"
                             variant="outline"
                             disabled={updateMutation.isPending}
-                            onClick={() =>
-                              updateMutation.mutate({
-                                teacherId: lv.teacherId,
-                                leaveId: lv.id,
-                                status: 'REJECTED',
-                              })
-                            }
+                            onClick={() => openRejectModal(lv)}
                           >
                             <FiX className="w-3.5 h-3.5 mr-1" />
                             Refuser
@@ -182,6 +219,72 @@ const HRLeavesPanel: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-leave-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !updateMutation.isPending) {
+              setRejectTarget(null);
+              setRejectReason('');
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-lg lux-card-surface p-6 shadow-xl border border-gray-200 rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="reject-leave-title" className="text-lg font-bold text-gray-900 mb-1">
+              Refuser la demande
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {rejectTarget.teacherName ? (
+                <>
+                  Motif communiqué à <strong>{rejectTarget.teacherName}</strong> par courriel (si SMTP configuré).
+                </>
+              ) : (
+                <>Motif communiqué à l’enseignant par courriel (si SMTP configuré).</>
+              )}
+            </p>
+            <label htmlFor="reject-reason" className="block text-sm font-medium text-gray-700 mb-2">
+              Motif de refus <span className="text-red-600">*</span>
+            </label>
+            <textarea
+              id="reject-reason"
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              placeholder="Ex. : effectifs insuffisants sur la période demandée…"
+              disabled={updateMutation.isPending}
+            />
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateMutation.isPending}
+                onClick={() => {
+                  setRejectTarget(null);
+                  setRejectReason('');
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={updateMutation.isPending}
+                onClick={confirmReject}
+              >
+                Confirmer le refus
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

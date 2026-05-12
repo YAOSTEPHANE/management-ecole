@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { educatorApi } from '../../services/api';
 import Card from '../ui/Card';
@@ -34,10 +34,28 @@ const StudentsList = ({ searchQuery = '' }: StudentsListProps) => {
       student.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.class?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      (student.class?.name && student.class.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return matchesSearch;
   });
+
+  const assignedToClass = useMemo(() => {
+    const list = (filteredStudents || []).filter((s: any) => !!s.classId);
+    return [...list].sort((a: any, b: any) => {
+      const na = `${a.user.lastName} ${a.user.firstName}`;
+      const nb = `${b.user.lastName} ${b.user.firstName}`;
+      return na.localeCompare(nb);
+    });
+  }, [filteredStudents]);
+
+  const notAssignedToClass = useMemo(() => {
+    const list = (filteredStudents || []).filter((s: any) => !s.classId);
+    return [...list].sort((a: any, b: any) => {
+      const na = `${a.user.lastName} ${a.user.firstName}`;
+      const nb = `${b.user.lastName} ${b.user.firstName}`;
+      return na.localeCompare(nb);
+    });
+  }, [filteredStudents]);
 
   const handleViewStudent = (studentId: string) => {
     setSelectedStudentId(studentId);
@@ -90,55 +108,130 @@ const StudentsList = ({ searchQuery = '' }: StudentsListProps) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student: any) => (
-                  <tr
-                    key={student.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-3">
-                        <Avatar
-                          src={student.user.avatar}
-                          name={`${student.user.firstName} ${student.user.lastName}`}
-                          size="md"
-                        />
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {student.user.firstName} {student.user.lastName}
-                          </p>
-                          <p className="text-sm text-gray-500">{student.user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={student.class ? 'info' : 'default'}>
-                        {student.class?.name || 'Non assigné'}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{student.studentId}</td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant={enrollmentBadgeVariant(
-                          (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
-                        )}
-                      >
-                        {ENROLLMENT_STATUS_LABELS[
-                          (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
-                        ]}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleViewStudent(student.id)}
-                      >
-                        <FiEye className="w-4 h-4 mr-2" />
-                        Voir
-                      </Button>
+                <tr className="border-b border-emerald-100 bg-emerald-50/70">
+                  <td colSpan={5} className="py-2.5 px-4 text-xs font-semibold text-emerald-900 uppercase tracking-wide">
+                    Affectés à une classe ({assignedToClass.length})
+                  </td>
+                </tr>
+                {assignedToClass.length === 0 ? (
+                  <tr className="border-b border-gray-100">
+                    <td colSpan={5} className="py-6 px-4 text-sm text-gray-500 text-center">
+                      Aucun élève affecté dans cette vue.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  assignedToClass.map((student: any) => (
+                    <tr
+                      key={student.id}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-3">
+                          <Avatar
+                            src={student.user.avatar}
+                            name={`${student.user.firstName} ${student.user.lastName}`}
+                            size="md"
+                          />
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {student.user.firstName} {student.user.lastName}
+                            </p>
+                            <p className="text-sm text-gray-500">{student.user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={student.class ? 'info' : 'default'}>
+                          {student.class?.name || 'Non assigné'}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{student.studentId}</td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant={enrollmentBadgeVariant(
+                            (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                          )}
+                        >
+                          {ENROLLMENT_STATUS_LABELS[
+                            (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                          ]}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleViewStudent(student.id)}
+                        >
+                          <FiEye className="w-4 h-4 mr-2" />
+                          Voir
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+                <tr className="border-b border-amber-100 bg-amber-50/80">
+                  <td colSpan={5} className="py-2.5 px-4 text-xs font-semibold text-amber-950 uppercase tracking-wide border-t border-stone-200">
+                    Sans classe ({notAssignedToClass.length})
+                  </td>
+                </tr>
+                {notAssignedToClass.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-6 px-4 text-sm text-gray-500 text-center">
+                      Tous les élèves de cette vue ont une classe.
+                    </td>
+                  </tr>
+                ) : (
+                  notAssignedToClass.map((student: any) => (
+                    <tr
+                      key={student.id}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-3">
+                          <Avatar
+                            src={student.user.avatar}
+                            name={`${student.user.firstName} ${student.user.lastName}`}
+                            size="md"
+                          />
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {student.user.firstName} {student.user.lastName}
+                            </p>
+                            <p className="text-sm text-gray-500">{student.user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={student.class ? 'info' : 'default'}>
+                          {student.class?.name || 'Non assigné'}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{student.studentId}</td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant={enrollmentBadgeVariant(
+                            (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                          )}
+                        >
+                          {ENROLLMENT_STATUS_LABELS[
+                            (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
+                          ]}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleViewStudent(student.id)}
+                        >
+                          <FiEye className="w-4 h-4 mr-2" />
+                          Voir
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

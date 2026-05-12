@@ -25,6 +25,8 @@ const storage = multer.diskStorage({
       folder = 'courses';
     } else if (file.fieldname === 'identityDocument') {
       folder = 'identity-documents';
+    } else if (file.fieldname === 'teacherAdminDocument') {
+      folder = 'teacher-admin-documents';
     }
     
     const dir = path.join(uploadsDir, folder);

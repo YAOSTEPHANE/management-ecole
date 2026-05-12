@@ -1,6 +1,9 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
+import { notifyParentsOfAttendanceChange } from '../utils/attendance-parent-notify.util';
+import { matchStudentScanId, matchTeacherScanId } from '../utils/scan-id.util';
+import { parseAttendanceStatus, upsertTeacherAttendance } from '../utils/teacher-attendance.util';
 
 const router = express.Router();
 
@@ -45,7 +48,7 @@ router.post(
 
       // Rechercher d'abord un étudiant avec cet ID NFC
       let student = await prisma.student.findFirst({
-        where: { nfcId },
+        where: matchStudentScanId(nfcId),
         include: {
           user: {
             select: {
@@ -164,6 +167,14 @@ router.post(
           });
         }
 
+        void notifyParentsOfAttendanceChange({
+          studentId: student.id,
+          status: 'PRESENT',
+          date: scanDate,
+          courseName: course.name || 'Cours',
+          courseCode: course.code,
+        });
+
         return res.status(200).json({
           success: true,
           message: `Présence de ${student.user.firstName} ${student.user.lastName} enregistrée avec succès`,
@@ -191,7 +202,7 @@ router.post(
 
       // Si ce n'est pas un étudiant, chercher un professeur
       let teacher = await prisma.teacher.findFirst({
-        where: { nfcId },
+        where: matchTeacherScanId(nfcId),
         include: {
           user: {
             select: {
@@ -206,24 +217,27 @@ router.post(
 
       // Si c'est un professeur
       if (teacher) {
-        // Pour les professeurs, on enregistre juste la présence (sans cours nécessaire)
-        const attendanceRecord = {
+        const resolvedStatus = parseAttendanceStatus(status, 'PRESENT');
+        const saved = await upsertTeacherAttendance({
           teacherId: teacher.id,
-          teacherName: `${teacher.user.firstName} ${teacher.user.lastName}`,
           date: scanDate,
-          status: status,
-          recordedAt: new Date(),
-        };
-
-        // TODO: Créer un modèle TeacherAttendance dans Prisma si nécessaire
-        // Pour l'instant, on retourne juste la confirmation
+          status: resolvedStatus,
+          source: 'NFC',
+        });
 
         return res.status(200).json({
           success: true,
           message: `Présence de ${teacher.user.firstName} ${teacher.user.lastName} enregistrée avec succès`,
           type: 'TEACHER',
           data: {
-            attendance: attendanceRecord,
+            attendance: {
+              id: saved.id,
+              teacherId: saved.teacherId,
+              attendanceDate: saved.attendanceDate,
+              status: saved.status,
+              source: saved.source,
+              createdAt: saved.createdAt,
+            },
             teacher: {
               id: teacher.id,
               name: `${teacher.user.firstName} ${teacher.user.lastName}`,
@@ -262,7 +276,7 @@ router.get(
 
       // Rechercher un étudiant
       const student = await prisma.student.findFirst({
-        where: { nfcId },
+        where: matchStudentScanId(nfcId),
         include: {
           user: {
             select: {
@@ -299,7 +313,7 @@ router.get(
 
       // Rechercher un professeur
       const teacher = await prisma.teacher.findFirst({
-        where: { nfcId },
+        where: matchTeacherScanId(nfcId),
         include: {
           user: {
             select: {

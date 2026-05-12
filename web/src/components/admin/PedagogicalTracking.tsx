@@ -50,6 +50,7 @@ import { ADM } from './adminModuleLayout';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
+import { chartBlueRed, CHART_BLUE, CHART_RED, CHART_ANIMATION_MS } from '../charts';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -59,8 +60,6 @@ declare module 'jspdf' {
 }
 
 type TrackingTab = 'overview' | 'students' | 'classes' | 'courses' | 'at-risk';
-
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 const PedagogicalTracking = () => {
   const [activeTab, setActiveTab] = useState<TrackingTab>('overview');
@@ -420,9 +419,11 @@ const PedagogicalTracking = () => {
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="count"
+                    isAnimationActive
+                    animationDuration={CHART_ANIMATION_MS}
                   >
-                    {gradeDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {gradeDistribution.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={chartBlueRed(index)} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -439,7 +440,15 @@ const PedagogicalTracking = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Area type="monotone" dataKey="count" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke={CHART_BLUE}
+                    fill={CHART_BLUE}
+                    fillOpacity={0.45}
+                    isAnimationActive
+                    animationDuration={CHART_ANIMATION_MS}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
@@ -492,8 +501,20 @@ const PedagogicalTracking = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="moyenne" fill="#8B5CF6" name="Moyenne" />
-                    <Bar dataKey="absences" fill="#EF4444" name="Absences" />
+                    <Bar
+                      dataKey="moyenne"
+                      fill={CHART_BLUE}
+                      name="Moyenne"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
+                    <Bar
+                      dataKey="absences"
+                      fill={CHART_RED}
+                      name="Absences"
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="overflow-x-auto">
@@ -598,7 +619,16 @@ const PedagogicalTracking = () => {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" fill="#8B5CF6" />
+                    <Bar
+                      dataKey="value"
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={CHART_ANIMATION_MS}
+                    >
+                      {[0, 1, 2, 3].map((i) => (
+                        <Cell key={i} fill={chartBlueRed(i)} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

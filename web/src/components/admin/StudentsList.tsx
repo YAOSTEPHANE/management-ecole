@@ -23,6 +23,7 @@ import {
   FiUserCheck,
   FiUserX,
   FiBook,
+  FiArchive,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -32,6 +33,11 @@ import {
   enrollmentBadgeVariant,
   type EnrollmentStatusValue,
 } from '../../lib/enrollmentStatus';
+import {
+  STATE_ASSIGNMENT_LABELS,
+  normalizeStateAssignment,
+  stateAssignmentBadgeVariant,
+} from '../../lib/stateAssignment';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
@@ -58,6 +64,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [stateAssignmentFilter, setStateAssignmentFilter] = useState('all');
   const [classFilter, setClassFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -125,48 +132,71 @@ const StudentsList: React.FC<StudentsListProps> = ({
       statusFilter === 'all' ||
       (statusFilter === 'ACTIVE' && es === 'ACTIVE') ||
       (statusFilter === 'SUSPENDED' && es === 'SUSPENDED') ||
-      (statusFilter === 'GRADUATED' && es === 'GRADUATED');
+      (statusFilter === 'GRADUATED' && es === 'GRADUATED') ||
+      (statusFilter === 'ARCHIVED' && es === 'ARCHIVED');
+    const sa = normalizeStateAssignment(student.stateAssignment);
+    const matchesStateAssignment =
+      stateAssignmentFilter === 'all' ||
+      (stateAssignmentFilter === 'STATE_ASSIGNED' && sa === 'STATE_ASSIGNED') ||
+      (stateAssignmentFilter === 'NOT_STATE_ASSIGNED' && sa === 'NOT_STATE_ASSIGNED');
     const matchesClass =
       !showClassFilter ||
       classFilter === 'all' ||
       (classFilter === 'unassigned' && !student.classId) ||
       (classFilter !== 'unassigned' && student.classId === classFilter);
-    return matchesSearch && matchesStatus && matchesClass;
+    return matchesSearch && matchesStatus && matchesStateAssignment && matchesClass;
   });
+
+  const UNASSIGNED_CLASS_LABEL = 'Non assigné';
+
+  const sortStudentsByName = (a: any, b: any) => {
+    const nameA = `${a.user.lastName} ${a.user.firstName}`;
+    const nameB = `${b.user.lastName} ${b.user.firstName}`;
+    return nameA.localeCompare(nameB);
+  };
 
   const studentsByClass = useMemo(() => {
     if (!filteredStudents || !groupByClass) return null;
-    const grouped: { [key: string]: any[] } = {};
+    const assignedGrouped: { [key: string]: any[] } = {};
     filteredStudents.forEach((student: any) => {
-      const className = student.class?.name || 'Non assigné';
-      if (!grouped[className]) grouped[className] = [];
-      grouped[className].push(student);
+      if (!student.classId) return;
+      const className = student.class?.name || 'Classe inconnue';
+      if (!assignedGrouped[className]) assignedGrouped[className] = [];
+      assignedGrouped[className].push(student);
     });
-    const sortedClasses = Object.keys(grouped).sort((a, b) => {
-      if (a === 'Non assigné') return 1;
-      if (b === 'Non assigné') return -1;
-      return a.localeCompare(b);
+    const assignedSortedClasses = Object.keys(assignedGrouped).sort((a, b) =>
+      a.localeCompare(b)
+    );
+    assignedSortedClasses.forEach((className) => {
+      assignedGrouped[className].sort(sortStudentsByName);
     });
-    sortedClasses.forEach((className) => {
-      grouped[className].sort((a: any, b: any) => {
-        const nameA = `${a.user.lastName} ${a.user.firstName}`;
-        const nameB = `${b.user.lastName} ${b.user.firstName}`;
-        return nameA.localeCompare(nameB);
-      });
-    });
-    return { grouped, sortedClasses };
+    const unassignedStudents = filteredStudents
+      .filter((s: any) => !s.classId)
+      .sort(sortStudentsByName);
+    return { assignedGrouped, assignedSortedClasses, unassignedStudents };
   }, [filteredStudents, groupByClass]);
 
+  const { assignedToClassList, notAssignedToClassList } = useMemo(() => {
+    const list = filteredStudents || [];
+    return {
+      assignedToClassList: list.filter((s: any) => !!s.classId),
+      notAssignedToClassList: list.filter((s: any) => !s.classId),
+    };
+  }, [filteredStudents]);
+
   useEffect(() => {
-    if (
-      groupByClass &&
-      studentsByClass &&
-      expandedClasses.size === 0 &&
-      studentsByClass.sortedClasses.length > 0
-    ) {
-      setExpandedClasses(new Set(studentsByClass.sortedClasses));
+    if (!groupByClass || !studentsByClass) return;
+    const { assignedSortedClasses, unassignedStudents } = studentsByClass;
+    const toExpand = new Set<string>(assignedSortedClasses);
+    if (unassignedStudents.length > 0) toExpand.add(UNASSIGNED_CLASS_LABEL);
+    if (expandedClasses.size === 0 && toExpand.size > 0) {
+      setExpandedClasses(toExpand);
     }
-  }, [groupByClass, studentsByClass?.sortedClasses.join(',')]);
+  }, [
+    groupByClass,
+    studentsByClass?.assignedSortedClasses.join(','),
+    studentsByClass?.unassignedStudents.length,
+  ]);
 
   const toggleClass = (className: string) => {
     const next = new Set(expandedClasses);
@@ -185,6 +215,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
       enrollmentActive: enrollmentOf('ACTIVE'),
       suspended: enrollmentOf('SUSPENDED'),
       graduated: enrollmentOf('GRADUATED'),
+      archived: enrollmentOf('ARCHIVED'),
       classes: classesCount,
     };
   }, [filteredStudents]);
@@ -200,10 +231,12 @@ const StudentsList: React.FC<StudentsListProps> = ({
         'Classe',
         'Niveau',
         "Statut d'inscription",
+        'Affectation État',
         'Fiche',
       ];
       const rows = (filteredStudents || []).map((s: any) => {
         const es = ((s.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE');
+        const sa = normalizeStateAssignment(s.stateAssignment);
         return [
           s.studentId || s.id,
           s.user?.lastName || 'N/A',
@@ -213,6 +246,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
           s.class?.name || 'N/A',
           s.class?.level || 'N/A',
           ENROLLMENT_STATUS_LABELS[es],
+          STATE_ASSIGNMENT_LABELS[sa],
           s.isActive ? 'Fiche active' : 'Fiche inactive',
         ].join(';');
       });
@@ -246,6 +280,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
           niveau: s.class?.level,
           statutInscription:
             ENROLLMENT_STATUS_LABELS[(s.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'],
+          affectationÉtat: STATE_ASSIGNMENT_LABELS[normalizeStateAssignment(s.stateAssignment)],
           fiche: s.isActive ? 'Fiche active' : 'Fiche inactive',
         })),
       };
@@ -286,17 +321,19 @@ const StudentsList: React.FC<StudentsListProps> = ({
       };
       const tableData = (filteredStudents || []).map((s: any) => {
         const es = (s.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE';
+        const sa = normalizeStateAssignment(s.stateAssignment);
         return [
           s.studentId || s.id,
           `${s.user?.firstName || ''} ${s.user?.lastName || ''}`,
           s.user?.email || 'N/A',
           s.class?.name || 'N/A',
           ENROLLMENT_STATUS_LABELS[es],
+          STATE_ASSIGNMENT_LABELS[sa],
         ];
       });
       useAutoTable({
         startY: 38,
-        head: [['ID', 'Nom complet', 'Email', 'Classe', "Statut d'inscription"]],
+        head: [['ID', 'Nom complet', 'Email', 'Classe', "Statut d'inscription", 'Affectation État']],
         body: tableData,
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -351,6 +388,18 @@ const StudentsList: React.FC<StudentsListProps> = ({
           {student.class?.name || 'Non assigné'}
         </Badge>
       ),
+    },
+    {
+      key: 'stateAssignment',
+      header: 'Affectation',
+      render: (student: any) => {
+        const sa = normalizeStateAssignment(student.stateAssignment);
+        return (
+          <Badge variant={stateAssignmentBadgeVariant(sa)} className="text-[10px]">
+            {STATE_ASSIGNMENT_LABELS[sa]}
+          </Badge>
+        );
+      },
     },
     {
       key: 'enrollment',
@@ -457,7 +506,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
       </div>
 
       {/* Indicateurs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
         <Card className="p-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <div className="p-1.5 rounded-lg bg-stone-100/90 ring-1 ring-stone-200/80 shrink-0">
@@ -544,6 +593,27 @@ const StudentsList: React.FC<StudentsListProps> = ({
         </Card>
         <Card className="p-2.5">
           <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-amber-950/10 ring-1 ring-amber-900/15 shrink-0">
+              <FiArchive className="w-3.5 h-3.5 text-amber-900" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-[0.12em] leading-tight">
+                Archivés
+              </p>
+              <p
+                className={
+                  compact
+                    ? 'text-sm font-bold text-stone-900 tabular-nums leading-tight'
+                    : 'text-base font-bold text-stone-900 tabular-nums leading-tight'
+                }
+              >
+                {stats.archived}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="p-1.5 rounded-lg bg-stone-100/90 ring-1 ring-amber-900/10 shrink-0">
               <FiBook className="w-3.5 h-3.5 text-amber-900" aria-hidden />
             </div>
@@ -583,10 +653,22 @@ const StudentsList: React.FC<StudentsListProps> = ({
               { label: 'Inscription active', value: 'ACTIVE' },
               { label: 'Inscription suspendue', value: 'SUSPENDED' },
               { label: 'Diplômé·e', value: 'GRADUATED' },
+              { label: 'Archivés', value: 'ARCHIVED' },
             ]}
             selected={statusFilter}
             onChange={setStatusFilter}
             label="Inscription"
+          />
+          <FilterDropdown
+            compact
+            options={[
+              { label: 'Toutes', value: 'all' },
+              { label: "Affecté de l'État", value: 'STATE_ASSIGNED' },
+              { label: 'Non affecté', value: 'NOT_STATE_ASSIGNED' },
+            ]}
+            selected={stateAssignmentFilter}
+            onChange={setStateAssignmentFilter}
+            label="État"
           />
           {showClassFilter && (
             <FilterDropdown
@@ -609,8 +691,12 @@ const StudentsList: React.FC<StudentsListProps> = ({
             size="sm"
             onClick={() => {
               setGroupByClass(!groupByClass);
-              if (!groupByClass && studentsByClass?.sortedClasses.length) {
-                setExpandedClasses(new Set(studentsByClass.sortedClasses));
+              if (!groupByClass && studentsByClass) {
+                const next = new Set<string>(studentsByClass.assignedSortedClasses);
+                if (studentsByClass.unassignedStudents.length > 0) {
+                  next.add(UNASSIGNED_CLASS_LABEL);
+                }
+                if (next.size > 0) setExpandedClasses(next);
               }
             }}
             className="!py-2 shrink-0"
@@ -670,7 +756,7 @@ const StudentsList: React.FC<StudentsListProps> = ({
 
         {groupByClass && studentsByClass ? (
           <div className="divide-y divide-stone-200/70">
-            {studentsByClass.sortedClasses.length === 0 ? (
+            {(filteredStudents?.length ?? 0) === 0 ? (
               <div
                 className={
                   compact
@@ -681,26 +767,133 @@ const StudentsList: React.FC<StudentsListProps> = ({
                 Aucun élève trouvé
               </div>
             ) : (
-              studentsByClass.sortedClasses.map((className) => {
-                const classStudents = studentsByClass.grouped[className];
-                const isExpanded = expandedClasses.has(className);
-                const classLevel = classStudents[0]?.class?.level || '';
+              <>
+                <div className="px-4 py-3 bg-emerald-50/50 border-b border-emerald-200/30">
+                  <h3
+                    className={
+                      compact
+                        ? 'text-[10px] font-semibold text-emerald-900 uppercase tracking-[0.14em]'
+                        : 'text-xs font-semibold text-emerald-900 uppercase tracking-[0.14em]'
+                    }
+                  >
+                    Élèves affectés à une classe
+                    <span className="ml-2 font-bold tabular-nums text-emerald-800 normal-case tracking-normal">
+                      {` (${studentsByClass.assignedSortedClasses.reduce(
+                        (n, cn) => n + studentsByClass.assignedGrouped[cn].length,
+                        0
+                      )})`}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-emerald-800/80 mt-1 font-normal normal-case tracking-normal">
+                    Répartis par classe ci-dessous.
+                  </p>
+                </div>
+                {studentsByClass.assignedSortedClasses.length === 0 ? (
+                  <div
+                    className={
+                      compact
+                        ? 'py-8 text-center text-stone-500 text-xs px-4'
+                        : 'py-8 text-center text-stone-500 text-sm px-4'
+                    }
+                  >
+                    Aucun élève affecté à une classe dans cette vue.
+                  </div>
+                ) : (
+                  studentsByClass.assignedSortedClasses.map((className) => {
+                    const classStudents = studentsByClass.assignedGrouped[className];
+                    const isExpanded = expandedClasses.has(className);
+                    const classLevel = classStudents[0]?.class?.level || '';
 
-                return (
-                  <div key={className}>
+                    return (
+                      <div key={className}>
+                        <button
+                          type="button"
+                          onClick={() => toggleClass(className)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50/25 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            {isExpanded ? (
+                              <FiChevronUp className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
+                            ) : (
+                              <FiChevronDown className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
+                            )}
+                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                              <FiBook className="w-5 h-5 text-indigo-600" aria-hidden />
+                            </div>
+                            <div>
+                              <span
+                                className={
+                                  compact
+                                    ? 'font-medium text-stone-900 text-xs'
+                                    : 'font-medium text-stone-900 text-sm'
+                                }
+                              >
+                                {className}
+                              </span>
+                              {classLevel && (
+                                <span className="text-xs text-stone-500 ml-2">— {classLevel}</span>
+                              )}
+                            </div>
+                          </div>
+                          <Badge variant="info">{classStudents.length} élève(s)</Badge>
+                        </button>
+                        {isExpanded && (
+                          <div className="bg-stone-50/60 border-t border-amber-100/40">
+                            <Table
+                              dense
+                              data={classStudents}
+                              columns={columns}
+                              emptyMessage="Aucun élève dans cette classe"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+
+                <div className="px-4 py-3 bg-amber-50/60 border-b border-amber-200/40 border-t-2 border-t-amber-300/50">
+                  <h3
+                    className={
+                      compact
+                        ? 'text-[10px] font-semibold text-amber-950 uppercase tracking-[0.14em]'
+                        : 'text-xs font-semibold text-amber-950 uppercase tracking-[0.14em]'
+                    }
+                  >
+                    Sans classe (non affectés)
+                    <span className="ml-2 font-bold tabular-nums text-amber-900 normal-case tracking-normal">
+                      ({studentsByClass.unassignedStudents.length})
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-amber-900/85 mt-1 font-normal normal-case tracking-normal">
+                    Assignez une classe via « Modifier » → scolarité.
+                  </p>
+                </div>
+                {studentsByClass.unassignedStudents.length === 0 ? (
+                  <div
+                    className={
+                      compact
+                        ? 'py-8 text-center text-stone-500 text-xs px-4'
+                        : 'py-8 text-center text-stone-500 text-sm px-4'
+                    }
+                  >
+                    Tous les élèves de cette vue sont affectés à une classe.
+                  </div>
+                ) : (
+                  <div>
                     <button
                       type="button"
-                      onClick={() => toggleClass(className)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50/25 transition-colors text-left"
+                      onClick={() => toggleClass(UNASSIGNED_CLASS_LABEL)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50/40 transition-colors text-left"
                     >
                       <div className="flex items-center gap-3">
-                        {isExpanded ? (
+                        {expandedClasses.has(UNASSIGNED_CLASS_LABEL) ? (
                           <FiChevronUp className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
                         ) : (
                           <FiChevronDown className="w-5 h-5 text-stone-500 shrink-0" aria-hidden />
                         )}
-                        <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-                          <FiBook className="w-5 h-5 text-indigo-600" aria-hidden />
+                        <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                          <FiUserX className="w-5 h-5 text-amber-900" aria-hidden />
                         </div>
                         <div>
                           <span
@@ -710,37 +903,77 @@ const StudentsList: React.FC<StudentsListProps> = ({
                                 : 'font-medium text-stone-900 text-sm'
                             }
                           >
-                            {className}
+                            {UNASSIGNED_CLASS_LABEL}
                           </span>
-                          {classLevel && (
-                            <span className="text-xs text-stone-500 ml-2">— {classLevel}</span>
-                          )}
                         </div>
                       </div>
-                      <Badge variant="info">{classStudents.length} élève(s)</Badge>
+                      <Badge variant="default">
+                        {studentsByClass.unassignedStudents.length} élève(s)
+                      </Badge>
                     </button>
-                    {isExpanded && (
+                    {expandedClasses.has(UNASSIGNED_CLASS_LABEL) && (
                       <div className="bg-stone-50/60 border-t border-amber-100/40">
                         <Table
                           dense
-                          data={classStudents}
+                          data={studentsByClass.unassignedStudents}
                           columns={columns}
-                          emptyMessage="Aucun élève dans cette classe"
+                          emptyMessage="Aucun élève sans classe"
                         />
                       </div>
                     )}
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
         ) : (
-          <Table
-            dense
-            data={filteredStudents || []}
-            columns={columns}
-            emptyMessage="Aucun élève trouvé"
-          />
+          <div className="divide-y divide-stone-200/70">
+            {(filteredStudents?.length ?? 0) === 0 ? (
+              <Table
+                dense
+                data={[]}
+                columns={columns}
+                emptyMessage="Aucun élève trouvé"
+              />
+            ) : (
+              <>
+                <div className="px-4 py-2.5 bg-emerald-50/40 border-b border-emerald-200/25">
+                  <h3
+                    className={
+                      compact
+                        ? 'text-[10px] font-semibold text-emerald-900 uppercase tracking-[0.14em]'
+                        : 'text-xs font-semibold text-emerald-900 uppercase tracking-[0.14em]'
+                    }
+                  >
+                    Affectés à une classe ({assignedToClassList.length})
+                  </h3>
+                </div>
+                <Table
+                  dense
+                  data={assignedToClassList}
+                  columns={columns}
+                  emptyMessage="Aucun élève affecté dans cette vue"
+                />
+                <div className="px-4 py-2.5 bg-amber-50/50 border-t border-stone-200/60">
+                  <h3
+                    className={
+                      compact
+                        ? 'text-[10px] font-semibold text-amber-950 uppercase tracking-[0.14em]'
+                        : 'text-xs font-semibold text-amber-950 uppercase tracking-[0.14em]'
+                    }
+                  >
+                    Sans classe ({notAssignedToClassList.length})
+                  </h3>
+                </div>
+                <Table
+                  dense
+                  data={notAssignedToClassList}
+                  columns={columns}
+                  emptyMessage="Aucun élève sans classe dans cette vue"
+                />
+              </>
+            )}
+          </div>
         )}
       </Card>
 

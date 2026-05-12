@@ -24,6 +24,13 @@ import {
   enrollmentBadgeVariant,
   type EnrollmentStatusValue,
 } from '../../lib/enrollmentStatus';
+import {
+  STATE_ASSIGNMENT_LABELS,
+  normalizeStateAssignment,
+  stateAssignmentBadgeVariant,
+} from '../../lib/stateAssignment';
+import IdentityDocumentsPanel from '../identity/IdentityDocumentsPanel';
+import StudentDossierPanel from './StudentDossierPanel';
 
 interface StudentDetailsModalProps {
   isOpen: boolean;
@@ -47,7 +54,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 pb-4">
@@ -63,10 +70,13 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
               className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Fermer"
+              aria-label="Fermer"
             >
-              <FiX className="w-5 h-5" />
+              <FiX className="w-5 h-5" aria-hidden />
             </button>
           </div>
         </div>
@@ -141,6 +151,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                           (student.enrollmentStatus as EnrollmentStatusValue) || 'ACTIVE'
                         ]}
                       </Badge>
+                      <Badge variant={stateAssignmentBadgeVariant(normalizeStateAssignment(student.stateAssignment))}>
+                        {STATE_ASSIGNMENT_LABELS[normalizeStateAssignment(student.stateAssignment)]}
+                      </Badge>
                       <Badge variant={student.isActive ? 'success' : 'danger'}>
                         Fiche {student.isActive ? 'active' : 'inactive'}
                       </Badge>
@@ -180,21 +193,55 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   </Badge>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500 mb-1">Affectation État</p>
+                  <Badge variant={stateAssignmentBadgeVariant(normalizeStateAssignment(student.stateAssignment))}>
+                    {STATE_ASSIGNMENT_LABELS[normalizeStateAssignment(student.stateAssignment)]}
+                  </Badge>
+                </div>
+                <div>
                   <p className="text-sm text-gray-500 mb-1">Genre</p>
                   <p className="font-medium text-gray-900">
                     {student.gender === 'MALE' ? 'Masculin' : student.gender === 'FEMALE' ? 'Féminin' : 'Autre'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Date d&apos;inscription</p>
+                  <p className="font-medium text-gray-900">
+                    {student.enrollmentDate
+                      ? format(new Date(student.enrollmentDate), 'dd MMM yyyy', { locale: fr })
+                      : '—'}
+                  </p>
+                </div>
+                {(student as any).lastReenrollmentAt && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Dernière réinscription</p>
+                    <p className="font-medium text-gray-900">
+                      {format(new Date((student as any).lastReenrollmentAt), 'dd MMM yyyy', { locale: fr })}
+                    </p>
+                  </div>
+                )}
+                {(student as any).archivedAt && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Archivé le</p>
+                    <p className="font-medium text-gray-900">
+                      {format(new Date((student as any).archivedAt), 'dd MMM yyyy', { locale: fr })}
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
 
             {/* Contact d'urgence */}
-            {(student.emergencyContact || student.emergencyPhone) && (
+            {(student.emergencyContact ||
+              student.emergencyPhone ||
+              (student as any).emergencyContact2 ||
+              (student as any).emergencyPhone2) && (
               <Card>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                   <FiAlertCircle className="w-5 h-5 mr-2 text-orange-600" />
-                  Contact d'Urgence
+                  Contacts d&apos;urgence
                 </h3>
+                <p className="text-xs text-gray-500 mb-3">Contact principal</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {student.emergencyContact && (
                     <div>
@@ -209,6 +256,25 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     </div>
                   )}
                 </div>
+                {((student as any).emergencyContact2 || (student as any).emergencyPhone2) && (
+                  <>
+                    <p className="text-xs text-gray-500 mt-4 mb-3">Second contact</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(student as any).emergencyContact2 && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Contact</p>
+                          <p className="font-medium text-gray-900">{(student as any).emergencyContact2}</p>
+                        </div>
+                      )}
+                      {(student as any).emergencyPhone2 && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Téléphone</p>
+                          <p className="font-medium text-gray-900">{(student as any).emergencyPhone2}</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </Card>
             )}
 
@@ -224,13 +290,30 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
             )}
 
             {/* Informations médicales */}
-            {student.medicalInfo && (
+            {(student.medicalInfo || (student as any).allergies || (student as any).specialNeeds) && (
               <Card>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                   <FiAlertCircle className="w-5 h-5 mr-2 text-red-600" />
-                  Informations Médicales
+                  Dossier médical &amp; vigilance
                 </h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{student.medicalInfo}</p>
+                {(student as any).allergies && (
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-red-800 mb-1">Allergies</p>
+                    <p className="text-gray-800 whitespace-pre-wrap">{(student as any).allergies}</p>
+                  </div>
+                )}
+                {(student as any).specialNeeds && (
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-amber-900 mb-1">Conditions particulières</p>
+                    <p className="text-gray-800 whitespace-pre-wrap">{(student as any).specialNeeds}</p>
+                  </div>
+                )}
+                {student.medicalInfo && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-1">Informations complémentaires</p>
+                    <p className="text-gray-700 whitespace-pre-wrap">{student.medicalInfo}</p>
+                  </div>
+                )}
               </Card>
             )}
 
@@ -259,6 +342,13 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                 </div>
               </Card>
             )}
+
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-2">Pièces &amp; identité</h3>
+              <IdentityDocumentsPanel mode="admin" studentId={studentId} />
+            </div>
+
+            <StudentDossierPanel studentId={studentId} />
 
             {/* Statistiques */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

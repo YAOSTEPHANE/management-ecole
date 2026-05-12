@@ -142,7 +142,7 @@ const AttendanceManager = ({ searchQuery = '' }: AttendanceManagerProps) => {
     if (window.confirm(
       `Démarrer le pointage pour ce cours et cette date ?\n\n` +
       `Tous les élèves seront marqués absents par défaut.\n` +
-      `Chaque élève qui scanne son badge NFC sera marqué présent automatiquement.`
+      `Chaque passage carte scolaire, empreinte digitale ou badge sera enregistré comme présent automatiquement.`
     )) {
       initAttendanceMutation.mutate({
         courseId: selectedCourse,
@@ -219,7 +219,7 @@ const AttendanceManager = ({ searchQuery = '' }: AttendanceManagerProps) => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Pointage des élèves</h2>
             <p className="text-gray-600">
-              Le pointage se fait en <strong>scannant le badge NFC</strong> de chaque élève. Choisissez le cours et la date, démarrez le pointage, puis scannez les badges. Une saisie manuelle reste possible en secours.
+              Trois modes : <strong>carte scolaire</strong> (badge ou lecteur NFC), <strong>empreinte digitale</strong> (identifiant biométrique associé à l’élève comme une carte), ou <strong>saisie manuelle</strong> dans la liste. Choisissez le cours et la date, démarrez le pointage, puis enregistrez les présences.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -259,7 +259,7 @@ const AttendanceManager = ({ searchQuery = '' }: AttendanceManagerProps) => {
                   size="md"
                 >
                   <FiUserCheck className="w-4 h-4 mr-2" />
-                  Saisie manuelle (sans badge)
+                  Saisie manuelle
                 </Button>
               </>
             )}
@@ -269,15 +269,15 @@ const AttendanceManager = ({ searchQuery = '' }: AttendanceManagerProps) => {
 
       {selectedCourse && (
         <>
-          {/* Zone principale : scan des badges NFC */}
+          {/* Carte / empreinte / lecteur externe */}
           <Card className="border-2 border-green-200 bg-green-50/50">
             <div className="mb-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <FiWifi className="w-5 h-5 text-green-600" />
-                Scannez les badges des élèves
+                Carte scolaire ou empreinte digitale
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Chaque élève présente son badge NFC au lecteur pour être marqué présent. Utilisez le scanner du navigateur ou un appareil NFC externe.
+                Lecture par carte NFC, lecteur externe ou terminal biométrique : le même identifiant élève que pour la carte doit être enregistré dans le dossier. Sinon utilisez la saisie manuelle ci-dessus.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <Button
@@ -305,7 +305,7 @@ const AttendanceManager = ({ searchQuery = '' }: AttendanceManagerProps) => {
                 selectedDate={selectedDate}
                 onScanReceived={() => {
                   queryClient.invalidateQueries({ queryKey: ['teacher-course-absences'] });
-                  toast.success('Badge scanné, présence enregistrée');
+                  toast.success('Pointage enregistré (carte ou lecteur)');
                 }}
               />
             ) : (

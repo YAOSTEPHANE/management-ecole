@@ -16,6 +16,7 @@ export const ADM = {
   grid3: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3',
   grid4: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3',
   grid5: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3',
+  grid6: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3',
   statCard: 'p-2.5 sm:p-3',
   statLabel: 'text-[10px] font-medium text-gray-500 uppercase tracking-wide leading-tight',
   statVal: 'text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-none',

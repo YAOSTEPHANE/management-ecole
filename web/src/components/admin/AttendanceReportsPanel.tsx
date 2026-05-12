@@ -31,6 +31,16 @@ const AttendanceReportsPanel: React.FC = () => {
       }),
   });
 
+  const { data: apiStats } = useQuery({
+    queryKey: ['admin-absence-stats', classId, fromDate, toDate],
+    queryFn: () =>
+      adminApi.getAbsenceStats({
+        ...(classId !== 'all' && { classId }),
+        from: fromDate,
+        to: toDate,
+      }),
+  });
+
   const filtered = useMemo(() => {
     if (!absences?.length) return [];
     const start = startOfDay(parseISO(fromDate));
@@ -49,6 +59,7 @@ const AttendanceReportsPanel: React.FC = () => {
     for (const a of filtered) {
       if (a.status === 'PRESENT') present++;
       else if (a.status === 'LATE') late++;
+      else if (a.status === 'EXCUSED') excused++;
       else if (a.status === 'ABSENT') {
         if (a.excused) excused++;
         else absent++;
@@ -61,7 +72,18 @@ const AttendanceReportsPanel: React.FC = () => {
   }, [filtered]);
 
   const exportCsv = () => {
-    const headers = ['Élève', 'Classe', 'Matière', 'Date', 'Statut', 'Justifié'];
+    const headers = [
+      'Élève',
+      'Classe',
+      'Matière',
+      'Date',
+      'Statut',
+      'Justifié',
+      'Source',
+      'Min retard',
+      'Certif méd.',
+      'Sanction',
+    ];
     const rows = filtered.map((a: any) => [
       `${a.student?.user?.firstName ?? ''} ${a.student?.user?.lastName ?? ''}`.trim(),
       a.student?.class?.name ?? '',
@@ -69,6 +91,10 @@ const AttendanceReportsPanel: React.FC = () => {
       a.date ? format(parseISO(a.date), 'yyyy-MM-dd') : '',
       a.status ?? '',
       a.excused ? 'oui' : 'non',
+      a.attendanceSource ?? '',
+      a.minutesLate != null ? String(a.minutesLate) : '',
+      a.hasMedicalCertificate ? 'oui' : 'non',
+      (a.sanctionNote || '').replace(/\n/g, ' ').slice(0, 120),
     ]);
     const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -124,6 +150,28 @@ const AttendanceReportsPanel: React.FC = () => {
         </div>
       </Card>
 
+      {apiStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="p-4 border border-violet-100 bg-violet-50/40">
+            <p className="text-xs font-medium text-gray-500 uppercase">Certificats médicaux</p>
+            <p className="text-2xl font-bold text-violet-800 mt-1">{apiStats.medicalCertificates ?? 0}</p>
+            <p className="text-xs text-gray-500 mt-1">Lignes marquées certificat sur la période (API)</p>
+          </Card>
+          <Card className="p-4 border border-amber-100 bg-amber-50/40">
+            <p className="text-xs font-medium text-gray-500 uppercase">Sanctions enregistrées</p>
+            <p className="text-2xl font-bold text-amber-900 mt-1">{apiStats.sanctionsRecorded ?? 0}</p>
+            <p className="text-xs text-gray-500 mt-1">Notes de mesure saisies par l’administration</p>
+          </Card>
+          <Card className="p-4 border border-orange-100 bg-orange-50/40">
+            <p className="text-xs font-medium text-gray-500 uppercase">Retard moyen</p>
+            <p className="text-2xl font-bold text-orange-800 mt-1">
+              {apiStats.avgLateMinutes != null ? `${apiStats.avgLateMinutes} min` : '—'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Sur les séances « retard » avec durée renseignée</p>
+          </Card>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 border border-teal-100 bg-teal-50/40">
           <p className="text-xs font-medium text-gray-500 uppercase">Enregistrements</p>
@@ -167,6 +215,8 @@ const AttendanceReportsPanel: React.FC = () => {
                   <th className="py-2 pr-3">Classe</th>
                   <th className="py-2 pr-3">Matière</th>
                   <th className="py-2 pr-3">Statut</th>
+                  <th className="py-2 pr-3">Source</th>
+                  <th className="py-2 pr-3">Retard</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,6 +240,18 @@ const AttendanceReportsPanel: React.FC = () => {
                           : a.excused
                             ? 'Absent (just.)'
                             : 'Absent'}
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-gray-600">
+                      {a.attendanceSource === 'BIOMETRIC'
+                        ? 'Bio.'
+                        : a.attendanceSource === 'NFC'
+                          ? 'NFC'
+                          : a.attendanceSource === 'MANUAL'
+                            ? 'Manuel'
+                            : '—'}
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      {a.status === 'LATE' && a.minutesLate != null ? `${a.minutesLate} min` : '—'}
                     </td>
                   </tr>
                 ))}

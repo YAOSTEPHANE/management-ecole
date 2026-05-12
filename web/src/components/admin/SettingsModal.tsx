@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { authApi } from '../../services/api';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -51,6 +52,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorQr, setTwoFactorQr] = useState<string | null>(null);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
 
   // School settings
   const [schoolSettings, setSchoolSettings] = useState({
@@ -171,6 +176,56 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   const handleRestore = () => {
     toast('Fonctionnalité de restauration à venir', { icon: 'ℹ️' });
+  };
+
+  const handleSetup2FA = async () => {
+    setTwoFactorBusy(true);
+    try {
+      const setup = await authApi.setupTwoFactor();
+      setTwoFactorQr(setup.qrCodeDataUrl);
+      toast.success('QR code 2FA généré');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Impossible de préparer la 2FA');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    if (twoFactorCode.trim().length !== 6) {
+      toast.error('Code 2FA invalide');
+      return;
+    }
+    setTwoFactorBusy(true);
+    try {
+      await authApi.verifyTwoFactor(twoFactorCode.trim());
+      setTwoFactorEnabled(true);
+      setTwoFactorCode('');
+      toast.success('2FA activée');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Code 2FA invalide');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!passwordData.currentPassword) {
+      toast.error('Mot de passe actuel requis');
+      return;
+    }
+    setTwoFactorBusy(true);
+    try {
+      await authApi.disableTwoFactor(passwordData.currentPassword);
+      setTwoFactorEnabled(false);
+      setTwoFactorQr(null);
+      setTwoFactorCode('');
+      toast.success('2FA désactivée');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Impossible de désactiver la 2FA');
+    } finally {
+      setTwoFactorBusy(false);
+    }
   };
 
   const handleClose = () => {
@@ -431,6 +486,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                           checked={value as boolean}
                           onChange={(e) => setNotificationSettings({ ...notificationSettings, [key]: e.target.checked })}
                           className="sr-only peer"
+                          aria-label={`Activer ${key}`}
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
                       </label>
@@ -483,6 +539,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             checked={value as boolean}
                             onChange={(e) => setSecuritySettings({ ...securitySettings, [key]: e.target.checked })}
                             className="sr-only peer"
+                            aria-label={`Activer ${key}`}
                           />
                           <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
                         </label>
@@ -592,6 +649,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   </Button>
                 </div>
               </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Authentification forte (2FA)</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge className={twoFactorEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
+                      {twoFactorEnabled ? '2FA activée' : '2FA désactivée'}
+                    </Badge>
+                  </div>
+                  {!twoFactorEnabled && (
+                    <Button type="button" variant="secondary" onClick={handleSetup2FA} disabled={twoFactorBusy}>
+                      Générer un QR code 2FA
+                    </Button>
+                  )}
+                  {twoFactorQr && !twoFactorEnabled && (
+                    <div className="rounded-xl border border-gray-200 p-3 bg-white">
+                      <p className="text-sm text-gray-700 mb-2">Scannez ce QR code avec Google Authenticator, Authy ou équivalent :</p>
+                      <img src={twoFactorQr} alt="QR code 2FA" className="w-44 h-44 border border-gray-200 rounded" />
+                      <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                        <Input
+                          value={twoFactorCode}
+                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="Code 6 chiffres"
+                          aria-label="Code de vérification 2FA"
+                        />
+                        <Button type="button" onClick={handleEnable2FA} disabled={twoFactorBusy || twoFactorCode.length !== 6}>
+                          Activer 2FA
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {twoFactorEnabled && (
+                    <Button type="button" variant="danger" onClick={handleDisable2FA} disabled={twoFactorBusy}>
+                      Désactiver 2FA (mot de passe actuel)
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -609,6 +704,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <select
                         value={userSettings.language}
                         onChange={(e) => setUserSettings({ ...userSettings, language: e.target.value })}
+                        aria-label="Langue"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
                         <option value="fr">Français</option>
@@ -624,6 +720,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <select
                         value={userSettings.theme}
                         onChange={(e) => setUserSettings({ ...userSettings, theme: e.target.value })}
+                        aria-label="Thème"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
                         <option value="light">Clair</option>
@@ -641,6 +738,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <select
                         value={userSettings.timezone}
                         onChange={(e) => setUserSettings({ ...userSettings, timezone: e.target.value })}
+                        aria-label="Fuseau horaire"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
                         <option value="Europe/Paris">Europe/Paris (GMT+1)</option>
@@ -656,6 +754,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <select
                         value={userSettings.dateFormat}
                         onChange={(e) => setUserSettings({ ...userSettings, dateFormat: e.target.value })}
+                        aria-label="Format de date"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>

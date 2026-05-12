@@ -15,6 +15,7 @@ import {
   ComposedChart,
   Line,
   ReferenceLine,
+  ResponsiveContainer,
 } from 'recharts';
 import {
   PremiumTooltip,
@@ -25,7 +26,9 @@ import {
   RechartsViewport,
   PremiumPieActiveShape,
   PremiumChartMeshBackground,
-  PREMIUM_SOLID,
+  chartBlueRed,
+  CHART_RED,
+  CHART_ANIMATION_MS,
 } from '../charts';
 import {
   FiUsers,
@@ -68,6 +71,12 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
   const { data: stats, isLoading, dataUpdatedAt, isFetching } = useQuery({
     queryKey: ['admin-dashboard'],
     queryFn: adminApi.getDashboard,
+  });
+
+  const { data: kpis } = useQuery({
+    queryKey: ['admin-dashboard-kpis'],
+    queryFn: adminApi.getDashboardKpis,
+    staleTime: 60_000,
   });
 
   const { data: students, isError: studentsError } = useQuery({
@@ -227,7 +236,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
       {/* Indicateurs clés */}
       <div>
         <h3 className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-          Indicateurs clés
+          Indicateurs clés de performance (KPI) — effectifs
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-1.5 sm:gap-2">
           {indicators.map((ind, index) => {
@@ -260,6 +269,89 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
           })}
         </div>
       </div>
+
+      {kpis?.cards && (
+        <div className="space-y-3">
+          <h3 className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+            KPI — inscriptions, finances & pédagogie
+          </h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2">
+            <Card variant="premium" className="p-2.5 ring-1 ring-slate-900/5" hover={false}>
+              <p className="text-[8px] font-semibold text-slate-500 uppercase">Dossiers admission</p>
+              <p className="text-lg font-bold text-slate-900 mt-0.5">
+                {(kpis.cards.admissionsPending ?? 0) + (kpis.cards.admissionsUnderReview ?? 0)}
+              </p>
+              <p className="text-[8px] text-slate-500">
+                {kpis.cards.admissionsPending} attente · {kpis.cards.admissionsUnderReview} examen
+              </p>
+            </Card>
+            <Card variant="premium" className="p-2.5 ring-1 ring-slate-900/5" hover={false}>
+              <p className="text-[8px] font-semibold text-slate-500 uppercase">Impayés scolarité</p>
+              <p className="text-lg font-bold text-rose-800 mt-0.5 tabular-nums">
+                {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(
+                  kpis.cards.tuitionUnpaidAmount ?? 0
+                )}{' '}
+                <span className="text-[10px] font-semibold text-slate-600">FCFA</span>
+              </p>
+              <p className="text-[8px] text-slate-500">{kpis.cards.tuitionUnpaidCount} ligne(s)</p>
+            </Card>
+            <Card variant="premium" className="p-2.5 ring-1 ring-slate-900/5" hover={false}>
+              <p className="text-[8px] font-semibold text-slate-500 uppercase">Encaissements (30 j.)</p>
+              <p className="text-lg font-bold text-emerald-800 mt-0.5 tabular-nums">
+                {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(
+                  kpis.cards.paymentsCompleted30dAmount ?? 0
+                )}{' '}
+                <span className="text-[10px] font-semibold text-slate-600">FCFA</span>
+              </p>
+              <p className="text-[8px] text-slate-500">{kpis.cards.paymentsCompleted30dCount} paiement(s)</p>
+            </Card>
+            <Card variant="premium" className="p-2.5 ring-1 ring-slate-900/5" hover={false}>
+              <p className="text-[8px] font-semibold text-slate-500 uppercase">Risque & devoirs</p>
+              <p className="text-lg font-bold text-slate-900 mt-0.5">
+                {kpis.cards.atRiskHigh ?? 0} / {kpis.cards.atRiskMedium ?? 0}
+              </p>
+              <p className="text-[8px] text-slate-500">
+                Élèves à risque (élevé / modéré) · Rendus devoirs :{' '}
+                {kpis.cards.studentAssignmentsSubmissionRate != null
+                  ? `${kpis.cards.studentAssignmentsSubmissionRate} %`
+                  : '—'}
+              </p>
+            </Card>
+          </div>
+          {Array.isArray(kpis.charts?.paymentsByMonth) && kpis.charts.paymentsByMonth.length > 0 && (
+            <Card variant="premium" className="p-3 ring-1 ring-slate-900/5" hover={false}>
+              <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Encaissements complétés (6 mois)</p>
+              <div className="h-44 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={kpis.charts.paymentsByMonth.map((x: { label: string; amount: number }) => ({
+                      ...x,
+                      amountK: Math.round(x.amount / 1000),
+                    }))}
+                    margin={CHART_MARGIN_COMPACT}
+                  >
+                    <CartesianGrid {...CHART_GRID_SOFT} />
+                    <XAxis dataKey="label" tick={CHART_AXIS_TICK} />
+                    <YAxis tick={CHART_AXIS_TICK} tickFormatter={(v) => `${v}k`} width={32} />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value * 1000)} FCFA`,
+                        'Montant',
+                      ]}
+                      labelFormatter={(label) => `Période ${label}`}
+                    />
+                    <Bar dataKey="amountK" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={CHART_ANIMATION_MS}>
+                      {kpis.charts.paymentsByMonth.map((_: unknown, i: number) => (
+                        <Cell key={i} fill={chartBlueRed(i)} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div>
         <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -323,7 +415,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                   ) : chartData.length > 0 ? (
                     <>
                       <RechartsViewport height={220} className="relative z-[1]">
-                        <PieChart>
+                        <PieChart key={chartData.map((d) => `${d.fullName}:${d.value}`).join('|')}>
                           <Pie
                             data={chartData}
                             dataKey="value"
@@ -332,12 +424,14 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                             cy="50%"
                             innerRadius={52}
                             outerRadius={78}
-                            paddingAngle={4}
-                            cornerRadius={8}
+                            paddingAngle={chartData.length > 1 ? 4 : 0}
+                            cornerRadius={chartData.length > 1 ? 8 : 0}
                             stroke="#ffffff"
                             strokeWidth={3}
                             label={false}
                             labelLine={false}
+                            animationDuration={CHART_ANIMATION_MS}
+                            animationEasing="ease-out"
                             activeIndex={pieActiveIndex}
                             activeShape={PremiumPieActiveShape}
                             onMouseEnter={(_, i) => setPieActiveIndex(i)}
@@ -346,7 +440,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                             {chartData.map((_, i) => (
                               <Cell
                                 key={i}
-                                fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]}
+                                fill={chartBlueRed(i)}
                                 stroke="#fff"
                                 strokeWidth={2}
                               />
@@ -375,7 +469,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                             <span
                               className="h-2 w-2 shrink-0 rounded-full shadow-sm ring-1 ring-white"
                               style={{
-                                background: PREMIUM_SOLID[i % PREMIUM_SOLID.length],
+                                background: chartBlueRed(i),
                               }}
                             />
                             <span className="max-w-[140px] truncate">{d.fullName}</span>
@@ -454,9 +548,15 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                             }}
                           />
                         )}
-                        <Bar dataKey="value" radius={[10, 10, 3, 3]} maxBarSize={40}>
+                        <Bar
+                          dataKey="value"
+                          radius={[10, 10, 3, 3]}
+                          maxBarSize={40}
+                          animationDuration={CHART_ANIMATION_MS}
+                          animationEasing="ease-out"
+                        >
                           {chartData.map((_, i) => (
-                            <Cell key={i} fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]} />
+                            <Cell key={i} fill={chartBlueRed(i)} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -532,19 +632,23 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
                         dataKey="value"
                         radius={[14, 14, 4, 4]}
                         maxBarSize={44}
+                        animationDuration={CHART_ANIMATION_MS}
+                        animationEasing="ease-out"
                       >
                         {composedProfileData.map((_, i) => (
-                          <Cell key={i} fill={PREMIUM_SOLID[i % PREMIUM_SOLID.length]} />
+                          <Cell key={i} fill={chartBlueRed(i)} />
                         ))}
                       </Bar>
                       <Line
                         yAxisId="right"
                         type="monotone"
                         dataKey="cumulativePct"
-                        stroke="#4f46e5"
+                        stroke={CHART_RED}
                         strokeWidth={3.5}
-                        dot={{ r: 5, fill: "#4f46e5", stroke: "#fff", strokeWidth: 2 }}
-                        activeDot={{ r: 7, strokeWidth: 2, stroke: "#fff" }}
+                        animationDuration={CHART_ANIMATION_MS}
+                        animationEasing="ease-out"
+                        dot={{ r: 5, fill: CHART_RED, stroke: "#fff", strokeWidth: 2 }}
+                        activeDot={{ r: 7, strokeWidth: 2, stroke: "#fff", fill: CHART_RED }}
                       />
                     </ComposedChart>
                   </RechartsViewport>

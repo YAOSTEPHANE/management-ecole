@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { FiFilter, FiChevronDown } from 'react-icons/fi';
 
 interface FilterOption {
@@ -19,6 +20,9 @@ interface FilterDropdownProps {
   compact?: boolean;
 }
 
+const Z_BACKDROP = 100;
+const Z_PANEL = 110;
+
 const FilterDropdown: React.FC<FilterDropdownProps> = ({
   options,
   selected,
@@ -30,14 +34,112 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 }) => {
   const current = selected ?? value ?? '';
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 192 });
 
   const selectedOption = options.find((opt) => opt.value === current);
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const panelMin = compact ? 176 : 208;
+    const width = Math.max(rect.width, panelMin);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 16;
+    let left = rect.left;
+    if (left + width > vw - margin) {
+      left = Math.max(margin, vw - width - margin);
+    }
+    const maxPanelH = Math.min(vh * 0.7, 320);
+    let top = rect.bottom + 8;
+    if (top + maxPanelH > vh - margin) {
+      const aboveTop = rect.top - 8 - maxPanelH;
+      if (aboveTop >= margin) {
+        top = aboveTop;
+      }
+    }
+    setPanelPos({ top, left, width });
+  }, [compact]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+    const onScrollOrResize = () => updatePosition();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [isOpen, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
+  const panel =
+    isOpen && typeof document !== 'undefined' ? (
+      <>
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: Z_BACKDROP }}
+          onClick={() => setIsOpen(false)}
+          aria-hidden
+        />
+        <div
+          role="listbox"
+          aria-label={label}
+          className={`fixed max-h-[min(70vh,20rem)] overflow-y-auto rounded-xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/98 via-violet-50/95 to-white py-1 shadow-lg shadow-indigo-200/30 ring-2 ring-violet-300/25 backdrop-blur-xl ${
+            compact ? 'text-left' : ''
+          }`}
+          style={{
+            zIndex: Z_PANEL,
+            top: panelPos.top,
+            left: panelPos.left,
+            minWidth: panelPos.width,
+            maxWidth: 'min(100vw - 2rem, 20rem)',
+          }}
+        >
+          {options.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              role="option"
+              aria-selected={current === option.value ? 'true' : 'false'}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left transition-colors ${
+                compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'
+              } ${
+                current === option.value
+                  ? 'bg-gradient-to-r from-violet-200/95 to-indigo-200/90 text-indigo-950 font-semibold'
+                  : 'text-indigo-950/85 hover:bg-indigo-100/80 hover:text-indigo-950'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </>
+    ) : null;
 
   return (
     <div className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen ? 'true' : 'false'}
+        aria-haspopup="listbox"
         className={`flex items-center rounded-xl transition-all shadow-sm ${
           compact
             ? 'space-x-1.5 px-2.5 py-2 border text-left'
@@ -74,48 +176,9 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
         />
       </button>
 
-      {isOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-[45]"
-            onClick={() => setIsOpen(false)}
-            aria-hidden
-          />
-          <div
-            className={`absolute z-50 mt-2 min-w-[12rem] max-w-[min(100vw-2rem,20rem)] max-h-[min(70vh,20rem)] overflow-y-auto rounded-xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/98 via-violet-50/95 to-white py-1 shadow-lg shadow-indigo-200/30 ring-2 ring-violet-300/25 backdrop-blur-xl ${
-              compact ? 'w-44' : 'w-52'
-            }`}
-          >
-            {options.map((option) => (
-              <button
-                type="button"
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full text-left transition-colors ${
-                  compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'
-                } ${
-                  current === option.value
-                    ? 'bg-gradient-to-r from-violet-200/95 to-indigo-200/90 text-indigo-950 font-semibold'
-                    : 'text-indigo-950/85 hover:bg-indigo-100/80 hover:text-indigo-950'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {panel ? createPortal(panel, document.body) : null}
     </div>
   );
 };
 
 export default FilterDropdown;
-
-
-
-
-
-

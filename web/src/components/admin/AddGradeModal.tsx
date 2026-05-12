@@ -115,6 +115,15 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
     }
   }, [formData.courseId, courses, formData.teacherId]);
 
+  // Coefficient par défaut = celui de la matière (création uniquement)
+  useEffect(() => {
+    if (isEditMode || !formData.courseId || !courses) return;
+    const course = courses.find((c: any) => c.id === formData.courseId);
+    const coef =
+      course?.gradingCoefficient != null ? String(course.gradingCoefficient) : '1';
+    setFormData((prev) => ({ ...prev, coefficient: coef }));
+  }, [formData.courseId, courses, isEditMode]);
+
   // Mutation pour créer/modifier la note
   const createGradeMutation = useMutation({
     mutationFn: (data: any) => {

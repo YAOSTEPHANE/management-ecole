@@ -29,16 +29,31 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     level: '',
+    section: '',
     academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString(),
     room: '',
     capacity: 30,
     teacherId: '',
+    trackId: '',
+    materialRoomId: '',
   });
 
   // Fetch teachers for teacher selection
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
     queryFn: adminApi.getTeachers,
+    enabled: isOpen,
+  });
+
+  const { data: schoolTracks } = useQuery({
+    queryKey: ['school-tracks'],
+    queryFn: () => adminApi.getSchoolTracks(),
+    enabled: isOpen,
+  });
+
+  const { data: materialRooms } = useQuery({
+    queryKey: ['material-rooms', 'add-class-modal'],
+    queryFn: () => adminApi.getMaterialRooms({ isActive: 'true' }),
     enabled: isOpen,
   });
 
@@ -135,10 +150,13 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
     const submitData = {
       name: formData.name.trim(),
       level: formData.level,
+      ...(formData.section.trim() ? { section: formData.section.trim() } : {}),
       academicYear: formData.academicYear,
       room: formData.room.trim() || undefined,
       capacity: formData.capacity || 30,
       teacherId: formData.teacherId || undefined,
+      trackId: formData.trackId.trim() || undefined,
+      materialRoomId: formData.materialRoomId || undefined,
     };
 
     createClassMutation.mutate(submitData);
@@ -148,10 +166,13 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
     setFormData({
       name: '',
       level: '',
+      section: '',
       academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString(),
       room: '',
       capacity: 30,
       teacherId: '',
+      trackId: '',
+      materialRoomId: '',
     });
     setErrors({});
     onClose();
@@ -180,7 +201,7 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                 className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                   errors.name ? 'border-red-500' : 'border-stone-200'
                 }`}
-                placeholder="Ex: 6ème A, Terminale S, etc."
+                placeholder="Ex: 6ème générale, Terminale sciences…"
               />
             </div>
             {errors.name && (
@@ -189,6 +210,23 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                 {errors.name}
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
+              Section <span className="text-stone-400 font-normal">(optionnel)</span>
+            </label>
+            <input
+              type="text"
+              name="section"
+              value={formData.section}
+              onChange={handleChange}
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all"
+              placeholder="Lettre (A, B) ou filière (Sciences, Lettres…)"
+            />
+            <p className="mt-0.5 text-[10px] text-stone-500">
+              Permet de distinguer les classes d&apos;un même niveau (ex. 6ème section A).
+            </p>
           </div>
 
           {/* Niveau et Année académique */}
@@ -306,6 +344,46 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
+              Filière <span className="text-stone-400 font-normal">(optionnel)</span>
+            </label>
+            <select
+              name="trackId"
+              value={formData.trackId}
+              onChange={handleChange}
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 appearance-none"
+            >
+              <option value="">Aucune</option>
+              {(schoolTracks as any[])?.map((t: any) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
+              Salle du référentiel <span className="text-stone-400 font-normal">(optionnel)</span>
+            </label>
+            <select
+              name="materialRoomId"
+              value={formData.materialRoomId}
+              onChange={handleChange}
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/25 appearance-none"
+            >
+              <option value="">Aucune (saisie libre)</option>
+              {(materialRooms as any[])?.map((r: any) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                  {r.building ? ` · ${r.building}` : ''}
+                  {r.code ? ` (${r.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Enseignant principal */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
@@ -341,7 +419,9 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
                   <p className="text-[10px] font-medium uppercase tracking-wide opacity-90">Aperçu</p>
                   <p className="text-lg font-bold leading-tight truncate mt-0.5">{formData.name}</p>
                   <p className="text-xs opacity-90 mt-0.5 truncate">
-                    {formData.level} • {formData.academicYear}
+                    {formData.level}
+                    {formData.section.trim() ? ` · section ${formData.section.trim()}` : ''} •{' '}
+                    {formData.academicYear}
                   </p>
                 </div>
                 <div className="text-right shrink-0">

@@ -18,7 +18,7 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   const size = sizeProp === 'default' ? 'md' : sizeProp;
   const baseStyles =
-    'font-semibold rounded-xl tracking-wide transition-all duration-300 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none';
+    'font-semibold rounded-xl tracking-wide transition-all duration-300 ease-out hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:active:scale-100 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50';
 
   const variants = {
     primary:

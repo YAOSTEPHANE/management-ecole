@@ -6,6 +6,7 @@ import CompleteManagement from './CompleteManagement';
 import GradeAveragesPanel from './GradeAveragesPanel';
 import GenerateReportCardModal from './GenerateReportCardModal';
 import GenerateReportModal from './GenerateReportModal';
+import GradingAdvancedPanel from './GradingAdvancedPanel';
 import Button from '../ui/Button';
 import {
   FiGrid,
@@ -14,10 +15,11 @@ import {
   FiFileText,
   FiAward,
   FiBookOpen,
+  FiSliders,
 } from 'react-icons/fi';
 import { ADM } from './adminModuleLayout';
 
-type GradingTab = 'overview' | 'notation' | 'averages' | 'reports';
+type GradingTab = 'overview' | 'notation' | 'averages' | 'reports' | 'advanced';
 
 const GradingEvaluationManagement: React.FC = () => {
   const [tab, setTab] = useState<GradingTab>('overview');
@@ -41,6 +43,7 @@ const GradingEvaluationManagement: React.FC = () => {
     { id: 'overview', label: 'Vue d’ensemble', icon: FiGrid },
     { id: 'notation', label: 'Notes & bulletins', icon: FiEdit3 },
     { id: 'averages', label: 'Moyennes', icon: FiBarChart2 },
+    { id: 'advanced', label: 'Conseils & classement', icon: FiSliders },
     { id: 'reports', label: 'Relevés & rapports', icon: FiFileText },
   ];
 
@@ -135,6 +138,8 @@ const GradingEvaluationManagement: React.FC = () => {
       {tab === 'notation' && <CompleteManagement gradingModule compact />}
 
       {tab === 'averages' && <GradeAveragesPanel compact />}
+
+      {tab === 'advanced' && <GradingAdvancedPanel compact />}
 
       {tab === 'reports' && (
         <div className="space-y-4">

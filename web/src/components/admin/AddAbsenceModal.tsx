@@ -44,6 +44,12 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
     status: 'ABSENT' as 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED',
     reason: '',
     excused: false,
+    minutesLate: '' as string,
+    hasMedicalCertificate: false,
+    justificationDocuments: '',
+    sanctionNote: '',
+    attendanceSource: 'MANUAL' as 'MANUAL' | 'NFC' | 'BIOMETRIC',
+    notifyParents: true,
   });
 
   // Load existing absence data if editing
@@ -59,6 +65,15 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
         status: existingAbsence.status || 'ABSENT',
         reason: existingAbsence.reason || '',
         excused: existingAbsence.excused || false,
+        minutesLate:
+          existingAbsence.minutesLate != null ? String(existingAbsence.minutesLate) : '',
+        hasMedicalCertificate: !!existingAbsence.hasMedicalCertificate,
+        justificationDocuments: Array.isArray(existingAbsence.justificationDocuments)
+          ? existingAbsence.justificationDocuments.join('\n')
+          : '',
+        sanctionNote: existingAbsence.sanctionNote || '',
+        attendanceSource: (existingAbsence.attendanceSource as 'MANUAL' | 'NFC' | 'BIOMETRIC') || 'MANUAL',
+        notifyParents: true,
       });
     }
   }, [existingAbsence]);
@@ -180,6 +195,15 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
       return;
     }
 
+    const justificationDocuments = formData.justificationDocuments
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const minutesLateNum =
+      formData.status === 'LATE' && formData.minutesLate !== ''
+        ? Math.max(0, Math.min(480, Number(formData.minutesLate)))
+        : undefined;
+
     const absenceData = {
       studentId: formData.studentId,
       courseId: formData.courseId,
@@ -188,6 +212,12 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
       status: formData.status,
       reason: formData.reason || null,
       excused: formData.excused,
+      justificationDocuments,
+      hasMedicalCertificate: formData.hasMedicalCertificate,
+      minutesLate: minutesLateNum,
+      sanctionNote: formData.sanctionNote.trim() || undefined,
+      attendanceSource: formData.attendanceSource,
+      ...(isEditMode ? {} : { notifyParents: formData.notifyParents }),
     };
 
     if (isEditMode) {
@@ -206,6 +236,12 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
       status: 'ABSENT',
       reason: '',
       excused: false,
+      minutesLate: '',
+      hasMedicalCertificate: false,
+      justificationDocuments: '',
+      sanctionNote: '',
+      attendanceSource: 'MANUAL',
+      notifyParents: true,
     });
     setErrors({});
     onClose();
@@ -240,6 +276,7 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
               value={formData.studentId}
               onChange={handleChange}
               disabled={isLoading}
+              aria-label="Élève"
               className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                 errors.studentId ? 'border-red-500' : 'border-stone-200'
               } ${isLoading ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
@@ -274,6 +311,7 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
               value={formData.courseId}
               onChange={handleChange}
               disabled={isLoading || !formData.studentId}
+              aria-label="Matière"
               className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                 errors.courseId ? 'border-red-500' : 'border-stone-200'
               } ${isLoading || !formData.studentId ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
@@ -308,6 +346,7 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
               value={formData.teacherId}
               onChange={handleChange}
               disabled={isLoading || !formData.courseId}
+              aria-label="Enseignant"
               className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                 errors.teacherId ? 'border-red-500' : 'border-stone-200'
               } ${isLoading || !formData.courseId ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
@@ -344,6 +383,7 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
                 value={formData.date}
                 onChange={handleChange}
                 disabled={isLoading}
+                aria-label="Date de l'absence"
                 max={new Date().toISOString().split('T')[0]}
                 className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                   errors.date ? 'border-red-500' : 'border-stone-200'
@@ -379,6 +419,7 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
                 value={formData.status}
                 onChange={handleChange}
                 disabled={isLoading}
+                aria-label="Statut de présence"
                 className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                   errors.status ? 'border-red-500' : 'border-stone-200'
                 } ${isLoading ? 'bg-stone-100 cursor-not-allowed opacity-90' : ''}`}
@@ -433,6 +474,101 @@ const AddAbsenceModal: React.FC<AddAbsenceModalProps> = ({ isOpen, onClose, abse
             <span className="text-xs font-semibold text-stone-700">Absence justifiée</span>
           </label>
         </div>
+
+        {formData.status === 'LATE' && (
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Minutes de retard</label>
+            <input
+              type="number"
+              name="minutesLate"
+              min={1}
+              max={480}
+              value={formData.minutesLate}
+              onChange={handleChange}
+              disabled={isLoading}
+              placeholder="ex. 15"
+              aria-label="Minutes de retard"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Origine du pointage</label>
+            <select
+              name="attendanceSource"
+              value={formData.attendanceSource}
+              onChange={handleChange}
+              disabled={isLoading}
+              aria-label="Origine du pointage"
+              className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg"
+            >
+              <option value="MANUAL">Saisie manuelle</option>
+              <option value="NFC">Carte NFC</option>
+              <option value="BIOMETRIC">Biométrie</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer mt-5 md:mt-0">
+            <input
+              type="checkbox"
+              name="hasMedicalCertificate"
+              checked={formData.hasMedicalCertificate}
+              onChange={handleChange}
+              disabled={isLoading}
+              className="h-4 w-4 rounded border-stone-300 text-amber-700"
+            />
+            <span className="text-xs font-semibold text-stone-700">Certificat médical (justificatif)</span>
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
+            URLs des justificatifs (une par ligne)
+          </label>
+          <textarea
+            name="justificationDocuments"
+            value={formData.justificationDocuments}
+            onChange={handleChange}
+            disabled={isLoading}
+            rows={2}
+            className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg resize-none"
+            placeholder="https://..."
+            aria-label="URLs des documents justificatifs"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">
+            Sanction / mesure (absence non justifiée)
+          </label>
+          <textarea
+            name="sanctionNote"
+            value={formData.sanctionNote}
+            onChange={handleChange}
+            disabled={isLoading}
+            rows={2}
+            className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg resize-none"
+            placeholder="Avertissement, retenue, convocation parents…"
+            aria-label="Note de sanction"
+          />
+        </div>
+
+        {!isEditMode && (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="notifyParents"
+              checked={formData.notifyParents}
+              onChange={handleChange}
+              disabled={isLoading}
+              className="h-4 w-4 rounded border-stone-300 text-amber-700"
+            />
+            <span className="text-xs font-semibold text-stone-700">
+              Alerter les parents (absence non justifiée ou retard)
+            </span>
+          </label>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80">

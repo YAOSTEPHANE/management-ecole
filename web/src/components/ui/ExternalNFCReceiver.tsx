@@ -80,9 +80,11 @@ const ExternalNFCReceiver: React.FC<ExternalNFCReceiverProps> = ({
               )}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">Récepteur NFC Externe</h3>
+              <h3 className="font-semibold text-gray-900">Récepteur externe</h3>
               <p className="text-sm text-gray-600">
-                {isActive ? 'En attente de scans...' : 'Inactif'}
+                {isActive
+                  ? 'En attente de lectures (carte, borne NFC ou terminal biométrique configuré)…'
+                  : 'Inactif — lecteurs envoyant un identifiant élève vers l’API'}
               </p>
             </div>
           </div>

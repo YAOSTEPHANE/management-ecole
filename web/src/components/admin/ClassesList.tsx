@@ -7,6 +7,9 @@ import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
 import SearchBar from '../ui/SearchBar';
 import AddClassModal from './AddClassModal';
+import EditClassModal, { type AdminClassRow } from './EditClassModal';
+import ClassGroupsModal, { type ClassGroupRow } from './ClassGroupsModal';
+import ClassRoomAssignmentPanel from './ClassRoomAssignmentPanel';
 import {
   FiPlus,
   FiUsers,
@@ -15,6 +18,8 @@ import {
   FiDownload,
   FiLayers,
   FiTrendingUp,
+  FiEdit2,
+  FiGrid,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -48,6 +53,12 @@ const levelColors: Record<string, string> = {
 const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = false }) => {
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editClass, setEditClass] = useState<AdminClassRow | null>(null);
+  const [groupsForClass, setGroupsForClass] = useState<{
+    id: string;
+    label: string;
+    groups: ClassGroupRow[];
+  } | null>(null);
 
   useEffect(() => {
     if (searchQuery) setSearchTerm(searchQuery);
@@ -65,6 +76,7 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
       (c: any) =>
         (c.name || '').toLowerCase().includes(term) ||
         (c.level || '').toLowerCase().includes(term) ||
+        (c.section || '').toLowerCase().includes(term) ||
         (c.academicYear || '').toLowerCase().includes(term) ||
         (c.room || '').toLowerCase().includes(term)
     );
@@ -85,11 +97,20 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
 
   const exportToCSV = () => {
     try {
-      const headers = ['Nom', 'Niveau', 'Année scolaire', 'Nombre d\'élèves', 'Capacité', 'Enseignant principal'];
+      const headers = [
+        'Nom',
+        'Niveau',
+        'Section',
+        'Année scolaire',
+        'Nombre d\'élèves',
+        'Capacité',
+        'Enseignant principal',
+      ];
       const rows = (filteredClasses || []).map((c: any) =>
         [
           c.name,
           c.level || 'N/A',
+          c.section || '—',
           c.academicYear || 'N/A',
           c._count?.students || 0,
           c.capacity || 0,
@@ -123,9 +144,11 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
         classes: (filteredClasses || []).map((c: any) => ({
           nom: c.name,
           niveau: c.level,
+          section: c.section || null,
           annéeScolaire: c.academicYear,
           nombreÉlèves: c._count?.students || 0,
           capacité: c.capacity || 0,
+          groupes: (c.groups || []).map((g: any) => g.name),
           enseignantPrincipal: c.teacher?.user
             ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}`
             : null,
@@ -169,6 +192,7 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
       const tableData = (filteredClasses || []).map((c: any) => [
         c.name,
         c.level || 'N/A',
+        c.section || '—',
         c.academicYear || 'N/A',
         c._count?.students || 0,
         c.capacity || 0,
@@ -176,7 +200,9 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
       ]);
       useAutoTable({
         startY: 38,
-        head: [['Nom', 'Niveau', 'Année scolaire', 'Élèves', 'Capacité', 'Enseignant principal']],
+        head: [
+          ['Nom', 'Niveau', 'Section', 'Année scolaire', 'Élèves', 'Capacité', 'Enseignant principal'],
+        ],
         body: tableData,
         theme: 'striped',
         headStyles: { fillColor: [124, 58, 237], textColor: 255, fontStyle: 'bold' },
@@ -217,7 +243,7 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
           Classes
         </h1>
         <p className={compact ? 'text-xs text-gray-500 mt-1' : 'text-sm text-gray-500 mt-1'}>
-          Gérez les classes, niveaux, effectifs et professeurs principaux. Recherchez et exportez la liste.
+          Organisez par niveau, section et groupes ; gérez les effectifs et les professeurs principaux.
         </p>
       </div>
 
@@ -300,6 +326,8 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
         </Card>
       </div>
 
+      <ClassRoomAssignmentPanel compact={compact} />
+
       <Card className="p-4 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="flex-1 min-w-0">
@@ -307,7 +335,7 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
               compact={compact}
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="Rechercher par nom, niveau, année ou salle..."
+              placeholder="Rechercher par nom, niveau, section, année ou salle..."
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -347,11 +375,13 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
             const barColor =
               fillPct >= 90 ? 'bg-red-500' : fillPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
 
+            const groupCount = (classItem.groups?.length as number | undefined) ?? 0;
+
             return (
               <Card key={classItem.id} className="border border-gray-200 overflow-hidden">
                 <div className="p-4 space-y-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <h3
                         className={
                           compact ? 'text-sm font-semibold text-gray-900' : 'font-semibold text-gray-900'
@@ -359,15 +389,78 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
                       >
                         {classItem.name}
                       </h3>
-                      <Badge className={`mt-1 ${levelStyle}`} size="sm">
-                        {classItem.level || '—'}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1 mt-1">
+                        <Badge className={levelStyle} size="sm">
+                          {classItem.level || '—'}
+                        </Badge>
+                        {classItem.section ? (
+                          <Badge variant="default" size="sm">
+                            Section {classItem.section}
+                          </Badge>
+                        ) : null}
+                        {classItem.track?.name ? (
+                          <Badge variant="default" size="sm" className="bg-violet-50 text-violet-800">
+                            {classItem.track.name}
+                          </Badge>
+                        ) : null}
+                        {groupCount > 0 ? (
+                          <Badge variant="default" size="sm">
+                            {groupCount} groupe{groupCount > 1 ? 's' : ''}
+                          </Badge>
+                        ) : null}
+                      </div>
                     </div>
-                    {classItem.room && (
-                      <Badge variant="default" size="sm">
-                        {classItem.room}
-                      </Badge>
-                    )}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {(classItem.materialRoom?.name || classItem.room) && (
+                        <Badge variant="default" size="sm">
+                          {classItem.materialRoom?.name || classItem.room}
+                          {classItem.materialRoom?.building
+                            ? ` · ${classItem.materialRoom.building}`
+                            : ''}
+                        </Badge>
+                      )}
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditClass({
+                              id: classItem.id,
+                              name: classItem.name,
+                              level: classItem.level,
+                              section: classItem.section,
+                              room: classItem.room,
+                              capacity: classItem.capacity,
+                              academicYear: classItem.academicYear,
+                              teacherId: classItem.teacherId ?? classItem.teacher?.id,
+                              trackId: classItem.trackId ?? classItem.track?.id ?? null,
+                              materialRoomId:
+                                classItem.materialRoomId ?? classItem.materialRoom?.id ?? null,
+                              materialRoom: classItem.materialRoom ?? null,
+                            })
+                          }
+                          className="p-1.5 rounded-lg text-amber-800 hover:bg-amber-50 border border-transparent hover:border-amber-100"
+                          title="Modifier la classe"
+                        >
+                          <FiEdit2 className="w-4 h-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setGroupsForClass({
+                              id: classItem.id,
+                              label: [classItem.level, classItem.section, classItem.name]
+                                .filter(Boolean)
+                                .join(' · '),
+                              groups: classItem.groups || [],
+                            })
+                          }
+                          className="p-1.5 rounded-lg text-violet-800 hover:bg-violet-50 border border-transparent hover:border-violet-100"
+                          title="Groupes"
+                        >
+                          <FiGrid className="w-4 h-4" aria-hidden />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div
                     className={
@@ -427,6 +520,18 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
       </div>
 
       <AddClassModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <EditClassModal
+        isOpen={!!editClass}
+        onClose={() => setEditClass(null)}
+        classItem={editClass}
+      />
+      <ClassGroupsModal
+        isOpen={!!groupsForClass}
+        onClose={() => setGroupsForClass(null)}
+        classId={groupsForClass?.id ?? null}
+        classLabel={groupsForClass?.label ?? ''}
+        groups={groupsForClass?.groups ?? []}
+      />
     </div>
   );
 };

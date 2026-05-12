@@ -7,6 +7,7 @@ import HRPayrollPanel from './HRPayrollPanel';
 import HRBenefitsPanel from './HRBenefitsPanel';
 import HRPerformancePanel from './HRPerformancePanel';
 import HRLeavesPanel from './HRLeavesPanel';
+import HRTeacherAttendancePanel from './HRTeacherAttendancePanel';
 import {
   FiGrid,
   FiBriefcase,
@@ -14,6 +15,7 @@ import {
   FiHeart,
   FiAward,
   FiCalendar,
+  FiClock,
 } from 'react-icons/fi';
 import { ADM } from '../adminModuleLayout';
 
@@ -23,6 +25,7 @@ type HRTab =
   | 'payroll'
   | 'benefits'
   | 'performance'
+  | 'attendance'
   | 'leaves';
 
 const HRManagementModule: React.FC = () => {
@@ -36,6 +39,10 @@ const HRManagementModule: React.FC = () => {
     queryKey: ['admin-educators-hr-overview'],
     queryFn: adminApi.getEducators,
   });
+  const { data: staffMembers } = useQuery({
+    queryKey: ['admin-staff-members-hr-overview'],
+    queryFn: adminApi.getStaffMembers,
+  });
   const { data: leaves } = useQuery({
     queryKey: ['admin-hr-teacher-leaves', 'overview-pending'],
     queryFn: () => adminApi.getHrTeacherLeaves({ status: 'PENDING' }),
@@ -48,10 +55,11 @@ const HRManagementModule: React.FC = () => {
   const stats = useMemo(() => {
     const t = (teachers as any[] | undefined)?.length ?? 0;
     const ed = (educators as any[] | undefined)?.length ?? 0;
+    const st = (staffMembers as any[] | undefined)?.length ?? 0;
     const pending = (leaves as any[] | undefined)?.length ?? 0;
     const rev = (reviews as any[] | undefined)?.length ?? 0;
-    return { staff: t + ed, pending, reviews: rev };
-  }, [teachers, educators, leaves, reviews]);
+    return { staff: t + ed + st, pending, reviews: rev };
+  }, [teachers, educators, staffMembers, leaves, reviews]);
 
   const subTabs: { id: HRTab; label: string; icon: typeof FiGrid }[] = [
     { id: 'overview', label: 'Vue d’ensemble', icon: FiGrid },
@@ -59,6 +67,7 @@ const HRManagementModule: React.FC = () => {
     { id: 'payroll', label: 'Paies', icon: FiDollarSign },
     { id: 'benefits', label: 'Avantages sociaux', icon: FiHeart },
     { id: 'performance', label: 'Évaluation', icon: FiAward },
+    { id: 'attendance', label: 'Présence enseignants', icon: FiClock },
     { id: 'leaves', label: 'Congés & permissions', icon: FiCalendar },
   ];
 
@@ -117,6 +126,7 @@ const HRManagementModule: React.FC = () => {
       {tab === 'payroll' && <HRPayrollPanel />}
       {tab === 'benefits' && <HRBenefitsPanel />}
       {tab === 'performance' && <HRPerformancePanel />}
+      {tab === 'attendance' && <HRTeacherAttendancePanel />}
       {tab === 'leaves' && <HRLeavesPanel />}
     </div>
   );

@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { JsonWebTokenError, NotBeforeError, TokenExpiredError } from 'jsonwebtoken';
+import {
+  PrismaClientInitializationError,
+  PrismaClientKnownRequestError,
+  PrismaClientUnknownRequestError,
+} from '@prisma/client/runtime/library';
 import prisma from '../utils/prisma';
+import { verifyAccessToken } from '../utils/jwt.util';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -8,6 +14,14 @@ export interface AuthRequest extends Request {
     email: string;
     role: string;
   };
+}
+
+function isPrismaConnectivityError(error: unknown): boolean {
+  return (
+    error instanceof PrismaClientKnownRequestError ||
+    error instanceof PrismaClientUnknownRequestError ||
+    error instanceof PrismaClientInitializationError
+  );
 }
 
 export const authenticate = async (
@@ -22,11 +36,7 @@ export const authenticate = async (
       return res.status(401).json({ error: 'Token manquant' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as {
-      userId: string;
-      email: string;
-      role: string;
-    };
+    const decoded = verifyAccessToken(token);
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -45,7 +55,26 @@ export const authenticate = async (
 
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Token invalide' });
+    if (error instanceof TokenExpiredError) {
+      return res.status(401).json({ error: 'Session expirée. Reconnectez-vous.' });
+    }
+    if (error instanceof NotBeforeError || error instanceof JsonWebTokenError) {
+      return res.status(401).json({ error: 'Token invalide' });
+    }
+    if (error instanceof Error && error.message === 'Token invalide') {
+      return res.status(401).json({ error: 'Token invalide' });
+    }
+    if (isPrismaConnectivityError(error)) {
+      console.error('Erreur base de données (authenticate):', error);
+      return res.status(503).json({ error: 'Service temporairement indisponible' });
+    }
+
+    console.error('Erreur inattendue (authenticate):', error);
+    const message =
+      process.env.NODE_ENV === 'development' && error instanceof Error
+        ? error.message
+        : 'Erreur serveur';
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -62,7 +91,3 @@ export const authorize = (...roles: string[]) => {
     next();
   };
 };
-
-
-
-

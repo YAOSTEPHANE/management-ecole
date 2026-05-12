@@ -98,7 +98,11 @@ const ParentAttendanceNotifyPanel: React.FC = () => {
         <p className="text-sm text-gray-700">
           <FiBell className="inline w-4 h-4 mr-1 text-teal-600" />
           Liste des <strong>absences non justifiées</strong> sur les derniers jours, avec envoi d’un
-          message privé au compte parent (messagerie admin).
+          message privé au compte parent (messagerie admin). Complément : lors du pointage, des{' '}
+          <strong>alertes automatiques e-mail / SMS</strong> peuvent aussi être envoyées aux parents
+          (absences non justifiées et retards) si SMTP / SMS et{' '}
+          <code className="text-xs bg-white/80 px-1 rounded">NOTIFY_PARENTS_ON_ATTENDANCE</code> sont
+          configurés — voir aussi le détail d’une absence pour renvoyer une notification.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="text-sm text-gray-600">Fenêtre :</label>

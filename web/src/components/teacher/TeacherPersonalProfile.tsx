@@ -21,6 +21,7 @@ import {
   FiShield,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import GdprUserRightsPanel from '../gdpr/GdprUserRightsPanel';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 
@@ -255,6 +256,8 @@ const TeacherPersonalProfile = () => {
           </ul>
         </Card>
       )}
+
+      <GdprUserRightsPanel />
     </div>
   );
 };

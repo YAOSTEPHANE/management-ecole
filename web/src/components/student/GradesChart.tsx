@@ -15,10 +15,13 @@ import {
   CHART_GRID_SOFT,
   CHART_AXIS_TICK,
   CHART_MARGIN_COMPACT,
-  PREMIUM_GRADIENT_PAIRS,
   RechartsViewport,
   PremiumChartMeshBackground,
   ChartDropShadowFilter,
+  chartBlueRed,
+  CHART_BLUE,
+  CHART_RED,
+  CHART_ANIMATION_MS,
 } from '../charts';
 
 interface Grade {
@@ -110,17 +113,6 @@ const GradesChart: React.FC<GradesChartProps> = ({ grades }) => {
           <RechartsViewport height={420}>
             <LineChart data={chartData} margin={{ ...CHART_MARGIN_COMPACT, top: 8, bottom: 8 }}>
               <ChartDropShadowFilter id="grades-line-glow" />
-              <defs>
-                {courses.map((_, i) => {
-                  const [c0, c1] = PREMIUM_GRADIENT_PAIRS[i % PREMIUM_GRADIENT_PAIRS.length];
-                  return (
-                    <linearGradient key={i} id={`gradeStroke-${i}`} x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={c0} />
-                      <stop offset="100%" stopColor={c1} />
-                    </linearGradient>
-                  );
-                })}
-              </defs>
               <CartesianGrid {...CHART_GRID_SOFT} />
               <XAxis
                 dataKey="date"
@@ -136,17 +128,17 @@ const GradesChart: React.FC<GradesChartProps> = ({ grades }) => {
               />
               <ReferenceLine
                 y={10}
-                stroke="#f59e0b"
+                stroke={CHART_RED}
                 strokeDasharray="6 6"
-                strokeOpacity={0.85}
-                label={{ value: '10', position: 'insideTopLeft', fill: '#d97706', fontSize: 10, fontWeight: 700 }}
+                strokeOpacity={0.75}
+                label={{ value: '10', position: 'insideTopLeft', fill: CHART_RED, fontSize: 10, fontWeight: 700 }}
               />
               <ReferenceLine
                 y={16}
-                stroke="#10b981"
+                stroke={CHART_BLUE}
                 strokeDasharray="6 6"
-                strokeOpacity={0.85}
-                label={{ value: '16', position: 'insideTopLeft', fill: '#059669', fontSize: 10, fontWeight: 700 }}
+                strokeOpacity={0.75}
+                label={{ value: '16', position: 'insideTopLeft', fill: CHART_BLUE, fontSize: 10, fontWeight: 700 }}
               />
               <Tooltip content={(p) => <PremiumTooltip {...p} valueSuffix="/20" />} />
               <Legend
@@ -161,11 +153,13 @@ const GradesChart: React.FC<GradesChartProps> = ({ grades }) => {
                   key={course}
                   type="monotone"
                   dataKey={course}
-                  stroke={`url(#gradeStroke-${index})`}
+                  stroke={chartBlueRed(index)}
                   strokeWidth={3.5}
-                  dot={{ r: 5, strokeWidth: 2, stroke: '#fff', fill: PREMIUM_GRADIENT_PAIRS[index % PREMIUM_GRADIENT_PAIRS.length][0] }}
+                  dot={{ r: 5, strokeWidth: 2, stroke: '#fff', fill: chartBlueRed(index) }}
                   activeDot={{ r: 8, strokeWidth: 2, stroke: '#fff' }}
                   style={{ filter: 'url(#grades-line-glow)' }}
+                  isAnimationActive
+                  animationDuration={CHART_ANIMATION_MS}
                 />
               ))}
             </LineChart>

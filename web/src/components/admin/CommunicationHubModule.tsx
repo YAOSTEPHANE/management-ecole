@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Card from '../ui/Card';
 import CommunicationManagement from './CommunicationManagement';
+import NotificationsAlertsPanel from './NotificationsAlertsPanel';
+import SchoolGalleryAdminPanel from './SchoolGalleryAdminPanel';
 import {
   FiGrid,
   FiMail,
@@ -10,10 +12,11 @@ import {
   FiFileText,
   FiRss,
   FiInbox,
+  FiImage,
 } from 'react-icons/fi';
 import { ADM } from './adminModuleLayout';
 
-type HubTab = 'overview' | 'messaging' | 'alerts' | 'circulars' | 'news' | 'requests';
+type HubTab = 'overview' | 'messaging' | 'alerts' | 'circulars' | 'news' | 'gallery' | 'requests';
 
 const CommunicationHubModule: React.FC = () => {
   const [tab, setTab] = useState<HubTab>('overview');
@@ -48,6 +51,7 @@ const CommunicationHubModule: React.FC = () => {
     { id: 'alerts', label: 'Notifications & alertes', icon: FiBell },
     { id: 'circulars', label: 'Circulaires', icon: FiFileText },
     { id: 'news', label: 'Actualités', icon: FiRss },
+    { id: 'gallery', label: 'Galerie photos', icon: FiImage },
     { id: 'requests', label: 'Demandes & réclamations', icon: FiInbox },
   ];
 
@@ -114,10 +118,11 @@ const CommunicationHubModule: React.FC = () => {
           </div>
           <Card className={ADM.helpCard}>
             <p className="text-xs text-gray-700 leading-relaxed">
-              Utilisez <strong>Messagerie</strong> pour écrire aux comptes parents, élèves ou
-              enseignants. Les <strong>circulaires</strong> sont des annonces dont le titre commence par
-              « Circulaire » (ou [Circulaire]). Les <strong>actualités</strong> regroupent les autres
-              annonces publiées. Les <strong>demandes et réclamations</strong> mettent en avant les
+              La <strong>Messagerie</strong> permet d’écrire aux familles, élèves ou enseignants, d’utiliser des fils
+              (threadKey), des pièces jointes par URL, des diffusions par classe ou par niveau, et déclenche des
+              notifications / push côté destinataires. Les <strong>circulaires</strong> sont des annonces dont le titre
+              commence par « Circulaire » (ou [Circulaire]). Les <strong>actualités</strong> regroupent les autres annonces
+              publiées. Les <strong>demandes et réclamations</strong> mettent en avant les
               messages des familles, les sujets urgents ou les mots-clés (demande, réclamation…).
             </p>
           </Card>
@@ -132,7 +137,12 @@ const CommunicationHubModule: React.FC = () => {
           messagesMode="all"
         />
       )}
-      {tab === 'alerts' && <CommunicationManagement embedded compact embeddedTab="notifications" />}
+      {tab === 'alerts' && (
+        <div className="space-y-4">
+          <NotificationsAlertsPanel />
+          <CommunicationManagement embedded compact embeddedTab="notifications" />
+        </div>
+      )}
       {tab === 'circulars' && (
         <div className="space-y-3">
           <Card className="p-4 border border-rose-100 bg-rose-50/40">
@@ -157,6 +167,18 @@ const CommunicationHubModule: React.FC = () => {
           embeddedTab="announcements"
           announcementKind="news"
         />
+      )}
+      {tab === 'gallery' && (
+        <div className="space-y-3">
+          <Card className="p-4 border border-emerald-100 bg-emerald-50/30">
+            <p className="text-xs text-gray-700 leading-relaxed">
+              Photos affichées dans le <strong>fil portail</strong> des familles et des élèves (onglet Galerie ou fil
+              « Tout »). Pour des articles longs avec plusieurs images, utilisez une <strong>annonce</strong> en catégorie
+              « Galerie » avec URLs d’images.
+            </p>
+          </Card>
+          <SchoolGalleryAdminPanel />
+        </div>
       )}
       {tab === 'requests' && (
         <div className="space-y-3">

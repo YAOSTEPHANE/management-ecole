@@ -74,3 +74,55 @@ export function PremiumTooltip({
     </div>
   );
 }
+
+type PieSectorPercentTooltipProps = {
+  active?: boolean;
+  payload?: unknown;
+  /** Effectif total (tous secteurs) pour calculer le % */
+  total: number;
+  /** Libellé après la valeur numérique, ex. « élève(s) » */
+  unitLabel?: string;
+};
+
+/**
+ * Tooltip pour un secteur de camembert : valeur + part du total en %.
+ */
+export function PieSectorPercentTooltip({
+  active,
+  payload,
+  total,
+  unitLabel = 'élève(s)',
+}: PieSectorPercentTooltipProps) {
+  const rows = Array.isArray(payload) ? (payload as PayloadEntry[]) : [];
+  if (!active || !rows.length) {
+    return null;
+  }
+  const entry = rows[0];
+  const val = Number(entry.value);
+  const pct = total > 0 ? Math.round((val / total) * 1000) / 10 : 0;
+  const name = entry.name ?? '—';
+  const color = entry.color ?? entry.payload?.fill ?? '#6366f1';
+
+  return (
+    <div className="relative min-w-[200px] max-w-[280px] rounded-2xl p-[1px] shadow-[0_28px_56px_-12px_rgba(15,23,42,0.35)] backdrop-blur-xl bg-gradient-to-br from-indigo-200/80 via-white/40 to-fuchsia-200/60">
+      <div className="rounded-[15px] bg-white/[0.97] px-4 py-3.5 ring-1 ring-white/80">
+        <p className="mb-2 border-b border-slate-100/90 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          {name}
+        </p>
+        <div className="flex items-center gap-2">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full shadow-sm ring-2 ring-white"
+            style={{ background: color }}
+          />
+          <p className="text-sm text-slate-800">
+            <span className="font-black tabular-nums text-slate-900">{val}</span>
+            <span className="font-medium text-slate-600"> {unitLabel}</span>
+            <span className="ml-2 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-bold tabular-nums text-indigo-700">
+              {pct}%
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

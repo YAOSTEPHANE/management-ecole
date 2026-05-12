@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
@@ -16,17 +17,12 @@ import {
   FiEdit,
   FiTrash2,
   FiClock,
-  FiBook,
-  FiUsers,
   FiMapPin,
   FiCheck,
-  FiX,
-  FiAlertCircle,
   FiRefreshCw,
   FiEye,
   FiDownload,
   FiFileText,
-  FiSearch,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -57,6 +53,9 @@ const TIME_SLOTS = [
   '17:00', '17:30', '18:00',
 ];
 
+const getTeacherDisplayName = (teacher?: any) =>
+  teacher?.user ? `${teacher.user.firstName ?? ''} ${teacher.user.lastName ?? ''}`.trim() : '';
+
 type ScheduleManagementProps = {
   compact?: boolean;
 };
@@ -70,6 +69,20 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
+  const [availabilityTeacherId, setAvailabilityTeacherId] = useState<string>('');
+  const [availabilityForm, setAvailabilityForm] = useState({
+    dayOfWeek: '1',
+    startTime: '08:00',
+    endTime: '09:00',
+    label: '',
+  });
+  const [roomBlockForm, setRoomBlockForm] = useState({
+    room: '',
+    dayOfWeek: '1',
+    startTime: '08:00',
+    endTime: '09:00',
+    reason: '',
+  });
   const [scheduleForm, setScheduleForm] = useState({
     classId: '',
     courseId: '',
@@ -77,6 +90,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
     startTime: '08:00',
     endTime: '09:00',
     room: '',
+    substituteTeacherId: '',
+    replacementNote: '',
   });
 
   const queryClient = useQueryClient();
@@ -85,6 +100,7 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   const { data: schedules, isLoading } = useQuery({
     queryKey: ['admin-schedules', selectedClass],
     queryFn: () => adminApi.getSchedules(selectedClass !== 'all' ? { classId: selectedClass } : {}),
+    refetchInterval: 15000,
   });
 
   const { data: classes } = useQuery({
@@ -100,6 +116,17 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   const { data: teachers } = useQuery({
     queryKey: ['teachers'],
     queryFn: adminApi.getTeachers,
+  });
+
+  const { data: teacherAvailabilitySlots } = useQuery({
+    queryKey: ['teacher-schedule-availability', availabilityTeacherId],
+    queryFn: () => adminApi.getTeacherScheduleAvailability(availabilityTeacherId),
+    enabled: Boolean(availabilityTeacherId),
+  });
+
+  const { data: roomBlocks } = useQuery({
+    queryKey: ['schedule-room-blocks'],
+    queryFn: adminApi.getScheduleRoomBlocks,
   });
 
   // Mutations
@@ -141,6 +168,81 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
     },
   });
 
+  const autoGenerateMutation = useMutation({
+    mutationFn: () =>
+      adminApi.autoGenerateSchedules({
+        classId: selectedClass,
+        clearExisting: false,
+      }),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-schedules'] });
+      const created = result?.created ?? 0;
+      const errors = Array.isArray(result?.errors) ? result.errors : [];
+      if (created > 0) {
+        toast.success(`Génération automatique terminée (${created} créneaux créés)`);
+      } else {
+        toast('Aucun créneau créé automatiquement');
+      }
+      if (errors.length > 0) {
+        toast.error(errors[0]);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de la génération automatique');
+    },
+  });
+
+  const createAvailabilityMutation = useMutation({
+    mutationFn: () =>
+      adminApi.createTeacherScheduleAvailability(availabilityTeacherId, {
+        dayOfWeek: parseInt(availabilityForm.dayOfWeek, 10),
+        startTime: availabilityForm.startTime,
+        endTime: availabilityForm.endTime,
+        label: availabilityForm.label || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-schedule-availability', availabilityTeacherId] });
+      setAvailabilityForm({ dayOfWeek: '1', startTime: '08:00', endTime: '09:00', label: '' });
+      toast.success('Disponibilité ajoutée');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erreur disponibilité'),
+  });
+
+  const deleteAvailabilityMutation = useMutation({
+    mutationFn: (slotId: string) => adminApi.deleteTeacherScheduleAvailability(availabilityTeacherId, slotId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-schedule-availability', availabilityTeacherId] });
+      toast.success('Disponibilité supprimée');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erreur suppression'),
+  });
+
+  const createRoomBlockMutation = useMutation({
+    mutationFn: () =>
+      adminApi.createScheduleRoomBlock({
+        room: roomBlockForm.room,
+        dayOfWeek: parseInt(roomBlockForm.dayOfWeek, 10),
+        startTime: roomBlockForm.startTime,
+        endTime: roomBlockForm.endTime,
+        reason: roomBlockForm.reason || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-room-blocks'] });
+      setRoomBlockForm({ room: '', dayOfWeek: '1', startTime: '08:00', endTime: '09:00', reason: '' });
+      toast.success('Bloc salle ajouté');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erreur bloc salle'),
+  });
+
+  const deleteRoomBlockMutation = useMutation({
+    mutationFn: (blockId: string) => adminApi.deleteScheduleRoomBlock(blockId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-room-blocks'] });
+      toast.success('Bloc salle supprimé');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erreur suppression'),
+  });
+
   const resetForm = () => {
     setScheduleForm({
       classId: '',
@@ -149,6 +251,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
       startTime: '08:00',
       endTime: '09:00',
       room: '',
+      substituteTeacherId: '',
+      replacementNote: '',
     });
   };
 
@@ -179,6 +283,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
       startTime: schedule.startTime,
       endTime: schedule.endTime,
       room: schedule.room || '',
+      substituteTeacherId: schedule.substituteTeacherId || '',
+      replacementNote: schedule.replacementNote || '',
     });
     setIsModalOpen(true);
     setIsDetailsModalOpen(false);
@@ -208,7 +314,7 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   // Filtre par enseignant
   if (selectedTeacher !== 'all') {
     filteredSchedulesList = filteredSchedulesList.filter(
-      (s: any) => s.course?.teacher?.id === selectedTeacher
+      (s: any) => s.course?.teacher?.id === selectedTeacher || s.substituteTeacher?.id === selectedTeacher
     );
   }
 
@@ -347,6 +453,22 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
               </div>
             </div>
             <Button
+              variant="outline"
+              size={compact ? 'sm' : 'md'}
+              onClick={() => {
+                if (selectedClass === 'all') {
+                  toast.error('Sélectionnez une classe pour la génération automatique');
+                  return;
+                }
+                autoGenerateMutation.mutate();
+              }}
+              disabled={autoGenerateMutation.isPending}
+              className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+            >
+              <FiRefreshCw className={`w-4 h-4 mr-2 ${autoGenerateMutation.isPending ? 'animate-spin' : ''}`} />
+              Auto
+            </Button>
+            <Button
               size={compact ? 'sm' : 'md'}
               onClick={() => {
                 resetForm();
@@ -408,6 +530,154 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
           </div>
         </div>
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <h3 className="mb-3 font-semibold text-gray-800">Disponibilités enseignants</h3>
+          <div className="space-y-3">
+            <FilterDropdown
+              label="Enseignant"
+              value={availabilityTeacherId}
+              onChange={setAvailabilityTeacherId}
+              options={[
+                { value: '', label: 'Sélectionner un enseignant' },
+                ...(teachers?.map((t: any) => ({
+                  value: t.id,
+                  label: `${t.user?.firstName} ${t.user?.lastName}`,
+                })) || []),
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FilterDropdown
+                label="Jour"
+                value={availabilityForm.dayOfWeek}
+                onChange={(value) => setAvailabilityForm({ ...availabilityForm, dayOfWeek: value })}
+                options={DAYS.map((d) => ({ value: String(d.value), label: d.label }))}
+              />
+              <Input
+                value={availabilityForm.label}
+                onChange={(e) => setAvailabilityForm({ ...availabilityForm, label: e.target.value })}
+                placeholder="Label (optionnel)"
+              />
+              <FilterDropdown
+                label="Début"
+                value={availabilityForm.startTime}
+                onChange={(value) => setAvailabilityForm({ ...availabilityForm, startTime: value })}
+                options={TIME_SLOTS.map((t) => ({ value: t, label: t }))}
+              />
+              <FilterDropdown
+                label="Fin"
+                value={availabilityForm.endTime}
+                onChange={(value) => setAvailabilityForm({ ...availabilityForm, endTime: value })}
+                options={TIME_SLOTS.filter((t) => t > availabilityForm.startTime).map((t) => ({ value: t, label: t }))}
+              />
+            </div>
+            <Button
+              onClick={() => {
+                if (!availabilityTeacherId) {
+                  toast.error('Choisissez un enseignant');
+                  return;
+                }
+                createAvailabilityMutation.mutate();
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Ajouter disponibilité
+            </Button>
+            <div className="max-h-44 overflow-y-auto rounded border border-gray-200 p-2 text-xs">
+              {(teacherAvailabilitySlots || []).length === 0 ? (
+                <p className="text-gray-500">Aucun créneau déclaré.</p>
+              ) : (
+                (teacherAvailabilitySlots || []).map((slot: any) => (
+                  <div key={slot.id} className="mb-1 flex items-center justify-between rounded bg-gray-50 px-2 py-1">
+                    <span>
+                      {DAYS.find((d) => d.value === slot.dayOfWeek)?.label} {slot.startTime}-{slot.endTime}
+                      {slot.label ? ` (${slot.label})` : ''}
+                    </span>
+                    <button
+                      onClick={() => deleteAvailabilityMutation.mutate(slot.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <FiTrash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-3 font-semibold text-gray-800">Indisponibilités salles</h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                value={roomBlockForm.room}
+                onChange={(e) => setRoomBlockForm({ ...roomBlockForm, room: e.target.value })}
+                placeholder="Salle (ex: A101)"
+              />
+              <FilterDropdown
+                label="Jour"
+                value={roomBlockForm.dayOfWeek}
+                onChange={(value) => setRoomBlockForm({ ...roomBlockForm, dayOfWeek: value })}
+                options={DAYS.map((d) => ({ value: String(d.value), label: d.label }))}
+              />
+              <FilterDropdown
+                label="Début"
+                value={roomBlockForm.startTime}
+                onChange={(value) => setRoomBlockForm({ ...roomBlockForm, startTime: value })}
+                options={TIME_SLOTS.map((t) => ({ value: t, label: t }))}
+              />
+              <FilterDropdown
+                label="Fin"
+                value={roomBlockForm.endTime}
+                onChange={(value) => setRoomBlockForm({ ...roomBlockForm, endTime: value })}
+                options={TIME_SLOTS.filter((t) => t > roomBlockForm.startTime).map((t) => ({ value: t, label: t }))}
+              />
+              <div className="col-span-2">
+                <Input
+                  value={roomBlockForm.reason}
+                  onChange={(e) => setRoomBlockForm({ ...roomBlockForm, reason: e.target.value })}
+                  placeholder="Motif (maintenance, examen...)"
+                />
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                if (!roomBlockForm.room.trim()) {
+                  toast.error('Renseignez une salle');
+                  return;
+                }
+                createRoomBlockMutation.mutate();
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Ajouter bloc salle
+            </Button>
+            <div className="max-h-44 overflow-y-auto rounded border border-gray-200 p-2 text-xs">
+              {(roomBlocks || []).length === 0 ? (
+                <p className="text-gray-500">Aucun bloc salle.</p>
+              ) : (
+                (roomBlocks || []).map((block: any) => (
+                  <div key={block.id} className="mb-1 flex items-center justify-between rounded bg-gray-50 px-2 py-1">
+                    <span>
+                      {block.roomKey} - {DAYS.find((d) => d.value === block.dayOfWeek)?.label}{' '}
+                      {block.startTime}-{block.endTime}
+                      {block.reason ? ` (${block.reason})` : ''}
+                    </span>
+                    <button
+                      onClick={() => deleteRoomBlockMutation.mutate(block.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <FiTrash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Schedule Display */}
       {isLoading ? (
@@ -601,9 +871,14 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                                               : 'mt-0.5 text-[11px] leading-snug text-gray-600'
                                           }
                                         >
-                                          {scheduleForSlot.course?.teacher?.user?.firstName}{' '}
-                                          {scheduleForSlot.course?.teacher?.user?.lastName}
+                                          {getTeacherDisplayName(scheduleForSlot.substituteTeacher) ||
+                                            getTeacherDisplayName(scheduleForSlot.course?.teacher)}
                                         </p>
+                                        {scheduleForSlot.substituteTeacher && (
+                                          <p className="mt-0.5 text-[10px] text-amber-700">
+                                            Remplacement
+                                          </p>
+                                        )}
                                         {scheduleForSlot.room && (
                                           <div className="mt-0.5 flex items-center text-[10px] text-gray-500">
                                             <FiMapPin className="mr-0.5 h-2.5 w-2.5 shrink-0" />
@@ -771,6 +1046,31 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">Remplaçant</label>
+              <FilterDropdown
+                value={scheduleForm.substituteTeacherId}
+                onChange={(value) => setScheduleForm({ ...scheduleForm, substituteTeacherId: value })}
+                options={[
+                  { value: '', label: 'Aucun remplaçant' },
+                  ...(teachers?.map((t: any) => ({
+                    value: t.id,
+                    label: `${t.user?.firstName} ${t.user?.lastName}`,
+                  })) || []),
+                ]}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">Note de remplacement</label>
+              <Input
+                value={scheduleForm.replacementNote}
+                onChange={(e) => setScheduleForm({ ...scheduleForm, replacementNote: e.target.value })}
+                placeholder="Motif ou précision"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Heure de début <span className="text-red-500">*</span>
               </label>
@@ -853,7 +1153,7 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
   // Export functions
   const exportSchedulesToCSV = () => {
     try {
-      const headers = ['Jour', 'Heure', 'Matière', 'Classe', 'Enseignant', 'Salle'];
+      const headers = ['Jour', 'Heure', 'Matière', 'Classe', 'Enseignant', 'Remplaçant', 'Note remplacement', 'Salle'];
       const csvContent =
         '\ufeff' + // BOM for UTF-8
         headers.join(';') +
@@ -868,6 +1168,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
               s.course?.teacher?.user
                 ? `${s.course.teacher.user.firstName} ${s.course.teacher.user.lastName}`
                 : 'N/A',
+              getTeacherDisplayName(s.substituteTeacher) || '—',
+              s.replacementNote || '—',
               s.room || 'N/A',
             ].join(';')
           )
@@ -903,6 +1205,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
             ? `${s.course.teacher.user.firstName} ${s.course.teacher.user.lastName}`
             : 'N/A',
           emailEnseignant: s.course?.teacher?.user?.email || 'N/A',
+          remplacant: getTeacherDisplayName(s.substituteTeacher) || null,
+          noteRemplacement: s.replacementNote || null,
           salle: s.room || 'N/A',
         })),
       };
@@ -937,7 +1241,7 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
       doc.setTextColor(128, 128, 128);
       doc.text(`Généré le ${currentDate}`, 14, 37);
 
-      const useAutoTable = (options: any) => {
+      const runAutoTable = (options: any) => {
         if (typeof (doc as any).autoTable === 'function') {
           (doc as any).autoTable(options);
         } else if (typeof autoTable === 'function') {
@@ -955,12 +1259,14 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
         s.course?.teacher?.user
           ? `${s.course.teacher.user.firstName} ${s.course.teacher.user.lastName}`
           : 'N/A',
+        getTeacherDisplayName(s.substituteTeacher) || '—',
+        s.replacementNote || '—',
         s.room || 'N/A',
       ]);
 
-      useAutoTable({
+      runAutoTable({
         startY: 45,
-        head: [['Jour', 'Heure', 'Matière', 'Classe', 'Enseignant', 'Salle']],
+        head: [['Jour', 'Heure', 'Matière', 'Classe', 'Enseignant', 'Remplaçant', 'Note', 'Salle']],
         body: tableData,
         theme: 'striped',
         headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold' },

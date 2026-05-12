@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import NFCScanner from '../ui/NFCScanner';
 import ExternalNFCReceiver from '../ui/ExternalNFCReceiver';
@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { formatFCFA } from '../../utils/currency';
 
 const NFCTeacherScanner: React.FC = () => {
+  const queryClient = useQueryClient();
   const [scannedNFCId, setScannedNFCId] = useState<string | null>(null);
   const [autoRecordStatus, setAutoRecordStatus] = useState<'PRESENT' | 'LATE'>('PRESENT');
   const [useExternalDevice, setUseExternalDevice] = useState(false);
@@ -25,12 +26,26 @@ const NFCTeacherScanner: React.FC = () => {
 
   // Mutation pour enregistrer automatiquement la présence
   const recordAttendanceMutation = useMutation({
-    mutationFn: (data: { teacherId: string; date: string; status: 'PRESENT' | 'ABSENT' | 'LATE' }) =>
-      adminApi.recordTeacherNFCAttendance(data),
+    mutationFn: (data: {
+      teacherId: string;
+      date: string;
+      status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+    }) => adminApi.recordTeacherNFCAttendance(data),
     onSuccess: (data) => {
-      const teacherName = data.attendance?.teacherName || `${teacher?.user.firstName} ${teacher?.user.lastName}`;
-      const statusText = data.attendance?.status === 'PRESENT' ? 'présent' : data.attendance?.status === 'LATE' ? 'en retard' : 'absent';
+      const att = data.attendance;
+      const teacherName =
+        att?.teacher?.user?.firstName != null && att?.teacher?.user?.lastName != null
+          ? `${att.teacher.user.firstName} ${att.teacher.user.lastName}`
+          : `${teacher?.user.firstName} ${teacher?.user.lastName}`;
+      const statusLabels: Record<string, string> = {
+        PRESENT: 'présent',
+        LATE: 'en retard',
+        ABSENT: 'absent',
+        EXCUSED: 'excusé',
+      };
+      const statusText = statusLabels[att?.status] ?? att?.status ?? 'enregistré';
       toast.success(`${teacherName} marqué automatiquement comme ${statusText}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-teacher-attendance'] });
       setScannedNFCId(null);
     },
     onError: (error: any) => {
@@ -243,7 +258,10 @@ const NFCTeacherScanner: React.FC = () => {
                       </h4>
                       <p className="text-sm text-gray-600">ID Employé: {teacher.employeeId}</p>
                       {teacher.nfcId && (
-                        <p className="text-xs text-gray-500 font-mono mt-1">NFC ID: {teacher.nfcId}</p>
+                        <p className="text-xs text-gray-500 font-mono mt-1">Carte NFC : {teacher.nfcId}</p>
+                      )}
+                      {teacher.biometricId && (
+                        <p className="text-xs text-gray-500 font-mono mt-1">Empreinte : {teacher.biometricId}</p>
                       )}
                     </div>
                     <Badge variant="info">

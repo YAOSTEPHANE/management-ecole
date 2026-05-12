@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
+import NotificationCenter from './NotificationCenter';
 import Avatar from './ui/Avatar';
 import ProfileEditModal from './ProfileEditModal';
 import {
@@ -13,6 +14,7 @@ import {
   FiSettings,
   FiShield,
   FiUser,
+  FiPieChart,
 } from 'react-icons/fi';
 
 interface LayoutProps {
@@ -55,6 +57,12 @@ const ROLE_ACCENTS: Record<
     badge: 'bg-rose-950/85 text-rose-100 ring-1 ring-rose-400/30',
     logo: 'from-rose-900 to-pink-950',
     label: 'Éducateur',
+  },
+  STAFF: {
+    bar: 'from-teal-900 via-emerald-800 to-stone-950',
+    badge: 'bg-emerald-950/85 text-teal-50 ring-1 ring-teal-400/30',
+    logo: 'from-teal-800 to-emerald-950',
+    label: 'Personnel',
   },
 };
 
@@ -100,6 +108,15 @@ function buildProfileRows(user: LayoutProps['user'], role: string): ProfileRow[]
       value: String(user.studentProfile.class.name),
     });
   }
+  if (role === 'STAFF' && (user as any)?.staffProfile) {
+    const sp = (user as any).staffProfile as { employeeId?: string; jobTitle?: string | null };
+    if (sp.employeeId) {
+      rows.push({ key: 'emp', icon: FiUser, label: 'Matricule', value: String(sp.employeeId) });
+    }
+    if (sp.jobTitle) {
+      rows.push({ key: 'job', icon: FiBookOpen, label: 'Fonction', value: String(sp.jobTitle) });
+    }
+  }
   if (role === 'PARENT' && Array.isArray(user?.parentProfile?.students)) {
     const n = user.parentProfile.students.length;
     if (n > 0) {
@@ -134,6 +151,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
         return '/parent';
       case 'EDUCATOR':
         return '/educator';
+      case 'STAFF':
+        return '/staff';
       default:
         return '/';
     }
@@ -151,7 +170,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
             <div className="flex min-h-16 h-16 items-center justify-between gap-2 sm:gap-3">
               <Link
                 href={getRolePath()}
-                className="flex items-center gap-2 sm:gap-2.5 min-w-0 group"
+                className="flex items-center gap-2 sm:gap-2.5 min-w-0 group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fafaf9] -m-1 p-1"
               >
                 <div
                   className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.logo} text-amber-50 shadow-lg shadow-black/25 ring-2 ring-amber-500/25 transition duration-300 group-hover:scale-[1.02] group-hover:shadow-xl`}
@@ -187,12 +206,25 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                   ) : null}
                 </div>
 
+                <NotificationCenter
+                  role={
+                    role as
+                      | 'ADMIN'
+                      | 'TEACHER'
+                      | 'STUDENT'
+                      | 'PARENT'
+                      | 'EDUCATOR'
+                      | 'STAFF'
+                  }
+                  currentUserId={role === 'ADMIN' ? user?.id : undefined}
+                />
+
                 <div className="relative z-50">
                   <button
                     type="button"
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 rounded-xl border border-stone-300/70 bg-white/85 pl-1 pr-2 py-1 shadow-sm backdrop-blur-sm transition hover:bg-amber-50/40 hover:shadow-md hover:border-amber-300/50 min-h-[40px] sm:min-h-[44px]"
-                    aria-expanded={showUserMenu ? true : false}
+                    className="flex items-center gap-2 rounded-xl border border-stone-300/70 bg-white/85 pl-1 pr-2 py-1 shadow-sm backdrop-blur-sm transition hover:bg-amber-50/40 hover:shadow-md hover:border-amber-300/50 min-h-[40px] sm:min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2"
+                    aria-expanded={showUserMenu}
                     aria-haspopup="menu"
                     aria-label="Menu du compte"
                   >
@@ -207,7 +239,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                       {user?.firstName}
                     </span>
                     <FiChevronDown
-                      className={`h-4 w-4 text-slate-500 shrink-0 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                      className={`h-4 w-4 text-stone-500 shrink-0 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                      aria-hidden
                     />
                   </button>
 
@@ -231,10 +264,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                             <Avatar src={user?.avatar} name={displayName} size="lg" />
                           </span>
                           <div className="min-w-0 flex-1 pt-0.5">
-                            <p className="text-base font-bold text-slate-900 leading-snug truncate">
+                            <p className="text-base font-bold text-stone-900 leading-snug truncate">
                               {displayName}
                             </p>
-                            <p className="text-[11px] text-slate-600 break-all leading-snug mt-0.5">
+                            <p className="text-[11px] text-stone-600 break-all leading-snug mt-0.5">
                               {user?.email}
                             </p>
                             <p
@@ -245,7 +278,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                           </div>
                         </div>
                         {role === 'ADMIN' ? (
-                          <p className="relative mt-3 text-[10px] leading-relaxed text-slate-500">
+                          <p className="relative mt-3 text-[10px] leading-relaxed text-stone-600">
                             Pilotage stratégique, opérationnel et conformité de l’établissement.
                           </p>
                         ) : null}
@@ -263,10 +296,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                                 <Icon className="h-3.5 w-3.5" aria-hidden />
                               </span>
                               <div className="min-w-0 flex-1">
-                                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                                <p className="text-[9px] font-semibold uppercase tracking-wide text-stone-500">
                                   {row.label}
                                 </p>
-                                <p className="text-xs font-medium text-slate-800 break-words">{row.value}</p>
+                                <p className="text-xs font-medium text-stone-800 break-words">{row.value}</p>
                               </div>
                             </div>
                           );
@@ -284,26 +317,35 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                           }}
                           className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-stone-800 transition hover:bg-stone-100/90"
                         >
-                          <FiEdit3 className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
+                          <FiEdit3 className="h-4 w-4 shrink-0 text-amber-800" aria-hidden />
                           Modifier mon profil
                         </button>
                       </div>
 
                       {role === 'ADMIN' ? (
-                        <div className="px-2 pb-1">
+                        <div className="px-2 pb-1 space-y-1">
+                          <Link
+                            href="/directeur"
+                            role="menuitem"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-stone-800 transition hover:bg-indigo-50/90"
+                          >
+                            <FiPieChart className="h-4 w-4 shrink-0 text-indigo-700" aria-hidden />
+                            Vue direction (KPI)
+                          </Link>
                           <Link
                             href="/admin?tab=settings"
                             role="menuitem"
                             onClick={() => setShowUserMenu(false)}
-                            className="flex w-full items-center gap-2 rounded-xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50 to-violet-50/80 px-3 py-2.5 text-sm font-semibold text-indigo-900 transition hover:from-indigo-100 hover:to-violet-100/90"
+                            className="flex w-full items-center gap-2 rounded-xl border border-amber-300/50 bg-gradient-to-r from-amber-50/95 to-stone-50 px-3 py-2.5 text-sm font-semibold text-stone-900 transition hover:from-amber-100/90 hover:to-stone-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
                           >
-                            <FiSettings className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
+                            <FiSettings className="h-4 w-4 shrink-0 text-amber-800" aria-hidden />
                             Paramètres de l’établissement
                           </Link>
                         </div>
                       ) : null}
 
-                      <div className="border-t border-slate-100 bg-stone-50/40 p-1.5">
+                      <div className="border-t border-stone-200/80 bg-stone-50/40 p-1.5">
                         <button
                           type="button"
                           role="menuitem"
@@ -331,7 +373,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
       {showUserMenu && (
         <button
           type="button"
-          className="fixed inset-0 z-30 cursor-default bg-slate-900/10 backdrop-blur-[2px]"
+          className="fixed inset-0 z-30 cursor-default bg-stone-900/15 backdrop-blur-[2px]"
           aria-label="Fermer le menu"
           onClick={() => setShowUserMenu(false)}
         />

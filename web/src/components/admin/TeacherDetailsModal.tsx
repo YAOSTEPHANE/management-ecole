@@ -20,6 +20,8 @@ import {
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../utils/currency';
+import TeacherDossierPanel from './TeacherDossierPanel';
+import TeacherAdminDocumentsPanel from './TeacherAdminDocumentsPanel';
 
 interface TeacherDetailsModalProps {
   isOpen: boolean;
@@ -43,7 +45,7 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 pb-4">
@@ -59,10 +61,13 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
               className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Fermer"
+              aria-label="Fermer"
             >
-              <FiX className="w-5 h-5" />
+              <FiX className="w-5 h-5" aria-hidden />
             </button>
           </div>
         </div>
@@ -169,6 +174,13 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
               </div>
             </Card>
 
+            {(teacher as any).bio && (
+              <Card>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Profil &amp; présentation</h3>
+                <p className="text-gray-700 whitespace-pre-wrap text-sm">{(teacher as any).bio}</p>
+              </Card>
+            )}
+
             {/* Classes assignées */}
             {teacher.classes && teacher.classes.length > 0 && (
               <Card>
@@ -195,7 +207,7 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
               <Card>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                   <FiBook className="w-5 h-5 mr-2 text-green-600" />
-                  Cours Enseignés ({teacher.courses.length})
+                  Matières enseignées ({teacher.courses.length})
                 </h3>
                 <div className="space-y-3">
                   {teacher.courses.map((course: any) => (
@@ -205,13 +217,23 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
                     >
                       <p className="font-medium text-gray-900">{course.name}</p>
                       <p className="text-sm text-gray-600">
-                        {course.code} - {course.class?.name || 'N/A'}
+                        {course.code} — {course.class?.name || 'N/A'}
+                        {course.weeklyHours != null ? (
+                          <span className="text-emerald-800 font-medium"> · {course.weeklyHours} h/sem.</span>
+                        ) : null}
                       </p>
                     </div>
                   ))}
                 </div>
               </Card>
             )}
+
+            <TeacherAdminDocumentsPanel
+              teacherId={teacherId}
+              documents={(teacher as any).administrativeDocuments || []}
+            />
+
+            <TeacherDossierPanel teacherId={teacherId} />
 
             {/* Statistiques */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

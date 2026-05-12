@@ -29,6 +29,7 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
     classId: '',
     teacherId: '',
     weeklyHours: '' as string,
+    gradingCoefficient: '1',
   });
 
   const { data: courses, isLoading } = useQuery({
@@ -100,6 +101,7 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
       classId: classFilter !== 'all' ? classFilter : '',
       teacherId: '',
       weeklyHours: '',
+      gradingCoefficient: '1',
     });
     setModalOpen(true);
   };
@@ -111,8 +113,10 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
       code: c.code || '',
       description: c.description || '',
       classId: c.classId || '',
-      teacherId: c.teacherId || '',
+      teacherId: c.teacherId || c.teacher?.id || '',
       weeklyHours: c.weeklyHours != null ? String(c.weeklyHours) : '',
+      gradingCoefficient:
+        c.gradingCoefficient != null ? String(c.gradingCoefficient) : '1',
     });
     setModalOpen(true);
   };
@@ -133,6 +137,11 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
       toast.error('Volume horaire invalide');
       return;
     }
+    const coefParsed = parseFloat(form.gradingCoefficient.replace(',', '.'));
+    if (Number.isNaN(coefParsed) || coefParsed <= 0 || coefParsed > 100) {
+      toast.error('Coefficient invalide (entre 0 et 100, ex. 1 ou 2)');
+      return;
+    }
     const payload = {
       name: form.name.trim(),
       code: form.code.trim(),
@@ -140,6 +149,7 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
       classId: form.classId,
       teacherId: form.teacherId,
       weeklyHours: weekly,
+      gradingCoefficient: coefParsed,
     };
     if (editingId) {
       updateMutation.mutate({ id: editingId, data: payload });
@@ -163,8 +173,9 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
           Matières et programme
         </h2>
         <p className={compact ? 'text-xs text-gray-500 mt-0.5' : 'text-sm text-gray-500 mt-0.5'}>
-          Définissez les cours par classe, le code matière et le volume horaire hebdomadaire. Les
-          créneaux de l’emploi du temps s’appuient sur ces matières.
+          Définissez les cours par classe, le code, le volume horaire et le{' '}
+          <strong>coefficient</strong> servant de défaut à la saisie des notes (modifiable pour
+          chaque évaluation). Les créneaux de l’emploi du temps s’appuient sur ces matières.
         </p>
       </div>
 
@@ -220,6 +231,7 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
                   <th className="px-4 py-3 font-medium">Classe</th>
                   <th className="px-4 py-3 font-medium">Enseignant</th>
                   <th className="px-4 py-3 font-medium">H./semaine</th>
+                  <th className="px-4 py-3 font-medium">Coef.</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -256,6 +268,9 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
                       ) : (
                         '—'
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 tabular-nums">
+                      {c.gradingCoefficient != null ? c.gradingCoefficient : '1'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -361,6 +376,18 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
             onChange={(e) => setForm((f) => ({ ...f, weeklyHours: e.target.value }))}
             placeholder="ex. 4"
           />
+          <Input
+            label="Coefficient (notes) — défaut pour les nouvelles évaluations"
+            type="text"
+            inputMode="decimal"
+            value={form.gradingCoefficient}
+            onChange={(e) => setForm((f) => ({ ...f, gradingCoefficient: e.target.value }))}
+            placeholder="1"
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Pondération des notes (moyennes et bulletins). Chaque note peut avoir un coefficient
+            différent si besoin.
+          </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={closeModal}>
               Annuler

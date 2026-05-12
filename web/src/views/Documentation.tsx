@@ -1,12 +1,10 @@
 import Link from 'next/link';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import Footer from '../components/Footer';
+import UltraPremiumPageShell from '../components/public/UltraPremiumPageShell';
 import {
   FiBook,
   FiFileText,
-  FiVideo,
-  FiDownload,
   FiSearch,
   FiCode,
   FiSettings,
@@ -20,7 +18,8 @@ const Documentation = () => {
     {
       title: 'Guide de démarrage',
       icon: FiBook,
-      color: 'from-blue-500 to-blue-600',
+      gradient: 'from-amber-700 to-amber-950',
+      ring: 'ring-amber-500/30',
       items: [
         { title: 'Installation', link: '/docs/installation' },
         { title: 'Configuration initiale', link: '/docs/setup' },
@@ -31,7 +30,8 @@ const Documentation = () => {
     {
       title: 'Guides utilisateur',
       icon: FiUsers,
-      color: 'from-green-500 to-green-600',
+      gradient: 'from-emerald-600 to-teal-900',
+      ring: 'ring-emerald-500/25',
       items: [
         { title: 'Guide administrateur', link: '/docs/admin' },
         { title: 'Guide enseignant', link: '/docs/teacher' },
@@ -40,9 +40,10 @@ const Documentation = () => {
       ],
     },
     {
-      title: 'API & Développement',
+      title: 'API & développement',
       icon: FiCode,
-      color: 'from-purple-500 to-purple-600',
+      gradient: 'from-stone-600 to-stone-900',
+      ring: 'ring-stone-500/25',
       items: [
         { title: 'Documentation API', link: '/docs/api' },
         { title: 'Authentification', link: '/docs/auth' },
@@ -53,7 +54,8 @@ const Documentation = () => {
     {
       title: 'Fonctionnalités',
       icon: FiBarChart,
-      color: 'from-orange-500 to-orange-600',
+      gradient: 'from-amber-600 to-orange-900',
+      ring: 'ring-orange-500/20',
       items: [
         { title: 'Gestion administrative', link: '/docs/features/admin' },
         { title: 'Gestion pédagogique', link: '/docs/features/pedagogy' },
@@ -64,7 +66,8 @@ const Documentation = () => {
     {
       title: 'Sécurité',
       icon: FiShield,
-      color: 'from-red-500 to-red-600',
+      gradient: 'from-rose-700 to-stone-900',
+      ring: 'ring-rose-500/20',
       items: [
         { title: 'Politique de sécurité', link: '/docs/security/policy' },
         { title: 'Bonnes pratiques', link: '/docs/security/best-practices' },
@@ -75,7 +78,8 @@ const Documentation = () => {
     {
       title: 'Ressources',
       icon: FiFileText,
-      color: 'from-indigo-500 to-indigo-600',
+      gradient: 'from-violet-700 to-stone-900',
+      ring: 'ring-violet-500/20',
       items: [
         { title: 'Tutoriels vidéo', link: '/docs/videos' },
         { title: 'FAQ technique', link: '/docs/faq' },
@@ -86,43 +90,55 @@ const Documentation = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-black mb-4">Documentation</h1>
-          <p className="text-xl text-blue-100 mb-6">
-            Guides complets pour utiliser et intégrer School Manager
-          </p>
-          <div className="relative max-w-md mx-auto">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Rechercher dans la documentation..."
-              className="w-full pl-12 pr-4 py-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-white focus:outline-none"
-            />
-          </div>
+    <UltraPremiumPageShell
+      navLabel="Ressources"
+      title="Documentation"
+      description="Guides, parcours par rôle et références pour exploiter School Manager à fond."
+    >
+      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="-mt-10 mb-12">
+          <Card variant="premium" className="!p-5 sm:!p-6 shadow-lg ring-1 ring-stone-200/80">
+            <div className="relative">
+              <label htmlFor="doc-search" className="sr-only">
+                Rechercher dans la documentation
+              </label>
+              <FiSearch
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
+                aria-hidden
+              />
+              <input
+                id="doc-search"
+                type="search"
+                placeholder="Rechercher un sujet…"
+                className="w-full rounded-xl border border-stone-200/90 bg-white/95 py-3 pl-12 pr-4 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              />
+            </div>
+          </Card>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sections.map((section, index) => {
             const Icon = section.icon;
             return (
-              <Card key={index} className="hover:shadow-xl transition-shadow">
-                <div className={`w-16 h-16 bg-gradient-to-br ${section.color} rounded-xl flex items-center justify-center mb-4`}>
-                  <Icon className="w-8 h-8 text-white" />
+              <Card
+                key={index}
+                variant="premium"
+                className="transition-all duration-300 hover:-translate-y-0.5 hover:shadow-premium"
+              >
+                <div
+                  className={`mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${section.gradient} shadow-lg ring-2 ${section.ring}`}
+                >
+                  <Icon className="h-8 w-8 text-white" aria-hidden />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">{section.title}</h3>
+                <h3 className="mb-4 text-xl font-bold text-stone-900">{section.title}</h3>
                 <ul className="space-y-2">
                   {section.items.map((item, itemIndex) => (
                     <li key={itemIndex}>
                       <Link
                         href={item.link}
-                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center"
+                        className="flex items-center text-sm text-stone-600 transition-colors hover:text-amber-900"
                       >
-                        <FiFileText className="w-4 h-4 mr-2" />
+                        <FiFileText className="mr-2 h-4 w-4 shrink-0 text-amber-800/80" aria-hidden />
                         {item.title}
                       </Link>
                     </li>
@@ -133,23 +149,24 @@ const Documentation = () => {
           })}
         </div>
 
-        {/* Quick Links */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
-          <div className="text-center py-8">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">Besoin d'aide ?</h3>
-            <p className="text-gray-600 mb-6">
-              Notre équipe est disponible pour vous accompagner
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Card
+          variant="premium"
+          className="border border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-stone-50/80 !p-8 ring-1 ring-amber-900/5"
+        >
+          <div className="py-2 text-center">
+            <FiSettings className="mx-auto mb-4 h-12 w-12 text-amber-900" aria-hidden />
+            <h3 className="mb-4 text-2xl font-bold text-stone-900">Besoin d&apos;aide ?</h3>
+            <p className="mb-6 text-stone-600">Notre équipe vous accompagne sur la plateforme et l&apos;intégration.</p>
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <Link href="/contact">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <FiFileText className="w-4 h-4 mr-2" />
+                <Button className="inline-flex items-center gap-2">
+                  <FiFileText className="h-4 w-4" aria-hidden />
                   Nous contacter
                 </Button>
               </Link>
               <Link href="/faq">
-                <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
-                  <FiSearch className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="border-stone-300 text-stone-900 hover:bg-amber-50/50">
+                  <FiSearch className="h-4 w-4" aria-hidden />
                   Consulter la FAQ
                 </Button>
               </Link>
@@ -157,16 +174,8 @@ const Documentation = () => {
           </div>
         </Card>
       </div>
-
-      <Footer />
-    </div>
+    </UltraPremiumPageShell>
   );
 };
 
 export default Documentation;
-
-
-
-
-
-

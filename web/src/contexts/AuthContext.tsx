@@ -2,6 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/api';
+import {
+  clearAllOfflineCaches,
+  loadUserSnapshot,
+  saveUserSnapshot,
+} from '../lib/offline-storage';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -29,7 +34,11 @@ export type ProfileUpdatePayload = {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<{ token: string; user: User }>;
+  login: (
+    email: string,
+    password: string,
+    twoFactorCode?: string
+  ) => Promise<{ token: string; user: User; twoFactorEnabled?: boolean }>;
   logout: () => void;
   loading: boolean;
   /** Recharge le profil depuis l’API (sans message de succès). */
@@ -62,20 +71,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authApi.getMe();
       if (userData) {
-        setUser(userData);
+        setUser(userData as User);
+        await saveUserSnapshot(userData);
       }
     } catch (error: any) {
-      // Token invalide, expiré, ou serveur non disponible - nettoyer complètement
       console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+      const network =
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED' ||
+        error.message === 'Network Error';
+      if (network) {
+        const offlineUser = await loadUserSnapshot<User>();
+        if (offlineUser?.id) {
+          setUser(offlineUser);
+          return;
+        }
+      }
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
-      
-      // Si c'est une erreur de connexion, ne pas afficher d'erreur toast
-      // car cela peut être normal si le serveur n'est pas démarré
-      if (error.code !== 'ERR_NETWORK' && error.code !== 'ECONNREFUSED') {
-        // Seulement afficher pour les autres erreurs
-      }
     } finally {
       setLoading(false);
     }
@@ -85,7 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authApi.getMe();
       if (userData) {
-        setUser(userData);
+        setUser(userData as User);
+        await saveUserSnapshot(userData);
       }
     } catch (error: any) {
       console.error('Erreur refreshUser:', error);
@@ -112,13 +127,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, twoFactorCode?: string) => {
     try {
-      const response = await authApi.login(email, password);
+      const response = await authApi.login(email, password, twoFactorCode);
       if (response && response.token && response.user) {
         setToken(response.token);
-        setUser(response.user);
+        setUser(response.user as User);
         localStorage.setItem('token', response.token);
+        await saveUserSnapshot(response.user);
         toast.success('Connexion réussie');
         return response;
       } else {
@@ -133,7 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Messages plus explicites selon le code d'erreur
         if (error.response.status === 401) {
-          if (errorMessage.includes('désactivé')) {
+          if (error.response.data?.code === 'TWO_FACTOR_REQUIRED') {
+            errorMessage = 'Code 2FA requis.';
+          } else if (error.response.data?.code === 'TWO_FACTOR_INVALID') {
+            errorMessage = 'Code 2FA invalide.';
+          } else if (errorMessage.includes('désactivé')) {
             errorMessage = 'Votre compte a été désactivé. Contactez l\'administrateur.';
           } else {
             errorMessage = 'Email ou mot de passe incorrect. Vérifiez vos identifiants.';
@@ -171,6 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     setUser(null);
     localStorage.removeItem('token');
+    void clearAllOfflineCaches();
     toast.success('Déconnexion réussie');
     // Rediriger vers la page d'accueil
     window.location.href = '/home';

@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
+import { decryptStudentRecord } from '../utils/student-sensitive-crypto.util';
 
 const router = express.Router();
 
@@ -16,6 +17,53 @@ const getEducatorId = async (userId: string) => {
   });
   return educator?.id;
 };
+
+router.get('/notifications', async (req: AuthRequest, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(notifications);
+  } catch (error: unknown) {
+    console.error('GET /educator/notifications:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/read-all', async (req: AuthRequest, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user!.id, read: false },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error('PUT /educator/notifications/read-all:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.notification.findFirst({
+      where: { id, userId: req.user!.id },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Notification non trouvée' });
+    }
+    const notification = await prisma.notification.update({
+      where: { id },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json(notification);
+  } catch (error: unknown) {
+    console.error('PUT /educator/notifications/:id/read:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
 
 // ========== PROFIL ÉDUCATEUR ==========
 
@@ -122,7 +170,9 @@ router.get('/students', async (req: AuthRequest, res) => {
       },
     });
 
-    res.json(students);
+    res.json(
+      students.map((s) => decryptStudentRecord(s as Record<string, unknown>))
+    );
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -201,7 +251,7 @@ router.get('/students/:studentId', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Élève non trouvé' });
     }
 
-    res.json(student);
+    res.json(decryptStudentRecord(student as Record<string, unknown>));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

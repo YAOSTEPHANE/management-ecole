@@ -28,7 +28,8 @@ import {
   FiBook,
   FiAward,
   FiAlertCircle,
-  FiBarChart
+  FiBarChart,
+  FiRefreshCw,
 } from 'react-icons/fi';
 import AddGradeModal from './AddGradeModal';
 import GradeDetailsModal from './GradeDetailsModal';
@@ -37,6 +38,14 @@ import AbsenceDetailsModal from './AbsenceDetailsModal';
 import AddAssignmentModal from './AddAssignmentModal';
 import AssignmentDetailsModal from './AssignmentDetailsModal';
 import GenerateReportCardModal from './GenerateReportCardModal';
+
+const BULLETIN_PERIOD_OPTIONS = [
+  { value: 'trim1', label: 'Trimestre 1' },
+  { value: 'trim2', label: 'Trimestre 2' },
+  { value: 'trim3', label: 'Trimestre 3' },
+  { value: 'sem1', label: 'Semestre 1' },
+  { value: 'sem2', label: 'Semestre 2' },
+];
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
@@ -86,6 +95,10 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
   const [isAbsenceDetailsModalOpen, setIsAbsenceDetailsModalOpen] = useState(false);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
   const [isAssignmentDetailsModalOpen, setIsAssignmentDetailsModalOpen] = useState(false);
+
+  const [bulletinSyncClass, setBulletinSyncClass] = useState('');
+  const [bulletinSyncPeriod, setBulletinSyncPeriod] = useState('trim1');
+  const [bulletinSyncYear, setBulletinSyncYear] = useState('2025-2026');
 
   useEffect(() => {
     if (
@@ -149,6 +162,49 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
     queryKey: ['teachers'],
     queryFn: adminApi.getTeachers,
   });
+
+  const { data: reportCardsList, isLoading: reportCardsLoading } = useQuery({
+    queryKey: ['admin-report-cards-tab'],
+    queryFn: () => adminApi.getReportCards({ limit: 120 }),
+    enabled: !attendanceModule && activeTab === 'reportCards',
+  });
+
+  const syncBulletinsMutation = useMutation({
+    mutationFn: (publish: boolean) =>
+      adminApi.saveReportCards({
+        classId: bulletinSyncClass,
+        period: bulletinSyncPeriod,
+        academicYear: bulletinSyncYear,
+        publish,
+      }),
+    onSuccess: (data: { message?: string; published?: boolean }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-report-cards-tab'] });
+      toast.success(data?.message || 'Bulletins synchronisés');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de la synchronisation');
+    },
+  });
+
+  const rcTotal = reportCardsList?.length ?? 0;
+  const rcPublishedCount =
+    reportCardsList?.filter((c: { published?: boolean }) => c.published).length ?? 0;
+  const avgBulletinMean =
+    rcTotal > 0 && reportCardsList
+      ? reportCardsList.reduce(
+          (acc: number, c: { average?: number }) => acc + (Number(c.average) || 0),
+          0
+        ) / rcTotal
+      : 0;
+  const passCount =
+    reportCardsList?.filter(
+      (c: { average?: number }) => (Number(c.average) || 0) >= 10
+    ).length ?? 0;
+  const successRatePct = rcTotal ? Math.round((passCount / rcTotal) * 100) : 0;
+  const mentionsCount =
+    reportCardsList?.filter(
+      (c: { average?: number }) => (Number(c.average) || 0) >= 16
+    ).length ?? 0;
 
   // Delete mutations
   const deleteGradeMutation = useMutation({
@@ -1331,22 +1387,23 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">Génération de Bulletins</h2>
-                <p className="text-gray-600 mt-1">Générez les bulletins de notes pour une classe et une période</p>
+                <p className="text-gray-600 mt-1">PDF + enregistrement des moyennes et rangs pour une classe et une période</p>
               </div>
               <Button onClick={() => setIsGenerateReportCardModalOpen(true)} className="bg-green-600 hover:bg-green-700">
                 <FiFileText className="w-5 h-5 mr-2" />
                 Générer des bulletins
               </Button>
             </div>
-            
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start space-x-3">
-                <FiAlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <FiAlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm text-blue-800 font-medium mb-1">Informations</p>
                   <p className="text-sm text-blue-700">
-                    La génération de bulletins permet de créer des bulletins PDF pour tous les élèves d'une classe.
-                    Les moyennes sont calculées automatiquement à partir des notes de la période sélectionnée.
+                    Les moyennes et rangs sont calculés à partir des notes saisies sur la période. Utilisez la case « Publier »
+                    dans la fenêtre de génération pour rendre les bulletins visibles aux élèves et aux familles ; sinon ils
+                    restent en brouillon côté administration.
                   </p>
                 </div>
               </div>
@@ -1354,54 +1411,171 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
           </Card>
 
           <Card>
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Bulletins récents</h3>
-              <div className="space-y-3">
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-800">Trimestre 1 - 2024</p>
-                      <p className="text-sm text-gray-600">Généré le 15/01/2024</p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <FiDownload className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-800">Trimestre 2 - 2024</p>
-                      <p className="text-sm text-gray-600">Généré le 15/04/2024</p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <FiDownload className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Synchronisation rapide</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Recalcule les moyennes et rangs depuis les notes, sans générer de PDF. Utile après correction des notes ou pour
+              publier sans refaire les fichiers.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <FilterDropdown
+                label="Classe"
+                value={bulletinSyncClass}
+                onChange={setBulletinSyncClass}
+                options={[
+                  { value: '', label: 'Choisir une classe' },
+                  ...(Array.isArray(classes)
+                    ? classes.map((c: { id: string; name: string }) => ({
+                        value: c.id,
+                        label: c.name,
+                      }))
+                    : []),
+                ]}
+              />
+              <FilterDropdown
+                label="Période"
+                value={bulletinSyncPeriod}
+                onChange={setBulletinSyncPeriod}
+                options={BULLETIN_PERIOD_OPTIONS}
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Année scolaire</label>
+                <input
+                  type="text"
+                  value={bulletinSyncYear}
+                  onChange={(e) => setBulletinSyncYear(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="2025-2026"
+                  autoComplete="off"
+                />
               </div>
-            </Card>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                variant="outline"
+                disabled={!bulletinSyncClass || syncBulletinsMutation.isPending}
+                onClick={() => syncBulletinsMutation.mutate(false)}
+              >
+                <FiRefreshCw className={`w-4 h-4 mr-2 ${syncBulletinsMutation.isPending ? 'animate-spin' : ''}`} />
+                Synchroniser (brouillon)
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                disabled={!bulletinSyncClass || syncBulletinsMutation.isPending}
+                onClick={() => syncBulletinsMutation.mutate(true)}
+              >
+                <FiCheckCircle className="w-4 h-4 mr-2" />
+                Synchroniser et publier
+              </Button>
+            </div>
+          </Card>
 
-            <Card className="md:col-span-2">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Statistiques des Bulletins</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">156</div>
-                  <div className="text-sm text-gray-600">Bulletins générés</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">12.5</div>
-                  <div className="text-sm text-gray-600">Moyenne générale</div>
-                </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">45%</div>
-                  <div className="text-sm text-gray-600">Taux de réussite</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">23</div>
-                  <div className="text-sm text-gray-600">Mentions</div>
-                </div>
+          <Card>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Bulletins enregistrés (aperçu)</h3>
+            {reportCardsLoading ? (
+              <div className="text-center py-10">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto" />
+                <p className="mt-3 text-gray-600 text-sm">Chargement…</p>
               </div>
-            </Card>
+            ) : rcTotal === 0 ? (
+              <div className="text-center py-10 text-gray-600 text-sm">
+                Aucun bulletin en base pour l’instant. Générez depuis le bouton ci-dessus ou lancez une synchronisation rapide.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                {reportCardsList!.slice(0, 40).map(
+                  (rc: {
+                    id: string;
+                    period: string;
+                    academicYear: string;
+                    average: number;
+                    rank?: number | null;
+                    published?: boolean;
+                    updatedAt?: string;
+                    student?: {
+                      user?: { firstName?: string; lastName?: string };
+                      class?: { name?: string };
+                    };
+                  }) => (
+                    <div
+                      key={rc.id}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-wrap items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-800 truncate">
+                          {rc.student?.user?.firstName} {rc.student?.user?.lastName}
+                          <span className="text-gray-500 font-normal">
+                            {' '}
+                            · {rc.student?.class?.name ?? '—'}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {rc.period} · {rc.academicYear}
+                          {rc.updatedAt &&
+                            ` · maj ${new Date(rc.updatedAt).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm font-semibold text-gray-800">
+                          {Number(rc.average).toFixed(2)}/20
+                        </span>
+                        {rc.rank != null && (
+                          <Badge variant="secondary" size="sm">
+                            Rang {rc.rank}
+                          </Badge>
+                        )}
+                        {rc.published ? (
+                          <Badge variant="success" size="sm">
+                            Publié
+                          </Badge>
+                        ) : (
+                          <Badge variant="warning" size="sm">
+                            Brouillon
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </Card>
+
+          <Card className="md:col-span-2">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Statistiques (liste chargée)</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Indicateurs calculés sur les {rcTotal ? Math.min(rcTotal, 120) : 0} derniers bulletins affichés dans cet onglet
+              (limite API 120).
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{rcTotal}</div>
+                <div className="text-sm text-gray-600">Bulletins listés</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {rcTotal ? avgBulletinMean.toFixed(2) : '—'}
+                </div>
+                <div className="text-sm text-gray-600">Moyenne des moyennes</div>
+              </div>
+              <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-600">{rcTotal ? `${successRatePct}%` : '—'}</div>
+                <div className="text-sm text-gray-600">Réussite (≥ 10/20)</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">{mentionsCount}</div>
+                <div className="text-sm text-gray-600">Mentions (≥ 16)</div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+              <span>
+                <strong className="text-gray-800">{rcPublishedCount}</strong> bulletin(s) publié(s) dans cet échantillon
+              </span>
+            </div>
+          </Card>
           </>
         )}
 

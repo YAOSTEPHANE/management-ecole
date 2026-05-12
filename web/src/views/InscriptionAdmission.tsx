@@ -129,131 +129,151 @@ const InscriptionAdmission = () => {
     ENROLLED: 'Inscription finalisée',
   };
 
+  const fieldClassName =
+    'w-full rounded-xl border border-stone-200/90 bg-white/95 px-3 py-2.5 text-sm text-stone-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 placeholder:text-stone-400';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50/40">
-      <header className="border-b border-gray-200/80 bg-white/90 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen premium-body premium-body-v2">
+      <header className="sticky top-0 z-30 glass-nav glass-nav-v2 shadow-[0_8px_30px_-12px_rgba(12,10,9,0.08)]">
+        <div className="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <Link
             href="/home"
-            className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-amber-900/90 hover:text-stone-900 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 px-1 -ml-1"
           >
-            <FiArrowLeft className="w-4 h-4" />
+            <FiArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
             Retour
           </Link>
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-            Candidature
-          </span>
+          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Candidature</span>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-10 space-y-10">
         <div className="text-center space-y-3">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
             Inscription & admission
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-stone-600 max-w-2xl mx-auto leading-relaxed">
             Déposez une demande de pré-inscription pour l’année scolaire. Le service scolaire étudiera le dossier
             et vous pourrez suivre l’avancement avec le numéro attribué.
           </p>
         </div>
 
         {successRef && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3 text-emerald-900">
-            <FiCheckCircle className="w-8 h-8 shrink-0 text-emerald-600" />
+          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/95 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3 text-emerald-950 ring-1 ring-emerald-900/5 shadow-sm">
+            <FiCheckCircle className="w-8 h-8 shrink-0 text-emerald-700" aria-hidden />
             <div>
               <p className="font-semibold">Demande bien reçue</p>
               <p className="text-sm mt-1">
                 Votre numéro de dossier :{' '}
                 <span className="font-mono font-bold text-lg">{successRef}</span>
               </p>
-              <p className="text-sm text-emerald-800/90 mt-1">
+              <p className="text-sm text-emerald-900/85 mt-1 leading-relaxed">
                 Conservez ce numéro pour le suivi ci-dessous ou pour vos échanges avec l’établissement.
               </p>
             </div>
           </div>
         )}
 
-        <Card className="shadow-lg border-0 ring-1 ring-gray-100">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-            <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700">
-              <FiUser className="w-6 h-6" />
+        <Card variant="premium" className="!p-6 sm:!p-8 shadow-lg ring-1 ring-stone-200/80">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-stone-200/80">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-900 ring-1 ring-amber-200/60">
+              <FiUser className="w-6 h-6" aria-hidden />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Formulaire de pré-inscription</h2>
-              <p className="text-sm text-gray-500">Tous les champs marqués * sont obligatoires</p>
+              <h2 className="text-xl font-bold text-stone-900">Formulaire de pré-inscription</h2>
+              <p className="text-sm text-stone-600">Tous les champs marqués * sont obligatoires</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prénom *</label>
+                <label htmlFor="adm-firstName" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Prénom *
+                </label>
                 <input
+                  id="adm-firstName"
                   name="firstName"
                   required
                   value={form.firstName}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                <label htmlFor="adm-lastName" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Nom *
+                </label>
                 <input
+                  id="adm-lastName"
                   name="lastName"
                   required
                   value={form.lastName}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label htmlFor="adm-email" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  E-mail *
+                </label>
                 <input
+                  id="adm-email"
                   name="email"
                   type="email"
                   required
                   value={form.email}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <label htmlFor="adm-phone" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Téléphone
+                </label>
                 <input
+                  id="adm-phone"
                   name="phone"
                   type="tel"
                   value={form.phone}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <FiCalendar className="w-4 h-4" />
+                <label
+                  htmlFor="adm-dateOfBirth"
+                  className="flex items-center gap-2 text-sm font-medium text-stone-800 mb-1.5"
+                >
+                  <FiCalendar className="w-4 h-4 text-amber-800 shrink-0" aria-hidden />
                   Date de naissance *
                 </label>
                 <input
+                  id="adm-dateOfBirth"
                   name="dateOfBirth"
                   type="date"
                   required
                   value={form.dateOfBirth}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Genre *</label>
+                <label htmlFor="adm-gender" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Genre *
+                </label>
                 <select
+                  id="adm-gender"
                   name="gender"
                   value={form.gender}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 >
                   <option value="MALE">Masculin</option>
                   <option value="FEMALE">Féminin</option>
@@ -264,18 +284,22 @@ const InscriptionAdmission = () => {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <FiBook className="w-4 h-4" />
+                <label
+                  htmlFor="adm-desiredLevel"
+                  className="flex items-center gap-2 text-sm font-medium text-stone-800 mb-1.5"
+                >
+                  <FiBook className="w-4 h-4 text-amber-800 shrink-0" aria-hidden />
                   Niveau souhaité *
                 </label>
                 <input
+                  id="adm-desiredLevel"
                   name="desiredLevel"
                   required
                   list="levels-suggestions"
                   value={form.desiredLevel}
                   onChange={handleChange}
                   placeholder="Ex. 6ème"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
                 <datalist id="levels-suggestions">
                   {LEVEL_SUGGESTIONS.map((l) => (
@@ -284,93 +308,112 @@ const InscriptionAdmission = () => {
                 </datalist>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Année scolaire *</label>
+                <label htmlFor="adm-academicYear" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Année scolaire *
+                </label>
                 <input
+                  id="adm-academicYear"
                   name="academicYear"
                   required
                   value={form.academicYear}
                   onChange={handleChange}
                   placeholder="2025-2026"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="adm-previousSchool" className="block text-sm font-medium text-stone-800 mb-1.5">
                 Établissement fréquenté précédemment
               </label>
               <input
+                id="adm-previousSchool"
                 name="previousSchool"
                 value={form.previousSchool}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                className={fieldClassName}
               />
             </div>
 
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Responsable légal</label>
+                <label htmlFor="adm-parentName" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Responsable légal
+                </label>
                 <input
+                  id="adm-parentName"
                   name="parentName"
                   value={form.parentName}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tél. responsable</label>
+                <label htmlFor="adm-parentPhone" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  Tél. responsable
+                </label>
                 <input
+                  id="adm-parentPhone"
                   name="parentPhone"
                   type="tel"
                   value={form.parentPhone}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email responsable</label>
+                <label htmlFor="adm-parentEmail" className="block text-sm font-medium text-stone-800 mb-1.5">
+                  E-mail responsable
+                </label>
                 <input
+                  id="adm-parentEmail"
                   name="parentEmail"
                   type="email"
                   value={form.parentEmail}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className={fieldClassName}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+              <label htmlFor="adm-address" className="block text-sm font-medium text-stone-800 mb-1.5">
+                Adresse
+              </label>
               <input
+                id="adm-address"
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                className={fieldClassName}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message / motivation</label>
+              <label htmlFor="adm-motivation" className="block text-sm font-medium text-stone-800 mb-1.5">
+                Message / motivation
+              </label>
               <textarea
+                id="adm-motivation"
                 name="motivation"
                 rows={4}
                 value={form.motivation}
                 onChange={handleChange}
                 placeholder="Informations utiles au traitement du dossier…"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                className={fieldClassName}
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Button type="submit" disabled={submitting} isLoading={submitting} className="inline-flex items-center gap-2">
-                <FiSend className="w-4 h-4" />
+                {!submitting && <FiSend className="w-4 h-4 shrink-0" aria-hidden />}
                 Envoyer la demande
               </Button>
-              <p className="text-xs text-gray-500 max-w-md">
+              <p className="text-xs text-stone-600 max-w-md leading-relaxed">
                 En soumettant ce formulaire, vous acceptez que l’établissement traite ces données dans le cadre de
                 la procédure d’admission. Consultez aussi nos{' '}
-                <Link href="/privacy" className="text-indigo-600 underline">
+                <Link href="/privacy" className="text-amber-900/90 font-medium underline underline-offset-2 hover:text-stone-900">
                   règles de confidentialité
                 </Link>
                 .
@@ -379,55 +422,63 @@ const InscriptionAdmission = () => {
           </form>
         </Card>
 
-        <Card className="shadow-lg border-0 ring-1 ring-gray-100">
+        <Card variant="premium" className="!p-6 sm:!p-8 shadow-lg ring-1 ring-stone-200/80">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700">
-              <FiSearch className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-stone-100 text-stone-800 ring-1 ring-stone-200/80">
+              <FiSearch className="w-6 h-6" aria-hidden />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Suivi de dossier</h2>
-              <p className="text-sm text-gray-500">Saisissez le numéro reçu après votre demande (ex. ADM-2026-ABC12D)</p>
+              <h2 className="text-xl font-bold text-stone-900">Suivi de dossier</h2>
+              <p className="text-sm text-stone-600">
+                Saisissez le numéro reçu après votre demande (ex. ADM-2026-ABC12D)
+              </p>
             </div>
           </div>
 
-          <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={trackRef}
-              onChange={(e) => setTrackRef(e.target.value.toUpperCase())}
-              placeholder="ADM-2026-…"
-              className="flex-1 font-mono rounded-lg border border-gray-200 px-3 py-2.5 uppercase focus:ring-2 focus:ring-indigo-500"
-            />
+          <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div className="flex-1 w-full min-w-0">
+              <label htmlFor="admission-track-ref" className="block text-sm font-medium text-stone-800 mb-1.5">
+                Numéro de référence
+              </label>
+              <input
+                id="admission-track-ref"
+                type="text"
+                value={trackRef}
+                onChange={(e) => setTrackRef(e.target.value.toUpperCase())}
+                placeholder="ADM-2026-…"
+                className="w-full font-mono rounded-xl border border-stone-200/90 bg-white/95 px-3 py-2.5 uppercase text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
+              />
+            </div>
             <Button type="submit" variant="secondary" disabled={tracking} isLoading={tracking}>
               Consulter
             </Button>
           </form>
 
           {trackResult && (
-            <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-sm">
+            <div className="mt-6 p-4 rounded-xl bg-stone-50/90 border border-stone-200/80 space-y-2 text-sm text-stone-800 ring-1 ring-stone-900/5">
               <p>
-                <span className="text-gray-500">Dossier</span>{' '}
+                <span className="text-stone-500">Dossier</span>{' '}
                 <span className="font-mono font-semibold">{trackResult.reference}</span>
               </p>
               <p>
-                <span className="text-gray-500">Candidat</span>{' '}
+                <span className="text-stone-500">Candidat</span>{' '}
                 <strong>
                   {trackResult.firstName} {trackResult.lastName}
                 </strong>
               </p>
               <p>
-                <span className="text-gray-500">Statut</span>{' '}
-                <strong className="text-indigo-700">
+                <span className="text-stone-500">Statut</span>{' '}
+                <strong className="text-amber-900">
                   {statusFr[trackResult.status] || trackResult.status}
                 </strong>
               </p>
               <p>
-                <span className="text-gray-500">Niveau visé</span> {trackResult.desiredLevel} —{' '}
+                <span className="text-stone-500">Niveau visé</span> {trackResult.desiredLevel} —{' '}
                 {trackResult.academicYear}
               </p>
               {trackResult.proposedClass && (
                 <p>
-                  <span className="text-gray-500">Classe proposée</span>{' '}
+                  <span className="text-stone-500">Classe proposée</span>{' '}
                   {trackResult.proposedClass.name} ({trackResult.proposedClass.level})
                 </p>
               )}

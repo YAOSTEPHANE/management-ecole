@@ -32,6 +32,7 @@ import AnnouncementDetailsModal from './AnnouncementDetailsModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
+import { inferPortalCategory, isCircularAnnouncement } from '../../lib/portalCategory';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -41,11 +42,6 @@ declare module 'jspdf' {
 }
 
 type CommunicationTab = 'messages' | 'announcements' | 'notifications';
-
-function isCircularAnnouncement(a: { title?: string }) {
-  const t = (a.title || '').trim();
-  return /^\[?\s*Circulaire/i.test(t) || /^Circulaire\b/i.test(t);
-}
 
 function isRequestsMessage(m: {
   subject?: string | null;
@@ -117,6 +113,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
     targetClass: '',
     priority: 'normal',
     expiresAt: '',
+    portalCategory: 'auto',
+    coverImageUrl: '',
+    imageUrls: '',
   });
 
   const queryClient = useQueryClient();
@@ -180,6 +179,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
         targetClass: '',
         priority: 'normal',
         expiresAt: '',
+        portalCategory: 'auto',
+        coverImageUrl: '',
+        imageUrls: '',
       });
     },
     onError: (error: any) => {
@@ -201,6 +203,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
         targetClass: '',
         priority: 'normal',
         expiresAt: '',
+        portalCategory: 'auto',
+        coverImageUrl: '',
+        imageUrls: '',
       });
     },
     onError: (error: any) => {
@@ -356,7 +361,8 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       filtered = filtered.filter((a: any) => isCircularAnnouncement(a));
     } else if (announcementKind === 'news') {
       filtered = filtered.filter(
-        (a: any) => a.published && !isCircularAnnouncement(a)
+        (a: any) =>
+          a.published && inferPortalCategory(a.title, a.portalCategory) !== 'circular'
       );
     }
 
@@ -426,7 +432,18 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       toast.error('Veuillez remplir tous les champs requis');
       return;
     }
-    createAnnouncementMutation.mutate(announcementForm);
+    const { portalCategory, coverImageUrl, imageUrls, ...rest } = announcementForm;
+    createAnnouncementMutation.mutate({
+      ...rest,
+      portalCategory: portalCategory === 'auto' ? '' : portalCategory,
+      coverImageUrl: coverImageUrl.trim() || undefined,
+      imageUrls: imageUrls.trim()
+        ? imageUrls
+            .split(/[\n,;]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined,
+    });
   };
 
   const handleEditAnnouncement = (announcement: any) => {
@@ -438,6 +455,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       targetClass: announcement.targetClassId || '',
       priority: announcement.priority || 'normal',
       expiresAt: announcement.expiresAt ? format(new Date(announcement.expiresAt), "yyyy-MM-dd'T'HH:mm") : '',
+      portalCategory: announcement.portalCategory || 'auto',
+      coverImageUrl: announcement.coverImageUrl || '',
+      imageUrls: Array.isArray(announcement.imageUrls) ? announcement.imageUrls.join('\n') : '',
     });
     setIsEditAnnouncementModalOpen(true);
   };
@@ -448,7 +468,21 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
       return;
     }
     if (!editingAnnouncement) return;
-    updateAnnouncementMutation.mutate({ id: editingAnnouncement.id, data: announcementForm });
+    const { portalCategory, coverImageUrl, imageUrls, ...rest } = announcementForm;
+    updateAnnouncementMutation.mutate({
+      id: editingAnnouncement.id,
+      data: {
+        ...rest,
+        portalCategory: portalCategory === 'auto' ? '' : portalCategory,
+        coverImageUrl: coverImageUrl.trim() || null,
+        imageUrls: imageUrls.trim()
+          ? imageUrls
+              .split(/[\n,;]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+      },
+    });
   };
 
   // Export functions for messages
@@ -1630,6 +1664,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             targetClass: '',
             priority: 'normal',
             expiresAt: '',
+            portalCategory: 'auto',
+            coverImageUrl: '',
+            imageUrls: '',
           });
         }}
         title="Nouvelle annonce"
@@ -1656,6 +1693,42 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
               placeholder="Contenu de l'annonce"
               rows={6}
               className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Type portail</label>
+              <FilterDropdown
+                compact={compact}
+                selected={announcementForm.portalCategory}
+                onChange={(value) => setAnnouncementForm({ ...announcementForm, portalCategory: value })}
+                options={[
+                  { value: 'auto', label: 'Auto (détecter circulaire au titre)' },
+                  { value: 'circular', label: 'Circulaire officielle' },
+                  { value: 'news', label: 'Actualité' },
+                  { value: 'gallery', label: 'Galerie (médias)' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Image de couverture (URL)</label>
+              <Input
+                value={announcementForm.coverImageUrl}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, coverImageUrl: e.target.value })}
+                placeholder="https://…"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Images supplémentaires (URL, une par ligne ou virgules)
+            </label>
+            <textarea
+              value={announcementForm.imageUrls}
+              onChange={(e) => setAnnouncementForm({ ...announcementForm, imageUrls: e.target.value })}
+              placeholder="https://…"
+              rows={3}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all text-sm"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1720,6 +1793,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                   targetClass: '',
                   priority: 'normal',
                   expiresAt: '',
+                  portalCategory: 'auto',
+                  coverImageUrl: '',
+                  imageUrls: '',
                 });
               }}
             >
@@ -1759,6 +1835,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             targetClass: '',
             priority: 'normal',
             expiresAt: '',
+            portalCategory: 'auto',
+            coverImageUrl: '',
+            imageUrls: '',
           });
         }}
         title="Modifier l'annonce"
@@ -1785,6 +1864,42 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
               placeholder="Contenu de l'annonce"
               rows={6}
               className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Type portail</label>
+              <FilterDropdown
+                compact={compact}
+                selected={announcementForm.portalCategory}
+                onChange={(value) => setAnnouncementForm({ ...announcementForm, portalCategory: value })}
+                options={[
+                  { value: 'auto', label: 'Auto (détecter circulaire au titre)' },
+                  { value: 'circular', label: 'Circulaire officielle' },
+                  { value: 'news', label: 'Actualité' },
+                  { value: 'gallery', label: 'Galerie (médias)' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Image de couverture (URL)</label>
+              <Input
+                value={announcementForm.coverImageUrl}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, coverImageUrl: e.target.value })}
+                placeholder="https://…"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Images supplémentaires (URL, une par ligne ou virgules)
+            </label>
+            <textarea
+              value={announcementForm.imageUrls}
+              onChange={(e) => setAnnouncementForm({ ...announcementForm, imageUrls: e.target.value })}
+              placeholder="https://…"
+              rows={3}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all text-sm"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1850,6 +1965,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
                   targetClass: '',
                   priority: 'normal',
                   expiresAt: '',
+                  portalCategory: 'auto',
+                  coverImageUrl: '',
+                  imageUrls: '',
                 });
               }}
             >

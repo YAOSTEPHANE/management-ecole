@@ -70,6 +70,9 @@ const AdmissionsManagement = () => {
   const [enrollPassword, setEnrollPassword] = useState('');
   const [enrollStudentId, setEnrollStudentId] = useState('');
   const [enrollClassId, setEnrollClassId] = useState('');
+  const [enrollStateAssignment, setEnrollStateAssignment] = useState<
+    'STATE_ASSIGNED' | 'NOT_STATE_ASSIGNED'
+  >('NOT_STATE_ASSIGNED');
 
   const { data: admissions, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['admissions', statusFilter],
@@ -118,6 +121,7 @@ const AdmissionsManagement = () => {
         password: string;
         studentId?: string;
         classId?: string;
+        stateAssignment?: 'STATE_ASSIGNED' | 'NOT_STATE_ASSIGNED';
       };
     }) => adminApi.enrollFromAdmission(id, payload),
     onSuccess: () => {
@@ -129,6 +133,7 @@ const AdmissionsManagement = () => {
       setEnrollPassword('');
       setEnrollStudentId('');
       setEnrollClassId('');
+      setEnrollStateAssignment('NOT_STATE_ASSIGNED');
     },
     onError: (e: any) => {
       toast.error(e.response?.data?.error || "Inscription impossible");
@@ -147,6 +152,7 @@ const AdmissionsManagement = () => {
     setEnrollPassword('');
     setEnrollStudentId('');
     setEnrollClassId(row.proposedClassId || '');
+    setEnrollStateAssignment('NOT_STATE_ASSIGNED');
   };
 
   const submitEdit = () => {
@@ -168,6 +174,7 @@ const AdmissionsManagement = () => {
       id: enrollTarget.id,
       payload: {
         password: enrollPassword,
+        stateAssignment: enrollStateAssignment,
         ...(enrollStudentId.trim() ? { studentId: enrollStudentId.trim() } : {}),
         ...(enrollClassId ? { classId: enrollClassId } : {}),
       },
@@ -468,6 +475,21 @@ const AdmissionsManagement = () => {
                     {c.name} ({c.level})
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Affectation État</label>
+              <select
+                value={enrollStateAssignment}
+                onChange={(e) =>
+                  setEnrollStateAssignment(
+                    e.target.value === 'STATE_ASSIGNED' ? 'STATE_ASSIGNED' : 'NOT_STATE_ASSIGNED'
+                  )
+                }
+                className="w-full border rounded-lg px-3 py-2"
+              >
+                <option value="STATE_ASSIGNED">Affecté de l&apos;État</option>
+                <option value="NOT_STATE_ASSIGNED">Non affecté</option>
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">

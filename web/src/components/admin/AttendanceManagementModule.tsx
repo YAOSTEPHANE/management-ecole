@@ -35,7 +35,7 @@ const AttendanceManagementModule: React.FC = () => {
 
   const subTabs: { id: AttendanceTab; label: string; icon: typeof FiGrid }[] = [
     { id: 'overview', label: 'Vue d’ensemble', icon: FiGrid },
-    { id: 'rollcall', label: 'Appel / pointage', icon: FiUserCheck },
+    { id: 'rollcall', label: 'Pointage (NFC / bio / manuel)', icon: FiUserCheck },
     { id: 'absences', label: 'Suivi des absences', icon: FiCalendar },
     { id: 'reports', label: 'Rapports d’assiduité', icon: FiBarChart2 },
     { id: 'parents', label: 'Notifications parents', icon: FiBell },
@@ -44,9 +44,11 @@ const AttendanceManagementModule: React.FC = () => {
   return (
     <div className={ADM.root}>
       <div>
-        <h2 className={ADM.h2}>Gestion des présences</h2>
+        <h2 className={ADM.h2}>Absences, retards & assiduité</h2>
         <p className={ADM.intro}>
-          Appel quotidien (NFC ou manuel), suivi des absences, rapports et messages aux familles.
+          Pointage quotidien (manuel, carte NFC ou biométrie), justification des absences et certificats médicaux,
+          suivi des retards avec notification automatique aux parents (e-mail / SMS si configuré), statistiques
+          d’assiduité et sanctions pour absences non justifiées.
         </p>
       </div>
 
@@ -86,7 +88,7 @@ const AttendanceManagementModule: React.FC = () => {
                 Parcours type
               </p>
               <ol className={ADM.olSm}>
-                <li>Faire l’appel du jour (pointage NFC ou manuel)</li>
+                <li>Faire l’appel du jour (carte, empreinte ou saisie manuelle)</li>
                 <li>Vérifier et justifier les absences</li>
                 <li>Consulter les rapports et prévenir les parents si besoin</li>
               </ol>

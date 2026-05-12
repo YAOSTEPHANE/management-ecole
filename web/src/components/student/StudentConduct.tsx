@@ -20,6 +20,17 @@ import {
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 
+const DISC_CAT_FR: Record<string, string> = {
+  VERBAL_WARNING: 'Avertissement verbal',
+  WRITTEN_WARNING: 'Avertissement écrit',
+  REPRIMAND: 'Blâme',
+  TEMPORARY_EXCLUSION: 'Exclusion temporaire',
+  DISCIPLINE_COUNCIL_HEARING: 'Conseil de discipline (audition)',
+  DISCIPLINE_COUNCIL_DECISION: 'Conseil de discipline (décision)',
+  BEHAVIOR_CONTRACT: 'Contrat de comportement',
+  OTHER: 'Autre',
+};
+
 const StudentConduct = ({ searchQuery = '' }: { searchQuery?: string }) => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
@@ -30,6 +41,19 @@ const StudentConduct = ({ searchQuery = '' }: { searchQuery?: string }) => {
       ...(selectedPeriod !== 'all' && { period: selectedPeriod }),
       ...(selectedAcademicYear !== 'all' && { academicYear: selectedAcademicYear }),
     }),
+  });
+
+  const { data: rulebook } = useQuery({
+    queryKey: ['student-discipline-rulebook'],
+    queryFn: studentApi.getDisciplineRulebook,
+  });
+
+  const { data: disciplineRecords = [] } = useQuery({
+    queryKey: ['student-discipline-records', selectedAcademicYear],
+    queryFn: () =>
+      studentApi.getDisciplineRecords(
+        selectedAcademicYear !== 'all' ? { academicYear: selectedAcademicYear } : undefined
+      ),
   });
 
   const filteredConducts = useMemo(() => {
@@ -105,6 +129,57 @@ const StudentConduct = ({ searchQuery = '' }: { searchQuery?: string }) => {
 
   return (
     <div className="space-y-6">
+      {rulebook &&
+      typeof rulebook === 'object' &&
+      rulebook !== null &&
+      'content' in rulebook &&
+      typeof (rulebook as { content?: unknown }).content === 'string' ? (
+        <Card className="border-2 border-purple-100 bg-gradient-to-r from-purple-50/80 to-pink-50/50">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <FiFileText className="w-5 h-5 text-purple-600" aria-hidden />
+            {(rulebook as { title?: string }).title ?? 'Règlement intérieur'}
+          </h3>
+          <p className="text-xs text-gray-500 mb-2">
+            Mis à jour le{' '}
+            {format(new Date((rulebook as { updatedAt: string }).updatedAt), 'dd/MM/yyyy', {
+              locale: fr,
+            })}
+          </p>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto rounded-lg p-3 bg-white/80 border border-purple-100">
+            {(rulebook as { content: string }).content}
+          </div>
+        </Card>
+      ) : null}
+
+      {(disciplineRecords as { id: string }[]).length > 0 ? (
+        <Card>
+          <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <FiShield className="w-5 h-5 text-purple-600" aria-hidden />
+            Suivi disciplinaire
+          </h3>
+          <ul className="space-y-2">
+            {(disciplineRecords as {
+              id: string;
+              category: string;
+              title: string;
+              description?: string | null;
+              incidentDate: string;
+              academicYear: string;
+            }[]).map((r) => (
+              <li key={r.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                <p className="font-semibold text-gray-900">
+                  {DISC_CAT_FR[r.category] ?? r.category} · {r.title}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {format(new Date(r.incidentDate), 'dd MMM yyyy', { locale: fr })} · {r.academicYear}
+                </p>
+                {r.description ? <p className="text-gray-700 mt-1">{r.description}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       {/* Indicateur de recherche */}
       {searchQuery && (
         <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">

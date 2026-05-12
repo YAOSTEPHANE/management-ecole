@@ -29,6 +29,7 @@ import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
 import { formatFCFA } from '../../utils/currency';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { chartBlueRed, CHART_BLUE, CHART_ANIMATION_MS } from '../charts';
 import jsPDF from 'jspdf';
 
 const StudentPayments = () => {
@@ -407,8 +408,6 @@ const StudentPayments = () => {
     }
   };
 
-  const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444'];
-
   if (isLoading) {
     return (
       <Card>
@@ -499,7 +498,15 @@ const StudentPayments = () => {
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: any) => formatFCFA(value)} />
-                  <Line type="monotone" dataKey="amount" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="amount"
+                    stroke={CHART_BLUE}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    isAnimationActive
+                    animationDuration={CHART_ANIMATION_MS}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </Card>
@@ -523,8 +530,8 @@ const StudentPayments = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {paymentMethodData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {paymentMethodData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={chartBlueRed(index)} />
                     ))}
                   </Pie>
                   <Tooltip />

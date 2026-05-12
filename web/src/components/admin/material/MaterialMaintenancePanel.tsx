@@ -109,6 +109,10 @@ const MaterialMaintenancePanel: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600 leading-relaxed">
+        Maintenance et réparations des équipements ou des locaux : suivi des interventions, coûts et clôture des
+        dossiers.
+      </p>
       <div className="flex flex-wrap gap-3 justify-between items-center">
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Statut</label>

@@ -1,0 +1,117 @@
+import express from 'express';
+import cors from 'cors';
+import authRoutes from '../routes/auth.routes';
+import adminRoutes from '../routes/admin.routes';
+import teacherRoutes from '../routes/teacher.routes';
+import studentRoutes from '../routes/student.routes';
+import parentRoutes from '../routes/parent.routes';
+import educatorRoutes from '../routes/educator.routes';
+import uploadRoutes from '../routes/upload.routes';
+import nfcRoutes from '../routes/nfc.routes';
+import pushRoutes from '../routes/push.routes';
+import admissionPublicRoutes from '../routes/admission.public.routes';
+import publicRoutes from '../routes/public.routes';
+import { getUploadsRootDir } from '../utils/uploads-path';
+import { recordRequestMetric } from '../utils/performance-metrics.util';
+
+function getFrontendOrigins(): string[] {
+  const fromEnv = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:3001')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  if (process.env.VERCEL_URL) {
+    fromEnv.push(`https://${process.env.VERCEL_URL}`);
+  }
+  return fromEnv;
+}
+
+/**
+ * Construit l’application Express (middlewares, routes, gestion d’erreurs).
+ * L’écoute du port et le chargement de `dotenv` restent dans `index.ts`.
+ */
+export function createApp(): express.Express {
+  const app = express();
+
+  if (process.env.TRUST_PROXY === '1' || process.env.VERCEL === '1') {
+    app.set('trust proxy', 1);
+  }
+
+  app.use(
+    cors({
+      origin: getFrontendOrigins(),
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
+
+  if (process.env.NODE_ENV === 'development') {
+    app.use((req, res, next) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      next();
+    });
+  }
+
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  });
+
+  app.use((req, res, next) => {
+    const started = process.hrtime.bigint();
+    res.on('finish', () => {
+      const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+      recordRequestMetric({
+        method: req.method,
+        path: req.originalUrl.split('?')[0] || req.path,
+        statusCode: res.statusCode,
+        durationMs: elapsedMs,
+      });
+    });
+    next();
+  });
+
+  app.use('/uploads', express.static(getUploadsRootDir()));
+
+  const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
+
+  app.use(`${apiPrefix}/auth`, authRoutes);
+  app.use(`${apiPrefix}/admin`, adminRoutes);
+  app.use(`${apiPrefix}/teacher`, teacherRoutes);
+  app.use(`${apiPrefix}/student`, studentRoutes);
+  app.use(`${apiPrefix}/parent`, parentRoutes);
+  app.use(`${apiPrefix}/educator`, educatorRoutes);
+  app.use(`${apiPrefix}/upload`, uploadRoutes);
+  app.use(`${apiPrefix}/nfc`, nfcRoutes);
+  app.use(`${apiPrefix}/push`, pushRoutes);
+  app.use(`${apiPrefix}/public/admissions`, admissionPublicRoutes);
+  app.use(`${apiPrefix}/public`, publicRoutes);
+
+  const healthJson = { status: 'OK', message: 'School Manager API is running' };
+  app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));
+  if (apiPrefix === '/api') {
+    app.get('/health', (req, res) => res.json(healthJson));
+  }
+  if (apiPrefix === '') {
+    app.get('/api/health', (req, res) => res.json(healthJson));
+  }
+
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Route non trouvée' });
+  });
+
+  app.use(
+    (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      console.error('Erreur non gérée:', err);
+      const message = err instanceof Error ? err.message : 'Erreur serveur';
+      res.status(500).json({
+        error: process.env.NODE_ENV === 'development' ? message : 'Erreur serveur',
+      });
+    }
+  );
+
+  return app;
+}

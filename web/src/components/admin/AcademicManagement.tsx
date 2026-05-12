@@ -6,6 +6,8 @@ import ClassesList from './ClassesList';
 import StudentsList from './StudentsList';
 import ScheduleManagement from './ScheduleManagement';
 import CoursesProgramManagement from './CoursesProgramManagement';
+import SchoolCurriculaByLevelPanel from './SchoolCurriculaByLevelPanel';
+import TracksAndOptionsPanel from './TracksAndOptionsPanel';
 import SchoolCalendarManagement from './SchoolCalendarManagement';
 import {
   FiLayers,
@@ -14,6 +16,8 @@ import {
   FiBook,
   FiClock,
   FiGrid,
+  FiBookOpen,
+  FiGitBranch,
 } from 'react-icons/fi';
 import { ADM } from './adminModuleLayout';
 
@@ -21,6 +25,8 @@ type AcademicTab =
   | 'overview'
   | 'classes'
   | 'enrollment'
+  | 'tracks'
+  | 'curricula'
   | 'courses'
   | 'schedule'
   | 'school-calendar';
@@ -61,7 +67,9 @@ const AcademicManagement: React.FC = () => {
     { id: 'overview', label: 'Vue d’ensemble', icon: FiGrid },
     { id: 'classes', label: 'Classes & niveaux', icon: FiLayers },
     { id: 'enrollment', label: 'Élèves & classes', icon: FiUsers },
-    { id: 'courses', label: 'Matières & programme', icon: FiBook },
+    { id: 'tracks', label: 'Filières & options', icon: FiGitBranch },
+    { id: 'curricula', label: 'Programmes (niveau)', icon: FiBookOpen },
+    { id: 'courses', label: 'Matières en classe', icon: FiBook },
     { id: 'schedule', label: 'Emploi du temps', icon: FiClock },
     { id: 'school-calendar', label: 'Calendrier scolaire', icon: FiCalendar },
   ];
@@ -148,7 +156,9 @@ const AcademicManagement: React.FC = () => {
                 « Élèves & classes ».
               </li>
               <li>
-                Ajoutez les <strong>matières</strong> (code unique, enseignant, volume horaire).
+                Configurez les <strong>filières et options</strong>, puis le <strong>programme par niveau</strong>{' '}
+                (référentiel matières / heures), et les <strong>matières en classe</strong> avec enseignant et
+                code d’emploi du temps.
               </li>
               <li>
                 Construisez l’<strong>emploi du temps</strong> à partir des matières créées.
@@ -163,6 +173,8 @@ const AcademicManagement: React.FC = () => {
 
       {tab === 'classes' && <ClassesList compact />}
       {tab === 'enrollment' && <StudentsList showClassFilter compact />}
+      {tab === 'tracks' && <TracksAndOptionsPanel compact />}
+      {tab === 'curricula' && <SchoolCurriculaByLevelPanel compact />}
       {tab === 'courses' && <CoursesProgramManagement compact />}
       {tab === 'schedule' && <ScheduleManagement compact />}
       {tab === 'school-calendar' && <SchoolCalendarManagement compact />}

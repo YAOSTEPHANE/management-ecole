@@ -58,6 +58,8 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
   const [selectedPeriod, setSelectedPeriod] = useState<string>('trim1');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('2024-2025');
   const [isGenerating, setIsGenerating] = useState(false);
+  /** Après génération PDF : enregistrer en base et rendre visible aux élèves / familles */
+  const [publishAfterSave, setPublishAfterSave] = useState(false);
 
   // Fetch classes
   const { data: classes } = useQuery({
@@ -94,13 +96,17 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
         classId: selectedClass,
         period: selectedPeriod,
         academicYear: selectedAcademicYear,
+        publish: publishAfterSave,
       });
 
       queryClient.invalidateQueries({ queryKey: ['report-cards'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-report-cards-tab'] });
       return reportCardData.length;
     },
     onSuccess: (count) => {
-      toast.success(`${count} bulletin(s) généré(s) avec succès !`);
+      toast.success(
+        `${count} bulletin(s) généré(s) et synchronisé(s)${publishAfterSave ? ', publiés pour les familles' : ''} !`
+      );
       handleClose();
     },
     onError: (error: any) => {
@@ -492,6 +498,7 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
     setSelectedClass('');
     setSelectedPeriod('trim1');
     setSelectedAcademicYear('2024-2025');
+    setPublishAfterSave(false);
     onClose();
   };
 
@@ -507,8 +514,10 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
             <div>
               <p className="text-sm text-blue-800 font-medium mb-1">Instructions</p>
               <p className="text-sm text-blue-700">
-                Sélectionnez une classe, une période et une année scolaire pour générer les bulletins de tous les élèves de la classe.
-                Les bulletins seront générés au format PDF et sauvegardés automatiquement.
+                Sélectionnez une classe, une période et une année scolaire pour générer les bulletins PDF de tous les
+                élèves. Les moyennes et rangs sont calculés automatiquement à partir des notes saisies sur la période,
+                puis enregistrés en base. Cochez « Publier » pour que les bulletins apparaissent dans l’espace élève et
+                parent.
               </p>
             </div>
           </div>
@@ -594,6 +603,21 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
             </div>
           </div>
         )}
+
+        <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-gray-200 bg-gray-50/80 p-3">
+          <input
+            type="checkbox"
+            className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            checked={publishAfterSave}
+            onChange={(e) => setPublishAfterSave(e.target.checked)}
+          />
+          <span>
+            <span className="text-sm font-semibold text-gray-900">Publier les bulletins</span>
+            <span className="block text-xs text-gray-600 mt-0.5">
+              Sinon ils restent en brouillon : visibles uniquement dans l’administration jusqu’à publication manuelle.
+            </span>
+          </span>
+        </label>
 
         {/* Actions */}
         <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">

@@ -94,8 +94,9 @@ const PaymentRemindersPanel: React.FC<PaymentRemindersPanelProps> = ({ compact =
         <div className="flex items-start gap-3">
           <FiAlertTriangle className={`text-amber-700 shrink-0 mt-0.5 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
           <p className={compact ? 'text-xs text-amber-900 leading-relaxed' : 'text-sm text-amber-900'}>
-            Les relances sont manuelles : ce module ne déclenche pas d’envoi automatique. Utilisez la
-            messagerie de la plateforme si vous devez notifier plusieurs familles.
+            Les relances automatiques (notifications + e-mail si SMTP est configuré) peuvent être planifiées
+            côté serveur ou lancées à la demande depuis la vue d’ensemble « Gestion des frais ». Ce panneau sert
+            encore à copier un texte personnalisé pour un e-mail ou un SMS ponctuel.
           </p>
         </div>
       </Card>

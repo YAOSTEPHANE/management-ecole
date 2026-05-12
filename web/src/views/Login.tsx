@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { 
   FiMail, 
@@ -19,6 +18,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'email' | 'password'>('email'); // Étape actuelle
   const { login, user, loading: authLoading } = useAuth();
@@ -48,29 +49,21 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Vérifier la connexion au serveur avant de tenter la connexion
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      try {
-        const healthCheck = await fetch(`${API_URL.replace('/api', '')}/api/health`);
-        if (!healthCheck.ok) {
-          toast.error('Le serveur backend n\'est pas accessible. Vérifiez qu\'il est démarré.');
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        toast.error('Impossible de se connecter au serveur. Vérifiez que le backend est démarré sur le port 5000.');
-        console.error('Erreur de connexion au serveur:', error);
-        setLoading(false);
-        return;
-      }
-
-      const response = await login(email, password);
+      const response = await login(
+        email,
+        password,
+        twoFactorRequired ? twoFactorCode : undefined
+      );
       if (response?.user) {
         const role = response.user.role.toLowerCase();
         router.replace(`/${role}`);
       }
     } catch (error: any) {
-      // Erreur déjà gérée dans le contexte, mais on peut ajouter plus de détails
+      if (error?.response?.data?.code === 'TWO_FACTOR_REQUIRED') {
+        setTwoFactorRequired(true);
+        toast('Entrez le code 2FA de votre application.');
+        return;
+      }
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
         toast.error('Erreur réseau. Vérifiez que le serveur backend est démarré.');
       }
@@ -83,16 +76,21 @@ const Login = () => {
   const handleBackToEmail = () => {
     setStep('email');
     setPassword('');
+    setTwoFactorCode('');
+    setTwoFactorRequired(false);
   };
 
   // Afficher un loader pendant la vérification de l'authentification
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen premium-body flex items-center justify-center relative overflow-hidden">
         <Login3D />
-        <div className="text-center relative z-10">
-          <div className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-indigo-200 border-t-indigo-600" />
-          <p className="mt-6 text-lg font-semibold text-slate-700">Vérification de votre session…</p>
+        <div className="text-center relative z-10 px-4">
+          <div
+            className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-amber-200/80 border-t-amber-700"
+            aria-hidden
+          />
+          <p className="mt-6 text-lg font-semibold text-stone-800">Vérification de votre session…</p>
         </div>
       </div>
     );
@@ -101,34 +99,40 @@ const Login = () => {
   // Ne pas afficher le formulaire si déjà connecté
   if (user) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen premium-body flex items-center justify-center relative overflow-hidden">
         <Login3D />
-        <div className="text-center relative z-10">
-          <div className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-indigo-200 border-t-indigo-600" />
-          <p className="mt-6 text-lg font-semibold text-slate-700">Redirection en cours…</p>
+        <div className="text-center relative z-10 px-4">
+          <div
+            className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-amber-200/80 border-t-amber-700"
+            aria-hidden
+          />
+          <p className="mt-6 text-lg font-semibold text-stone-800">Redirection en cours…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen premium-body flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       {/* Illustration 3D en arrière-plan */}
       <Login3D />
       
       <div className="w-full max-w-md relative z-10">
         <div className="relative">
           {/* Glow effect derrière la carte */}
-          <div className="absolute -inset-3 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 rounded-[2rem] blur-3xl opacity-25 animate-shimmer" />
+          <div
+            className="absolute -inset-3 bg-gradient-to-r from-amber-600/35 via-stone-700/30 to-amber-500/35 rounded-[2rem] blur-3xl opacity-40"
+            aria-hidden
+          />
           
           {/* Carte principale */}
-          <div className="relative premium-card-surface rounded-[1.5rem] sm:rounded-[1.75rem] p-5 sm:p-8 lg:p-10 border border-white/80 shadow-premium">
+          <div className="relative premium-card-surface rounded-[1.5rem] sm:rounded-[1.75rem] p-5 sm:p-8 lg:p-10 border border-white/80 shadow-premium ring-1 ring-amber-900/10">
             {/* Logo */}
             <div className="text-center mb-8">
               <div className="relative inline-block mb-4">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl blur-xl opacity-50"></div>
-                <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl transform transition-transform duration-300 hover:scale-110 shadow-lg">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/40 to-stone-800/40 rounded-2xl blur-xl" aria-hidden />
+                <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-stone-900 to-stone-800 rounded-2xl ring-2 ring-amber-500/35 transform transition-transform duration-300 hover:scale-105 shadow-lg">
+                  <svg className="w-10 h-10 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
@@ -137,10 +141,10 @@ const Login = () => {
 
             {/* Form Header */}
             <div className="mb-8 text-center">
-              <h2 className="font-display text-3xl sm:text-4xl font-black mb-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent tracking-tight">
+              <h2 className="font-display text-3xl sm:text-4xl font-black mb-2 text-gradient-display tracking-tight">
                 Bienvenue
               </h2>
-              <p className="text-gray-600 text-base sm:text-lg">
+              <p className="text-stone-600 text-base sm:text-lg leading-relaxed">
                 {step === 'email' 
                   ? 'Connectez-vous pour accéder à votre espace'
                   : `Bonjour, ${email}`}
@@ -152,24 +156,23 @@ const Login = () => {
               <form onSubmit={handleEmailSubmit} className="space-y-6">
                 {/* Email Input */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label htmlFor="login-email" className="block text-sm font-semibold text-stone-800">
                     Adresse email
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FiMail className={`w-5 h-5 transition-colors ${email ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <FiMail className={`w-5 h-5 transition-colors ${email ? 'text-amber-700' : 'text-stone-400'}`} aria-hidden />
                     </div>
                     <input
+                      id="login-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="votre.email@exemple.com"
                       autoFocus
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300"
-                      style={{
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                      }}
+                      autoComplete="email"
+                      className="w-full pl-12 pr-4 py-4 bg-white/90 border-2 border-stone-200 rounded-xl shadow-sm transition-all duration-200 text-stone-900 placeholder:text-stone-400 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
                     />
                   </div>
                 </div>
@@ -178,14 +181,13 @@ const Login = () => {
                 <Button
                   type="submit"
                   disabled={!email || !email.includes('@')}
-                  className="w-full group relative overflow-hidden"
+                  className="w-full"
                   size="lg"
                 >
-                  <span className="relative z-10 flex items-center justify-center text-white font-semibold">
+                  <span className="flex items-center justify-center gap-2">
                     Continuer
-                    <FiArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <FiArrowRight className="w-5 h-5 shrink-0" aria-hidden />
                   </span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </Button>
               </form>
             ) : (
@@ -195,80 +197,99 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={handleBackToEmail}
-                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors flex items-center mb-2"
+                  className="text-sm font-medium text-amber-900/90 hover:text-stone-900 transition-colors flex items-center gap-1.5 mb-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 px-1 -ml-1"
                 >
-                  <FiArrowRight className="w-4 h-4 mr-1 rotate-180" />
-                  Changer d'email
+                  <FiArrowRight className="w-4 h-4 rotate-180 shrink-0" aria-hidden />
+                  Changer d&apos;email
                 </button>
 
                 {/* Email affiché (non éditable) */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <span className="block text-sm font-semibold text-stone-800">
                     Adresse email
-                  </label>
+                  </span>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FiMail className="w-5 h-5 text-gray-400" />
+                      <FiMail className="w-5 h-5 text-stone-400" aria-hidden />
                     </div>
                     <input
                       type="email"
                       value={email}
                       disabled
-                      className="w-full pl-12 pr-4 py-4 bg-gray-100 border-2 border-gray-200 rounded-xl text-gray-600 cursor-not-allowed"
-                      style={{
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                      }}
+                      readOnly
+                      aria-readonly="true"
+                      aria-label="Adresse e-mail utilisée pour la connexion (non modifiable)"
+                      className="w-full pl-12 pr-4 py-4 bg-stone-100/90 border-2 border-stone-200 rounded-xl text-stone-600 cursor-not-allowed shadow-inner"
                     />
                   </div>
                 </div>
 
                 {/* Password Input */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label htmlFor="login-password" className="block text-sm font-semibold text-stone-800">
                     Mot de passe
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FiLock className={`w-5 h-5 transition-colors ${password ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <FiLock className={`w-5 h-5 transition-colors ${password ? 'text-amber-700' : 'text-stone-400'}`} aria-hidden />
                     </div>
                     <input
+                      id="login-password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       placeholder="Entrez votre mot de passe"
                       autoFocus
-                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300"
-                      style={{
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                      }}
+                      autoComplete="current-password"
+                      className="w-full pl-12 pr-12 py-4 bg-white/90 border-2 border-stone-200 rounded-xl shadow-sm transition-all duration-200 text-stone-900 placeholder:text-stone-400 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-blue-600 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-amber-800 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                     >
-                      {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                      {showPassword ? <FiEyeOff className="w-5 h-5" aria-hidden /> : <FiEye className="w-5 h-5" aria-hidden />}
                     </button>
                   </div>
                 </div>
 
+                {twoFactorRequired && (
+                  <div className="space-y-2">
+                    <label htmlFor="login-2fa" className="block text-sm font-semibold text-stone-800">
+                      Code 2FA (6 chiffres)
+                    </label>
+                    <input
+                      id="login-2fa"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      className="w-full px-4 py-4 bg-white/90 border-2 border-stone-200 rounded-xl shadow-sm transition-all duration-200 text-stone-900 placeholder:text-stone-400 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
+                    />
+                  </div>
+                )}
+
                 {/* Remember Me & Forgot Password */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <label className="flex items-center group cursor-pointer">
+                  <label className="flex items-center group cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer bg-white"
+                      className="w-5 h-5 rounded border-stone-300 text-amber-700 focus:ring-amber-500/50 cursor-pointer bg-white"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    <span className="ml-3 text-sm font-medium text-stone-700 group-hover:text-stone-900 transition-colors">
                       Se souvenir de moi
                     </span>
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors hover:underline"
+                    className="text-sm font-semibold text-amber-900/90 hover:text-stone-900 transition-colors hover:underline underline-offset-2"
                   >
                     Mot de passe oublié ?
                   </Link>
@@ -277,30 +298,27 @@ const Login = () => {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  disabled={loading || !password}
+                  disabled={loading || !password || (twoFactorRequired && twoFactorCode.length !== 6)}
                   isLoading={loading}
-                  className="w-full group relative overflow-hidden"
+                  className="w-full"
                   size="lg"
                 >
                   {!loading && (
-                    <>
-                      <span className="relative z-10 flex items-center justify-center text-white font-semibold">
-                        Se connecter
-                        <FiArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </span>
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </>
+                    <span className="flex items-center justify-center gap-2">
+                      Se connecter
+                      <FiArrowRight className="w-5 h-5 shrink-0" aria-hidden />
+                    </span>
                   )}
                 </Button>
               </form>
             )}
 
             {/* Footer */}
-            <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-600">
+            <div className="mt-8 pt-6 border-t border-stone-200/90 text-center">
+              <p className="text-sm text-stone-600">
                 Pas encore de compte ?{' '}
-                <Link href="/" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors hover:underline">
-                  Retour à l'accueil
+                <Link href="/" className="font-semibold text-amber-900/90 hover:text-stone-900 transition-colors hover:underline underline-offset-2">
+                  Retour à l&apos;accueil
                 </Link>
               </p>
             </div>

@@ -5,6 +5,9 @@ import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ServerConnectionError from "@/components/ServerConnectionError";
+import PushNotificationsBootstrap from "@/components/PushNotificationsBootstrap";
+import OfflineBanner from "@/components/OfflineBanner";
+import OfflinePrefetch from "@/components/OfflinePrefetch";
 import "@/utils/debug";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -12,18 +15,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <OfflinePrefetch />
+        <OfflineBanner />
+        <PushNotificationsBootstrap />
         {children}
         <Toaster
           position="top-right"
+          gutter={12}
           toastOptions={{
             duration: 4200,
             className:
-              '!font-sans !bg-white/95 !backdrop-blur-xl !border !border-slate-200/90 !shadow-premium !rounded-2xl !text-slate-800 !px-4 !py-3',
+              '!font-sans !bg-white/95 !backdrop-blur-xl !border !border-stone-200/85 !shadow-[0_24px_48px_-16px_rgba(12,10,9,0.14)] !rounded-2xl !text-stone-900 !px-4 !py-3.5 !ring-1 !ring-amber-900/8',
             success: {
-              iconTheme: { primary: '#4f46e5', secondary: '#fff' },
+              iconTheme: { primary: '#b45309', secondary: '#fff' },
             },
             error: {
-              iconTheme: { primary: '#e11d48', secondary: '#fff' },
+              iconTheme: { primary: '#be123c', secondary: '#fff' },
             },
           }}
         />

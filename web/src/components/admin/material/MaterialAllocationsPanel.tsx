@@ -94,7 +94,7 @@ const MaterialAllocationsPanel: React.FC = () => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['material-allocations'] });
-      toast.success('Allocation créée');
+      toast.success('Prêt enregistré');
       setModalOpen(false);
       setForm({
         equipmentId: '',
@@ -141,6 +141,10 @@ const MaterialAllocationsPanel: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600 leading-relaxed">
+        Prêt de matériel pédagogique ou d’équipement : attribution à un utilisateur, une classe ou une salle, avec suivi
+        des retours.
+      </p>
       <div className="flex flex-wrap gap-3 justify-between items-center">
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Statut</label>
@@ -172,7 +176,7 @@ const MaterialAllocationsPanel: React.FC = () => {
           }}
         >
           <FiPlus className="w-4 h-4 mr-2" />
-          Nouvelle allocation
+          Nouveau prêt
         </Button>
       </div>
 
@@ -180,7 +184,7 @@ const MaterialAllocationsPanel: React.FC = () => {
         {isLoading ? (
           <div className="p-8 text-center text-gray-500">Chargement…</div>
         ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Aucune allocation.</div>
+          <div className="p-8 text-center text-gray-500">Aucun prêt enregistré.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -250,7 +254,7 @@ const MaterialAllocationsPanel: React.FC = () => {
         )}
       </Card>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle allocation" size="lg">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau prêt de matériel" size="lg">
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Équipement *</label>

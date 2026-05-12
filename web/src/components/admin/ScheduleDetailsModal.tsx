@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import Badge from '../ui/Badge';
 import {
   FiCalendar,
   FiClock,
@@ -125,6 +124,23 @@ const ScheduleDetailsModal = ({ isOpen, onClose, scheduleId, onEdit }: ScheduleD
               </p>
               {schedule.course.teacher.user?.email && (
                 <p className="text-sm text-gray-600 mt-1">{schedule.course.teacher.user.email}</p>
+              )}
+            </div>
+          )}
+
+          {(schedule.substituteTeacher || schedule.replacementNote) && (
+            <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
+              <h3 className="font-bold text-gray-800 mb-2">Remplacement</h3>
+              {schedule.substituteTeacher ? (
+                <p className="text-sm text-gray-800">
+                  Remplaçant: {schedule.substituteTeacher.user?.firstName}{' '}
+                  {schedule.substituteTeacher.user?.lastName}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-700">Aucun remplaçant affecté</p>
+              )}
+              {schedule.replacementNote && (
+                <p className="text-sm text-gray-600 mt-1">Note: {schedule.replacementNote}</p>
               )}
             </div>
           )}
