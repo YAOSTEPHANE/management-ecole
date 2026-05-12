@@ -10,3 +10,12 @@ export function getUploadsRootDir(): string {
   }
   return path.join(__dirname, '../../uploads');
 }
+
+/**
+ * Préfixe d’URL public pour les fichiers servis par Express.
+ * Sur Vercel (experimentalServices), seul le préfixe `/api` atteint le runtime Express :
+ * les assets doivent être demandés en `/api/uploads/...`, pas `/uploads/...` (sinon 404 côté Next).
+ */
+export function getPublicUploadsUrlPrefix(): string {
+  return process.env.VERCEL === '1' ? '/api/uploads' : '/uploads';
+}

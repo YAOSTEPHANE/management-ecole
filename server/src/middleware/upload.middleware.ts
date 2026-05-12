@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { getUploadsRootDir } from '../utils/uploads-path';
+import { getPublicUploadsUrlPrefix, getUploadsRootDir } from '../utils/uploads-path';
 
 const uploadsDir = getUploadsRootDir();
 try {
@@ -119,7 +119,8 @@ export const identityUpload = multer({
 
 // Middleware pour servir les fichiers statiques
 export const getFileUrl = (filename: string, folder: string = 'general'): string => {
-  return `/uploads/${folder}/${filename}`;
+  const prefix = getPublicUploadsUrlPrefix();
+  return `${prefix}/${folder}/${filename}`;
 };
 
 

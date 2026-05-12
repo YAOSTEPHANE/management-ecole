@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "NEXT_PUBLIC_EXPRESS_UPLOADS_VIA_API_PREFIX": "1"
+  },
   "installCommand": "npm install && npm install --prefix web && npm install --prefix server",
   "experimentalServices": {
     "web": {

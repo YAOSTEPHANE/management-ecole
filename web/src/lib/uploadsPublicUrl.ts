@@ -9,10 +9,23 @@
  * - ou **`NEXT_PUBLIC_API_URL`** en URL absolue (ex. `https://api.votredomaine.com/api`) ;
  * - ou un **rewrite** Next (`next.config`) vers l’API si le front ne reçoit pas directement `/uploads`
  *   (désactivable avec `NEXT_PUBLIC_DISABLE_UPLOADS_REWRITE=1` si même hôte que l’API).
+ * - **Vercel experimentalServices** (Express uniquement sous `/api`) : URLs publiques `/api/uploads/...`
+ *   côté serveur ; `NEXT_PUBLIC_EXPRESS_UPLOADS_VIA_API_PREFIX=1` réécrit les anciennes URLs `/uploads/...`.
  */
 
 function trimSlash(s: string): string {
   return s.replace(/\/+$/, '').trim();
+}
+
+/** Anciennes entrées BDD `/uploads/...` sur déploiement Vercel + Express sous `/api`. */
+function normalizeUploadedAssetPathForClient(relativePath: string): string {
+  if (
+    relativePath.startsWith('/uploads/') &&
+    process.env.NEXT_PUBLIC_EXPRESS_UPLOADS_VIA_API_PREFIX === '1'
+  ) {
+    return `/api${relativePath}`;
+  }
+  return relativePath;
 }
 
 export function getApiOriginForUploads(): string {
@@ -52,6 +65,8 @@ export function resolveUploadPublicUrl(relativePath: string | null | undefined):
     return relativePath;
   }
   const origin = getApiOriginForUploads();
-  const path = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+  const path = normalizeUploadedAssetPathForClient(
+    relativePath.startsWith('/') ? relativePath : `/${relativePath}`
+  );
   return `${origin}${path}`;
 }
