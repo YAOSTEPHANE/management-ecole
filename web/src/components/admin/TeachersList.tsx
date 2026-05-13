@@ -30,6 +30,11 @@ import fr from 'date-fns/locale/fr';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
+import {
+  getTeacherEngagementKindLabel,
+  getTeacherEngagementBadgeVariant,
+  TEACHER_ENGAGEMENT_KIND_OPTIONS,
+} from '@/lib/teacherEngagementKind';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -51,6 +56,7 @@ const TeachersList: React.FC<TeachersListProps> = ({ searchQuery = '' }) => {
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [groupByClass, setGroupByClass] = useState(true);
+  const [engagementFilter, setEngagementFilter] = useState<'ALL' | 'PERMANENT' | 'VACATAIRE'>('ALL');
 
   useEffect(() => {
     if (searchQuery) setSearchTerm(searchQuery);
@@ -65,14 +71,18 @@ const TeachersList: React.FC<TeachersListProps> = ({ searchQuery = '' }) => {
     if (!teachers) return [];
     const term = searchTerm.toLowerCase();
     return teachers.filter(
-      (t: any) =>
+      (t: any) => {
+        if (engagementFilter !== 'ALL' && t.engagementKind !== engagementFilter) return false;
+        return (
         (t.user?.firstName || '').toLowerCase().includes(term) ||
         (t.user?.lastName || '').toLowerCase().includes(term) ||
         (t.user?.email || '').toLowerCase().includes(term) ||
         (t.employeeId || '').toLowerCase().includes(term) ||
         (t.specialization || '').toLowerCase().includes(term)
+        );
+      }
     );
-  }, [teachers, searchTerm]);
+  }, [teachers, searchTerm, engagementFilter]);
 
   const teachersByClass = useMemo(() => {
     if (!filteredTeachers.length || !groupByClass) return null;
@@ -299,6 +309,15 @@ const TeachersList: React.FC<TeachersListProps> = ({ searchQuery = '' }) => {
       ),
     },
     {
+      key: 'engagementKind',
+      header: 'Type',
+      render: (t: any) => (
+        <Badge variant={getTeacherEngagementBadgeVariant(t.engagementKind)} size="sm">
+          {getTeacherEngagementKindLabel(t.engagementKind)}
+        </Badge>
+      ),
+    },
+    {
       key: 'specialization',
       header: 'Spécialisation',
       render: (t: any) => (
@@ -439,6 +458,19 @@ const TeachersList: React.FC<TeachersListProps> = ({ searchQuery = '' }) => {
               placeholder="Rechercher par nom, email, ID ou spécialité..."
             />
           </div>
+          <select
+            value={engagementFilter}
+            onChange={(e) => setEngagementFilter(e.target.value as 'ALL' | 'PERMANENT' | 'VACATAIRE')}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white"
+            aria-label="Filtrer par type d'enseignant"
+          >
+            <option value="ALL">Tous les types</option>
+            {TEACHER_ENGAGEMENT_KIND_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           <Button
             variant={groupByClass ? 'primary' : 'secondary'}
             size="default"

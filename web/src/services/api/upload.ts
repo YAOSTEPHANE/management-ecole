@@ -6,8 +6,22 @@ export const uploadIdentityDocument = async (formData: FormData) => {
   return response.data;
 };
 
-/** Upload multipart : document RH enseignant (`teacherAdminDocument`, `type`, `teacherId`, `label?`, `notes?`) */
 export const uploadTeacherAdministrativeDocument = async (formData: FormData) => {
   const response = await api.post('/upload/teacher-admin-document', formData);
   return response.data;
+};
+
+/** Upload multipart : pièce jointe de devoir (champ fichier `assignment`) */
+export const uploadAssignmentAttachment = async (file: File) => {
+  const formData = new FormData();
+  formData.append('assignment', file);
+  const response = await api.post('/upload/assignment', formData);
+  return response.data as { url: string; filename?: string; message?: string };
+};
+
+export const uploadDigitalLibraryFile = async (file: File) => {
+  const formData = new FormData();
+  formData.append('digitalLibrary', file);
+  const response = await api.post('/upload/digital-library', formData);
+  return response.data as { url: string; filename?: string; mimeType?: string; size?: number };
 };

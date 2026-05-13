@@ -12,6 +12,7 @@ import {
   FiEyeOff,
   FiArrowRight
 } from 'react-icons/fi';
+import { getRoleDashboardPath } from '@/lib/rolePaths';
 import Login3D from '../components/illustrations/Login3DLazy';
 
 const Login = () => {
@@ -32,8 +33,7 @@ const Login = () => {
   // Rediriger si déjà connecté
   useEffect(() => {
     if (!authLoading && user) {
-      const role = user.role.toLowerCase();
-      router.replace(`/${role}`);
+      router.replace(getRoleDashboardPath(user.role));
     }
   }, [user, authLoading, router]);
 
@@ -63,8 +63,7 @@ const Login = () => {
         twoFactorRequired ? twoFactorCode : undefined
       );
       if (response?.user) {
-        const role = response.user.role.toLowerCase();
-        router.replace(`/${role}`);
+        router.replace(getRoleDashboardPath(response.user.role));
       }
     } catch (error: any) {
       if (error?.response?.data?.code === 'TWO_FACTOR_REQUIRED') {

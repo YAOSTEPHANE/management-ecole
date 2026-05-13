@@ -12,10 +12,12 @@ import {
   FiCalendar,
   FiAward,
   FiBook,
-  FiSearch
+  FiSearch,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import { getEvaluationBadgeVariant, getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 
 interface ChildGradesProps {
   studentId: string;
@@ -29,6 +31,10 @@ const ChildGrades = ({ studentId, searchQuery = '' }: ChildGradesProps) => {
     queryKey: ['parent-child-grades', studentId],
     queryFn: () => parentApi.getChildGrades(studentId),
   });
+
+  const tuitionBlock = data?.tuitionBlock as
+    | { active?: boolean; hiddenAcademicYears?: string[] }
+    | undefined;
 
   const toggleCourse = (courseId: string) => {
     const newExpanded = new Set(expandedCourses);
@@ -128,6 +134,25 @@ const ChildGrades = ({ studentId, searchQuery = '' }: ChildGradesProps) => {
 
   return (
     <div className="space-y-6">
+      {tuitionBlock?.active && (tuitionBlock.hiddenAcademicYears?.length ?? 0) > 0 && (
+        <Card className="border-l-4 border-amber-500 bg-amber-50/90 ring-1 ring-amber-200/80">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <FiAlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold text-amber-900 mb-1">Accès aux notes limité</p>
+              <p className="text-amber-900/90 leading-relaxed">
+                Des frais d&apos;inscription ou de scolarité restent impayés pour la ou les années scolaires :{' '}
+                <span className="font-medium">{tuitionBlock.hiddenAcademicYears?.join(', ')}</span>.
+                Les notes correspondant à ces années ne sont plus affichées après la clôture de l&apos;année.
+                Régularisez la situation depuis la section <strong>Paiements / Frais</strong> de l&apos;espace parent.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Indicateur de recherche */}
       {searchQuery && (
         <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200">
@@ -182,8 +207,14 @@ const ChildGrades = ({ studentId, searchQuery = '' }: ChildGradesProps) => {
         <Card>
           <div className="text-center py-12 text-gray-500">
             <FiBook className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg mb-2">Aucune note disponible</p>
-            <p className="text-sm">Les notes apparaîtront ici une fois saisies par les enseignants</p>
+            <p className="text-lg mb-2">
+              {tuitionBlock?.active ? 'Notes non disponibles' : 'Aucune note disponible'}
+            </p>
+            <p className="text-sm">
+              {tuitionBlock?.active
+                ? 'Certaines notes peuvent être masquées tant que la scolarité ou l\'inscription n\'est pas entièrement réglée pour les années concernées. Consultez l\'encadré ci-dessus et la section Paiements / Frais.'
+                : 'Les notes apparaîtront ici une fois saisies par les enseignants'}
+            </p>
           </div>
         </Card>
       ) : (
@@ -285,17 +316,10 @@ const ChildGrades = ({ studentId, searchQuery = '' }: ChildGradesProps) => {
                                       <span>{format(new Date(grade.date), 'dd MMM yyyy', { locale: fr })}</span>
                                     </div>
                                     <Badge
-                                      variant={
-                                        grade.evaluationType === 'EXAM' ? 'danger' :
-                                        grade.evaluationType === 'QUIZ' ? 'warning' :
-                                        'secondary'
-                                      }
+                                      variant={getEvaluationBadgeVariant(grade.evaluationType)}
                                       size="sm"
                                     >
-                                      {grade.evaluationType === 'EXAM' ? 'Examen' :
-                                       grade.evaluationType === 'QUIZ' ? 'Contrôle' :
-                                       grade.evaluationType === 'HOMEWORK' ? 'Devoir' :
-                                       grade.evaluationType === 'PROJECT' ? 'Projet' : 'Oral'}
+                                      {getEvaluationTypeLabel(grade.evaluationType)}
                                     </Badge>
                                     {grade.coefficient > 1 && (
                                       <span className="text-xs text-gray-500">

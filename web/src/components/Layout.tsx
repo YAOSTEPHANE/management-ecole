@@ -4,9 +4,11 @@ import NotificationCenter from './NotificationCenter';
 import Avatar from './ui/Avatar';
 import ProfileEditModal from './ProfileEditModal';
 import { useAppBranding } from '@/contexts/AppBrandingContext';
+import { resolveStaffSupportKind, STAFF_KIND_LABELS } from '@/views/staff/staffSpaceConfig';
 import {
   FiBook,
   FiBookOpen,
+  FiBriefcase,
   FiChevronDown,
   FiEdit3,
   FiLogOut,
@@ -23,6 +25,8 @@ interface LayoutProps {
   user: any;
   onLogout: () => void;
   role: string;
+  /** Pour le personnel (STAFF) : libellé précis du métier affiché sur le badge à la place de « Personnel » */
+  staffRoleBadgeLabel?: string;
 }
 
 const ROLE_ACCENTS: Record<
@@ -30,10 +34,16 @@ const ROLE_ACCENTS: Record<
   { bar: string; badge: string; logo: string; label: string }
 > = {
   ADMIN: {
-    bar: 'from-amber-700 via-yellow-500 to-amber-800',
-    badge: 'bg-stone-900/90 text-amber-100 ring-1 ring-amber-500/35',
-    logo: 'from-stone-900 to-zinc-800',
+    bar: 'from-cptb-blue via-brand-600 to-cptb-blue-dark',
+    badge: 'bg-cptb-blue/95 text-cptb-gold ring-1 ring-cptb-gold/40',
+    logo: 'from-cptb-blue to-brand-800',
     label: 'Administrateur',
+  },
+  SUPER_ADMIN: {
+    bar: 'from-cptb-blue-dark via-cptb-blue to-brand-700',
+    badge: 'bg-cptb-gold text-cptb-blue-dark ring-1 ring-cptb-blue/30 font-bold',
+    logo: 'from-cptb-blue to-cptb-blue-dark',
+    label: 'Super administrateur',
   },
   TEACHER: {
     bar: 'from-emerald-800 via-teal-700 to-cyan-800',
@@ -110,9 +120,22 @@ function buildProfileRows(user: LayoutProps['user'], role: string): ProfileRow[]
     });
   }
   if (role === 'STAFF' && (user as any)?.staffProfile) {
-    const sp = (user as any).staffProfile as { employeeId?: string; jobTitle?: string | null };
+    const sp = (user as any).staffProfile as {
+      employeeId?: string;
+      jobTitle?: string | null;
+      supportKind?: string | null;
+    };
     if (sp.employeeId) {
       rows.push({ key: 'emp', icon: FiUser, label: 'Matricule', value: String(sp.employeeId) });
+    }
+    if (sp.supportKind) {
+      const k = resolveStaffSupportKind(sp.supportKind);
+      rows.push({
+        key: 'kind',
+        icon: FiBriefcase,
+        label: 'Métier',
+        value: STAFF_KIND_LABELS[k] ?? String(sp.supportKind),
+      });
     }
     if (sp.jobTitle) {
       rows.push({ key: 'job', icon: FiBookOpen, label: 'Fonction', value: String(sp.jobTitle) });
@@ -132,10 +155,12 @@ function buildProfileRows(user: LayoutProps['user'], role: string): ProfileRow[]
   return rows;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
+const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role, staffRoleBadgeLabel }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const accent = ROLE_ACCENTS[role] ?? ROLE_ACCENTS.ADMIN;
+  const roleBadgeText =
+    role === 'STAFF' && staffRoleBadgeLabel?.trim() ? staffRoleBadgeLabel.trim() : accent.label;
   const profileRows = buildProfileRows(user, role);
   const { navigationLogoAbsolute, branding } = useAppBranding();
   const headerTitle = (branding.appTitle && branding.appTitle.trim()) || 'Gestion scolaire';
@@ -208,7 +233,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                 <span
                   className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold shrink-0 ${accent.badge}`}
                 >
-                  {accent.label}
+                  {roleBadgeText}
                 </span>
 
                 <div className="hidden sm:block text-right min-w-0 max-w-[min(220px,28vw)] lg:max-w-[260px]">
@@ -286,7 +311,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, role }) => {
                             <p
                               className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${accent.badge}`}
                             >
-                              {accent.label}
+                              {roleBadgeText}
                             </p>
                           </div>
                         </div>

@@ -9,8 +9,8 @@ export const educatorApi = {
     const response = await api.put('/educator/profile', data);
     return response.data;
   },
-  getStudents: async () => {
-    const response = await api.get('/educator/students');
+  getStudents: async (params?: { classId?: string }) => {
+    const response = await api.get('/educator/students', { params });
     return response.data;
   },
   getStudent: async (studentId: string) => {
@@ -66,6 +66,51 @@ export const educatorApi = {
   },
   markAllNotificationsAsRead: async () => {
     const response = await api.put('/educator/notifications/read-all');
+    return response.data;
+  },
+  getClasses: async () => {
+    const response = await api.get('/educator/classes');
+    return response.data;
+  },
+  getTeachers: async () => {
+    const response = await api.get('/educator/teachers');
+    return response.data;
+  },
+  getParents: async (params?: { classId?: string }) => {
+    const response = await api.get('/educator/parents', { params });
+    return response.data;
+  },
+  getSchedules: async (params?: { classId?: string; teacherId?: string }) => {
+    const response = await api.get('/educator/schedules', { params });
+    return response.data;
+  },
+  getMessagingThreads: async () => {
+    const response = await api.get('/educator/messaging/threads');
+    return response.data;
+  },
+  getMessagingThread: async (threadKey: string) => {
+    const response = await api.get('/educator/messaging/thread', { params: { threadKey } });
+    return response.data;
+  },
+  getMessagingContacts: async () => {
+    const response = await api.get('/educator/messaging/contacts');
+    return response.data;
+  },
+  sendMessagingMessage: async (data: {
+    receiverId?: string;
+    subject?: string;
+    content: string;
+    category?: string;
+    threadKey?: string;
+    attachmentUrls?: string[];
+    broadcastClassId?: string;
+    broadcastAudience?: 'parents' | 'students' | 'all';
+  }) => {
+    const response = await api.post('/educator/messaging/send', data);
+    return response.data;
+  },
+  markMessagingMessageRead: async (messageId: string) => {
+    const response = await api.put(`/educator/messaging/${messageId}/read`);
     return response.data;
   },
 };

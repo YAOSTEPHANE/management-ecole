@@ -64,10 +64,13 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
       attendanceSource?: 'NFC' | 'BIOMETRIC' | 'MANUAL';
       notifyParentsOnSave?: boolean;
     }) => adminApi.recordNFCAttendance(data),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['admin-absences'] });
       setScannedNFCId(null);
-      toast.success('Présence enregistrée');
+      const phase = data?.punchPhase;
+      if (phase === 'CHECK_OUT') toast.success('Sortie enregistrée');
+      else if (phase === 'ALREADY_COMPLETE') toast('Pointage déjà complet (entrée + sortie)', { icon: 'ℹ️' });
+      else toast.success('Entrée enregistrée');
     },
     onError: (err: any) => toast.error(err.response?.data?.error || 'Erreur'),
   });
@@ -205,7 +208,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Pointage des élèves</h2>
               <p className="text-gray-600">
-                <strong>Carte scolaire</strong>, <strong>empreinte digitale</strong> (identifiant associé comme la carte) ou <strong>saisie manuelle</strong>. Choisissez le cours et la date, démarrez le pointage, puis enregistrez les présences.
+                Deux pointages par cours : <strong>entrée</strong> (avant / début) puis <strong>sortie</strong> (après le cours). Carte NFC, empreinte ou saisie manuelle.
               </p>
             </div>
           )}
@@ -258,7 +261,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
             Carte scolaire ou empreinte digitale
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Placez la carte sur le lecteur NFC ou utilisez un terminal biométrique configuré avec le même identifiant élève. Sinon ouvrez la saisie manuelle.
+            1er scan = entrée, 2e scan = sortie. Placez la carte ou utilisez la biométrie ; sinon saisie manuelle.
           </p>
           <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
             <label className="flex items-center gap-2 text-gray-700">
@@ -280,7 +283,7 @@ export default function PointageEleves({ embedded = false }: PointageElevesProps
                 onChange={(e) => setNotifyParentsOnSave(e.target.checked)}
                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
               />
-              Alerter les parents (absences non justifiées / retards)
+              Prévenir les parents par e-mail et SMS à chaque pointage (entrée et sortie)
             </label>
           </div>
           <NFCScanner

@@ -20,12 +20,19 @@ interface StudentsListProps {
 
 const StudentsList = ({ searchQuery = '' }: StudentsListProps) => {
   const [searchTerm, setSearchTerm] = useState(searchQuery);
+  const [classFilter, setClassFilter] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
+  const { data: classes } = useQuery({
+    queryKey: ['educator-classes'],
+    queryFn: educatorApi.getClasses,
+  });
+
   const { data: students, isLoading } = useQuery({
-    queryKey: ['educator-students'],
-    queryFn: educatorApi.getStudents,
+    queryKey: ['educator-students', classFilter],
+    queryFn: () =>
+      educatorApi.getStudents(classFilter ? { classId: classFilter } : undefined),
   });
 
   const filteredStudents = students?.filter((student: any) => {
@@ -84,6 +91,18 @@ const StudentsList = ({ searchQuery = '' }: StudentsListProps) => {
               placeholder="Rechercher un élève..."
             />
           </div>
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+          >
+            <option value="">Toutes les classes</option>
+            {((classes as any[]) ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} — {c.level}
+              </option>
+            ))}
+          </select>
           <div className="flex items-center space-x-2 text-gray-600">
             <FiUsers className="w-5 h-5" />
             <span className="font-medium">{filteredStudents?.length || 0} élève(s)</span>

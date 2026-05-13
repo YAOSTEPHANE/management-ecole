@@ -21,6 +21,13 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import {
+  EVALUATION_TYPE_OPTIONS,
+  getEvaluationBadgeVariant,
+  getEvaluationTypeLabel,
+  normalizeEvaluationType,
+  type EvaluationTypeValue,
+} from '@/lib/evaluationTypes';
 
 interface GradesManagerProps {
   searchQuery?: string;
@@ -81,9 +88,9 @@ const GradesManager = ({ searchQuery = '' }: GradesManagerProps) => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => teacherApi.deleteGrade(id),
-    onSuccess: () => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['teacher-course-grades'] });
-      toast.success('Note supprimée avec succès');
+      toast.success(data?.message ?? 'Demande de suppression soumise au circuit de validation.');
       setShowDeleteConfirm(null);
     },
     onError: (error: any) => {
@@ -171,11 +178,11 @@ const GradesManager = ({ searchQuery = '' }: GradesManagerProps) => {
                   className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value="all">Tous</option>
-                  <option value="EXAM">Examen</option>
-                  <option value="QUIZ">Contrôle</option>
-                  <option value="HOMEWORK">Devoir maison</option>
-                  <option value="PROJECT">Projet</option>
-                  <option value="ORAL">Oral</option>
+                  {EVALUATION_TYPE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="text-sm text-gray-600">
@@ -239,17 +246,10 @@ const GradesManager = ({ searchQuery = '' }: GradesManagerProps) => {
                           </td>
                           <td className="py-3 px-4">
                             <Badge
-                              variant={
-                                grade.evaluationType === 'EXAM' ? 'danger' :
-                                grade.evaluationType === 'QUIZ' ? 'warning' :
-                                'secondary'
-                              }
+                              variant={getEvaluationBadgeVariant(grade.evaluationType)}
                               size="sm"
                             >
-                              {grade.evaluationType === 'EXAM' ? 'Examen' :
-                               grade.evaluationType === 'QUIZ' ? 'Contrôle' :
-                               grade.evaluationType === 'HOMEWORK' ? 'Devoir' :
-                               grade.evaluationType === 'PROJECT' ? 'Projet' : 'Oral'}
+                              {getEvaluationTypeLabel(grade.evaluationType)}
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
@@ -372,7 +372,7 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
 
   const [formData, setFormData] = useState({
     studentId: grade?.studentId || '',
-    evaluationType: grade?.evaluationType || 'EXAM',
+    evaluationType: normalizeEvaluationType(grade?.evaluationType),
     title: grade?.title || '',
     score: grade?.score?.toString() || '',
     maxScore: grade?.maxScore?.toString() || '20',
@@ -407,9 +407,12 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
       }
       return teacherApi.createGrade(data);
     },
-    onSuccess: () => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['teacher-course-grades'] });
-      toast.success(isEditMode ? 'Note modifiée avec succès' : 'Note ajoutée avec succès');
+      toast.success(
+        data?.message ??
+          'Demande soumise au circuit de validation (prof principal, éducateur, directeur des études).'
+      );
       onClose();
     },
     onError: (error: any) => {
@@ -440,13 +443,7 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
     createMutation.mutate(submitData);
   };
 
-  const evaluationTypes = [
-    { value: 'EXAM', label: 'Examen' },
-    { value: 'QUIZ', label: 'Contrôle' },
-    { value: 'HOMEWORK', label: 'Devoir maison' },
-    { value: 'PROJECT', label: 'Projet' },
-    { value: 'ORAL', label: 'Oral' },
-  ];
+  const evaluationTypes = EVALUATION_TYPE_OPTIONS;
 
   return (
     <Modal
@@ -481,7 +478,12 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
           </label>
           <select
             value={formData.evaluationType}
-            onChange={(e) => setFormData({ ...formData, evaluationType: e.target.value })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                evaluationType: e.target.value as EvaluationTypeValue,
+              })
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
             required
           >
@@ -503,7 +505,7 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
             required
-            placeholder="Ex: Contrôle de mathématiques"
+            placeholder="Ex: Évaluation de mathématiques"
           />
         </div>
 

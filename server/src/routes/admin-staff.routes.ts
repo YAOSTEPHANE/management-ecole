@@ -2,7 +2,11 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import type { Prisma } from '@prisma/client';
 import prisma from '../utils/prisma';
-import { hashPassword } from '../utils/password.util';
+import {
+  inviteNewUserToSetPassword,
+  resolveAdminProvidedOrInvitePassword,
+} from '../utils/admin-user-initial-password.util';
+import { sanitizeVisibleStaffModules } from '../utils/staff-visible-modules.util';
 
 const router = express.Router();
 
@@ -241,14 +245,28 @@ router.post(
   '/staff',
   [
     body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
+    body('password')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 6 })
+      .withMessage('Mot de passe : au moins 6 caractères si renseigné'),
     body('firstName').notEmpty(),
     body('lastName').notEmpty(),
     body('employeeId').notEmpty(),
     body('staffCategory').isIn(['ADMINISTRATION', 'SUPPORT', 'SECURITY']),
     body('supportKind')
       .optional()
-      .isIn(['LIBRARIAN', 'NURSE', 'SECRETARY', 'ACCOUNTANT', 'IT', 'MAINTENANCE', 'OTHER']),
+      .isIn([
+        'LIBRARIAN',
+        'NURSE',
+        'SECRETARY',
+        'ACCOUNTANT',
+        'IT',
+        'MAINTENANCE',
+        'STUDIES_DIRECTOR',
+        'BURSAR',
+        'OTHER',
+      ]),
     body('hireDate').isISO8601(),
     body('jobTitle').optional().trim(),
     body('department').optional().trim(),
@@ -259,6 +277,7 @@ router.post(
     body('biometricId').optional().trim(),
     body('jobDescriptionId').optional().isString(),
     body('managerId').optional().isString(),
+    body('visibleStaffModules').optional().isArray(),
   ],
   async (req, res) => {
     try {
@@ -286,6 +305,7 @@ router.post(
         biometricId,
         jobDescriptionId,
         managerId,
+        visibleStaffModules,
       } = req.body;
 
       if (staffCategory === 'SUPPORT' && !supportKind) {
@@ -321,7 +341,13 @@ router.post(
         }
       }
 
-      const hashedPassword = await hashPassword(password);
+      const { hashedPassword, shouldSendSetupEmail } = await resolveAdminProvidedOrInvitePassword(password);
+
+      const modulesForCreate = sanitizeVisibleStaffModules(
+        staffCategory,
+        staffCategory === 'SUPPORT' ? supportKind : null,
+        visibleStaffModules,
+      );
 
       const user = await prisma.user.create({
         data: {
@@ -346,6 +372,7 @@ router.post(
               biometricId: biometricId ? String(biometricId).trim() : null,
               jobDescriptionId: jobDescriptionId || null,
               managerId: managerId || null,
+              visibleStaffModules: modulesForCreate,
             },
           },
         },
@@ -356,7 +383,16 @@ router.post(
         },
       });
 
-      res.status(201).json(user);
+      if (shouldSendSetupEmail) {
+        try {
+          await inviteNewUserToSetPassword(user.id, user.email, user.firstName);
+        } catch (inviteErr) {
+          console.error('Invitation mot de passe (personnel):', inviteErr);
+        }
+      }
+
+      const { password: _pw, ...userWithoutPassword } = user;
+      res.status(201).json({ ...userWithoutPassword, passwordSetupEmailSent: shouldSendSetupEmail });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erreur serveur';
       res.status(500).json({ error: message });
@@ -415,6 +451,7 @@ router.put('/staff/:id', async (req, res) => {
       jobDescriptionId,
       managerId,
       isActive,
+      visibleStaffModules,
     } = req.body;
 
     if (managerId === req.params.id) {
@@ -455,6 +492,18 @@ router.put('/staff/:id', async (req, res) => {
       }
     }
 
+    const nextSupportKind =
+      supportKind !== undefined
+        ? nextCategory === 'SUPPORT'
+          ? (supportKind ?? staff.supportKind)
+          : null
+        : staff.supportKind;
+
+    const nextModules =
+      visibleStaffModules !== undefined
+        ? sanitizeVisibleStaffModules(nextCategory, nextSupportKind, visibleStaffModules)
+        : undefined;
+
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: staff.userId },
@@ -488,6 +537,7 @@ router.put('/staff/:id', async (req, res) => {
           ...(managerId !== undefined && {
             managerId: managerId === null || managerId === '' ? null : managerId,
           }),
+          ...(nextModules !== undefined && { visibleStaffModules: nextModules }),
         },
       });
     });

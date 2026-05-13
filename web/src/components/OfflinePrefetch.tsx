@@ -39,7 +39,15 @@ async function prefetchEssential(role: string) {
       );
       break;
     case "EDUCATOR":
-      tasks.push(api.get("/educator/profile"));
+      tasks.push(
+        api.get("/educator/profile"),
+        api.get("/educator/classes"),
+        api.get("/educator/students"),
+        api.get("/educator/teachers"),
+        api.get("/educator/parents"),
+        api.get("/educator/schedules"),
+        api.get("/educator/messaging/threads")
+      );
       break;
     default:
       break;

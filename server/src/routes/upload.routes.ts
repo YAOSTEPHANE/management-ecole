@@ -1,7 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import { authenticate } from '../middleware/auth.middleware';
-import { upload, identityUpload, getFileUrl } from '../middleware/upload.middleware';
+import { upload, identityUpload, getFileUrl, digitalLibraryUpload, elearningUpload } from '../middleware/upload.middleware';
 import prisma from '../utils/prisma';
 
 const IDENTITY_TYPES = [
@@ -50,9 +50,17 @@ router.post('/avatar', upload.single('avatar'), async (req: any, res) => {
   }
 });
 
-// Upload de fichier pour devoir
+// Upload de fichier pour devoir (enseignants / administration)
 router.post('/assignment', upload.single('assignment'), async (req: any, res) => {
   try {
+    const role = req.user?.role;
+    if (!role || !['TEACHER', 'ADMIN', 'SUPER_ADMIN'].includes(role)) {
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).json({ error: 'Seuls les enseignants et administrateurs peuvent joindre des fichiers aux devoirs' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
@@ -244,6 +252,68 @@ router.post(
     }
   }
 );
+
+// Fichiers bibliothèque numérique (admin / bibliothécaire)
+router.post('/digital-library', digitalLibraryUpload.single('digitalLibrary'), async (req: any, res) => {
+  try {
+    const role = req.user?.role;
+    const userId = req.user?.id as string | undefined;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    let allowed = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    if (!allowed && role === 'STAFF') {
+      const { assertStaffHasModule } = await import('../utils/staff-visible-modules.util');
+      try {
+        await assertStaffHasModule(userId, 'digital_library');
+        allowed = true;
+      } catch {
+        allowed = false;
+      }
+    }
+    if (!allowed) {
+      if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'Droit insuffisant pour déposer une ressource numérique' });
+    }
+
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+
+    const fileUrl = getFileUrl(req.file.filename, 'digital-library');
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      message: 'Fichier déposé',
+      url: fullUrl,
+      filename: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/elearning', elearningUpload.single('elearning'), async (req: any, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== 'TEACHER' && role !== 'ADMIN') {
+      if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'Droit insuffisant' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+
+    const fileUrl = getFileUrl(req.file.filename, 'elearning');
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+    res.json({
+      message: 'Fichier déposé',
+      url: fullUrl,
+      filename: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
 
 export default router;
 

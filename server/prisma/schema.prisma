@@ -16,6 +16,7 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   TEACHER
   STUDENT
@@ -39,6 +40,10 @@ enum SupportStaffKind {
   ACCOUNTANT
   IT
   MAINTENANCE
+  /// Directeur(trice) des études — suivi pédagogique, examens, orientation
+  STUDIES_DIRECTOR
+  /// Économe — gestion financière de l’établissement (trésorerie scolaire)
+  BURSAR
   OTHER
 }
 
@@ -76,9 +81,10 @@ enum AbsenceStatus {
 
 enum EvaluationType {
   EXAM
-  QUIZ
-  HOMEWORK
-  PROJECT
+  EVALUATION
+  HOME_EXERCISE
+  LEVEL_HOMEWORK
+  CLASS_HOMEWORK
   ORAL
 }
 
@@ -180,6 +186,12 @@ enum TeacherLeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+/// Statut d'engagement pédagogique de l'enseignant
+enum TeacherEngagementKind {
+  PERMANENT
+  VACATAIRE
 }
 
 enum CalendarEventType {
@@ -309,6 +321,8 @@ model User {
   libraryCreatedLoans       LibraryLoan[]      @relation("LibraryLoanCreator")
   libraryReservations     LibraryReservation[] @relation("LibraryReserver")
   libraryPenalties        LibraryPenalty[]     @relation("LibraryPenaltyUser")
+  digitalLibraryCreated   DigitalLibraryResource[]    @relation("DigitalLibraryCreator")
+  digitalLibraryDownloads DigitalLibraryDownloadGrant[] @relation("DigitalLibraryDownloadUser")
   materialMaintReported   MaterialMaintenance[] @relation("MatMaintReporter")
   materialMaintAssigned     MaterialMaintenance[] @relation("MatMaintAssignee")
   materialRoomReservationsRequested MaterialRoomReservation[] @relation("MatRoomReservationRequester")
@@ -351,6 +365,64 @@ enum LibraryReservationStatus {
   FULFILLED
   CANCELLED
   EXPIRED
+}
+
+/// Type de ressource — bibliothèque numérique
+enum DigitalLibraryResourceKind {
+  EBOOK
+  PDF
+  PEDAGOGICAL
+}
+
+model DigitalLibraryResource {
+  id                    String                   @id @default(auto()) @map("_id") @db.ObjectId
+  title                 String
+  author                String?
+  description           String?
+  kind                  DigitalLibraryResourceKind
+  fileUrl               String
+  fileName              String?
+  mimeType              String?
+  fileSizeBytes         Int?
+  coverImageUrl         String?
+  subject               String?
+  level                 String?
+  onlineAccessEnabled   Boolean                  @default(true)
+  tempDownloadEnabled   Boolean                  @default(true)
+  downloadTtlHours      Int                      @default(48)
+  /// Rôles autorisés (vide = tous les comptes authentifiés éligibles)
+  allowedRoles          String[]                 @default([])
+  isActive              Boolean                  @default(true)
+  publishedAt           DateTime?
+  createdById           String?                  @db.ObjectId
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  createdBy      User?                         @relation("DigitalLibraryCreator", fields: [createdById], references: [id])
+  downloadGrants DigitalLibraryDownloadGrant[]
+
+  @@index([kind])
+  @@index([isActive])
+  @@index([title])
+  @@map("digital_library_resources")
+}
+
+model DigitalLibraryDownloadGrant {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  resourceId   String   @db.ObjectId
+  userId       String   @db.ObjectId
+  token        String   @unique
+  expiresAt    DateTime
+  downloadedAt DateTime?
+  createdAt    DateTime @default(now())
+
+  resource DigitalLibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user     User                   @relation("DigitalLibraryDownloadUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("digital_library_download_grants")
 }
 
 model LibraryBook {
@@ -686,6 +758,8 @@ model Teacher {
   specialization String
   hireDate      DateTime
   contractType  String
+  /// Permanent (titulaire) ou vacataire
+  engagementKind TeacherEngagementKind @default(PERMANENT)
   salary        Float?
   /// Présentation / compétences (profil)
   bio           String?
@@ -710,9 +784,13 @@ model Teacher {
   careerHistory             TeacherCareerHistory[]
   professionalTrainings     TeacherProfessionalTraining[]
   administrativeDocuments   TeacherAdministrativeDocument[]
+  elearningCourses          ElearningCourse[]
+  pedagogicalResources      PedagogicalResourceBank[]
+  virtualClassSessions      VirtualClassSession[]
 
   @@index([nfcId])
   @@index([biometricId])
+  @@index([engagementKind])
   @@map("teachers")
 }
 
@@ -898,6 +976,16 @@ model Student {
   extracurricularRegistrations ExtracurricularRegistration[]
   orientationFollowUps        StudentOrientationFollowUp[]
   orientationPlacements       StudentOrientationPlacement[]
+  staffModuleRecords          StaffModuleRecord[]
+  healthDossier               StudentHealthDossier?
+  vaccinations                StudentVaccination[]
+  allergyRecords              StudentAllergyRecord[]
+  treatments                  StudentTreatment[]
+  infirmaryVisits             InfirmaryVisit[]
+  healthCampaignParticipations HealthCampaignParticipation[]
+  healthEmergencies           HealthEmergencyLog[]
+  elearningQuizAttempts       ElearningQuizAttempt[]
+  elearningLessonProgress     ElearningLessonProgress[]
 
   @@index([nfcId])
   @@index([biometricId])
@@ -1062,6 +1150,12 @@ model StaffMember {
   manager          StaffMember?      @relation("StaffReportsTo", fields: [managerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   directReports    StaffMember[]     @relation("StaffReportsTo")
   attendances      StaffAttendance[]
+  moduleRecords    StaffModuleRecord[]
+  infirmaryVisits  InfirmaryVisit[]
+  healthEmergenciesReported HealthEmergencyLog[] @relation("HealthEmergencyReporter")
+
+  /// Modules visibles dans l’espace STAFF (ids). Vide = défauts du métier (supportKind).
+  visibleStaffModules String[] @default([])
 
   @@index([staffCategory])
   @@index([nfcId])
@@ -1078,6 +1172,8 @@ model StaffAttendance {
   source             String        @default("ADMIN")
   recordedByUserId   String?       @db.ObjectId
   notes              String?
+  checkInAt          DateTime?
+  checkOutAt         DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -1086,6 +1182,200 @@ model StaffAttendance {
   @@unique([staffId, attendanceDate])
   @@index([attendanceDate])
   @@map("staff_attendances")
+}
+
+model StaffModuleRecord {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  staffMemberId String   @db.ObjectId
+  moduleKey     String
+  title         String
+  status        String   @default("OPEN")
+  payload       Json?
+  studentId     String?  @db.ObjectId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student     Student?    @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([staffMemberId, moduleKey])
+  @@index([moduleKey, status])
+  @@map("staff_module_records")
+}
+
+// ========== INFIRMERIE & SANTÉ ==========
+
+enum InfirmaryVisitOutcome {
+  RETURN_TO_CLASS
+  SENT_HOME
+  PARENT_PICKUP
+  REFERRED_HOSPITAL
+  REST_INFIRMARY
+  OTHER
+}
+
+enum HealthCampaignKind {
+  VACCINATION
+  HEALTH_CHECKUP
+  AWARENESS
+  EMERGENCY_PREP
+}
+
+enum HealthEmergencySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model StudentHealthDossier {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId           String   @unique @db.ObjectId
+  medicalHistory      String?
+  familyDoctorName    String?
+  familyDoctorPhone   String?
+  preferredHospital   String?
+  insuranceInfo       String?
+  additionalNotes     String?
+  lastUpdatedByUserId String?  @db.ObjectId
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_health_dossiers")
+}
+
+model StudentVaccination {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  studentId   String    @db.ObjectId
+  vaccineName String
+  administeredAt DateTime
+  doseLabel   String?
+  batchNumber String?
+  campaignId  String?   @db.ObjectId
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  student  Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  campaign HealthCampaign? @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([studentId])
+  @@map("student_vaccinations")
+}
+
+model StudentAllergyRecord {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId String   @db.ObjectId
+  allergen  String
+  severity  String?
+  reaction  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("student_allergy_records")
+}
+
+model StudentTreatment {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String    @db.ObjectId
+  medication   String
+  dosage       String?
+  schedule     String?
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean   @default(true)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, isActive])
+  @@map("student_treatments")
+}
+
+model InfirmaryVisit {
+  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  studentId           String                @db.ObjectId
+  staffMemberId       String?               @db.ObjectId
+  visitedAt           DateTime              @default(now())
+  motive              String
+  careAdministered    String?
+  medicationsGiven    String?
+  outcome             InfirmaryVisitOutcome @default(RETURN_TO_CLASS)
+  medicalCertificateUrl String?
+  parentNotified      Boolean               @default(false)
+  notes               String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  staffMember StaffMember? @relation(fields: [staffMemberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([studentId, visitedAt])
+  @@index([visitedAt])
+  @@map("infirmary_visits")
+}
+
+model HealthCampaign {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  kind        HealthCampaignKind
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  targetLevels String[]          @default([])
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  vaccinations   StudentVaccination[]
+  participations HealthCampaignParticipation[]
+
+  @@index([kind, isActive])
+  @@map("health_campaigns")
+}
+
+model HealthCampaignParticipation {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaignId  String    @db.ObjectId
+  studentId   String    @db.ObjectId
+  status      String    @default("SCHEDULED")
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  campaign HealthCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  student  Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, studentId])
+  @@index([studentId])
+  @@map("health_campaign_participations")
+}
+
+model HealthEmergencyLog {
+  id              String                  @id @default(auto()) @map("_id") @db.ObjectId
+  studentId       String?                 @db.ObjectId
+  reportedByStaffId String?                 @db.ObjectId
+  severity        HealthEmergencySeverity @default(MEDIUM)
+  reportedAt      DateTime                @default(now())
+  description     String
+  actionsTaken    String?
+  resolvedAt      DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  student    Student?     @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reportedBy StaffMember? @relation("HealthEmergencyReporter", fields: [reportedByStaffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([reportedAt])
+  @@index([severity])
+  @@map("health_emergency_logs")
 }
 
 model StudentParent {
@@ -1150,6 +1440,8 @@ model Class {
   admissions  Admission[]
   tuitionFeeCatalogEntries TuitionFeeCatalog[]
   extracurricularOfferings ExtracurricularOffering[]
+  elearningCourses ElearningCourse[]
+  virtualClassSessions VirtualClassSession[]
 
   @@map("classes")
 }
@@ -1171,6 +1463,8 @@ model Course {
   assignments Assignment[]
   schedule    Schedule[]
   absences    Absence[]
+  elearningCourses ElearningCourse[]
+  virtualClassSessions VirtualClassSession[]
 
   @@map("courses")
 }
@@ -1214,6 +1508,11 @@ model Absence {
   hasMedicalCertificate   Boolean       @default(false)
   sanctionNote            String?
   parentNotifiedAt        DateTime?
+  /// Pointage entrée (avant / début de cours)
+  checkInAt               DateTime?
+  /// Pointage sortie (après cours)
+  checkOutAt              DateTime?
+  scheduleId              String?       @db.ObjectId
 
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
@@ -1760,17 +2059,29 @@ model AuditLog {
 model TeacherAttendance {
   id               String        @id @default(auto()) @map("_id") @db.ObjectId
   teacherId        String        @db.ObjectId
+  /// Clé de session : `YYYY-MM-DD:courseId` (une ligne par cours et par jour)
+  sessionKey       String
   attendanceDate   String
+  courseId         String?       @db.ObjectId
+  scheduleId       String?       @db.ObjectId
   status           AbsenceStatus @default(PRESENT)
   source           String        @default("NFC")
   recordedByUserId String?       @db.ObjectId
+  checkInAt        DateTime?
+  /// Départ prévu (fin de créneau emploi du temps) ou effectif
+  checkOutAt       DateTime?
+  /// Durée théorique du créneau (minutes)
+  plannedMinutes   Int?
+  /// Heures de cours décomptées (minutes, en général = créneau horaire)
+  teachingMinutes  Int?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   teacher          Teacher       @relation(fields: [teacherId], references: [id])
 
-  @@unique([teacherId, attendanceDate])
+  @@unique([teacherId, sessionKey])
   @@index([attendanceDate])
+  @@index([courseId])
   @@map("teacher_attendances")
 }
 
@@ -2094,8 +2405,280 @@ model AppBranding {
   faviconUrl        String?
   appTitle          String?
   appTagline        String?
+  /// Fiche établissement (onglet Paramètres → Établissement)
+  schoolDisplayName String?
+  schoolAddress     String?
+  schoolPhone       String?
+  schoolEmail       String?
+  schoolWebsite     String?
+  schoolPrincipal   String?
   updatedAt         DateTime @updatedAt
 
   @@map("app_branding")
+}
+
+/// Cible d'une demande de modification (note ou moyenne bulletin)
+enum AcademicChangeTarget {
+  GRADE
+  REPORT_CARD
+}
+
+enum AcademicChangeKind {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+/// Circuit de validation : prof principal → éducateur → directeur des études
+enum AcademicChangeWorkflowStatus {
+  PENDING_MAIN_TEACHER
+  PENDING_EDUCATOR
+  PENDING_STUDIES_DIRECTOR
+  APPROVED
+  REJECTED
+}
+
+model AcademicChangeRequest {
+  id              String                       @id @default(auto()) @map("_id") @db.ObjectId
+  target          AcademicChangeTarget
+  kind            AcademicChangeKind
+  status          AcademicChangeWorkflowStatus @default(PENDING_MAIN_TEACHER)
+
+  studentId       String                       @db.ObjectId
+  classId         String?                      @db.ObjectId
+  gradeId         String?                      @db.ObjectId
+  reportCardId    String?                      @db.ObjectId
+
+  payload         Json
+  previousPayload Json?
+
+  requestedByUserId String                     @db.ObjectId
+  requestedAt     DateTime                     @default(now())
+
+  mainTeacherApprovedAt         DateTime?
+  mainTeacherApprovedByUserId   String?                      @db.ObjectId
+  mainTeacherNote               String?
+
+  educatorApprovedAt            DateTime?
+  educatorApprovedByUserId      String?                      @db.ObjectId
+  educatorNote                  String?
+
+  studiesDirectorApprovedAt     DateTime?
+  studiesDirectorApprovedByUserId String?                    @db.ObjectId
+  studiesDirectorNote           String?
+
+  rejectedAt       DateTime?
+  rejectedByUserId String?                      @db.ObjectId
+  rejectionReason  String?
+
+  appliedAt        DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@index([status])
+  @@index([studentId])
+  @@index([classId])
+  @@index([gradeId])
+  @@map("academic_change_requests")
+}
+
+// ——— E-learning & ressources numériques (§10) ———
+
+enum ElearningLessonKind {
+  VIDEO
+  DOCUMENT
+  EXERCISE
+  QUIZ
+  EXTERNAL_LINK
+  HOMEWORK
+}
+
+enum ElearningQuestionKind {
+  MCQ
+  TRUE_FALSE
+  SHORT_TEXT
+}
+
+enum VirtualClassSessionStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum PedagogicalResourceKind {
+  DOCUMENT
+  VIDEO
+  AUDIO
+  IMAGE
+  EXTERNAL_LINK
+  MULTIMEDIA
+}
+
+/// Parcours e-learning (cours en ligne)
+model ElearningCourse {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  subject     String?
+  level       String?
+  coverImageUrl String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacherId   String   @db.ObjectId
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  classId     String?  @db.ObjectId
+  class       Class?   @relation(fields: [classId], references: [id])
+  courseId    String?  @db.ObjectId
+  course      Course?  @relation(fields: [courseId], references: [id])
+
+  lessons     ElearningLesson[]
+  virtualSessions VirtualClassSession[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([isPublished])
+  @@map("elearning_courses")
+}
+
+/// Leçon / activité dans un parcours (vidéo, doc, quiz, devoir…)
+model ElearningLesson {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  elearningCourseId String            @db.ObjectId
+  elearningCourse ElearningCourse     @relation(fields: [elearningCourseId], references: [id], onDelete: Cascade)
+  title           String
+  kind            ElearningLessonKind
+  sortOrder       Int                 @default(0)
+  fileUrl         String?
+  externalUrl     String?
+  body            String?
+  durationMinutes Int?
+  isPublished     Boolean             @default(true)
+  assignmentId    String?             @db.ObjectId
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  quiz            ElearningQuiz?
+  progress        ElearningLessonProgress[]
+
+  @@index([elearningCourseId])
+  @@map("elearning_lessons")
+}
+
+model ElearningQuiz {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  lessonId     String   @unique @db.ObjectId
+  lesson       ElearningLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title        String
+  passingScore Float    @default(50)
+  autoGrade    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  questions    ElearningQuizQuestion[]
+  attempts     ElearningQuizAttempt[]
+
+  @@map("elearning_quizzes")
+}
+
+model ElearningQuizQuestion {
+  id            String                @id @default(auto()) @map("_id") @db.ObjectId
+  quizId        String                @db.ObjectId
+  quiz          ElearningQuiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  kind          ElearningQuestionKind
+  prompt        String
+  options       Json?
+  correctAnswer String
+  points        Int                   @default(1)
+  sortOrder     Int                   @default(0)
+
+  @@index([quizId])
+  @@map("elearning_quiz_questions")
+}
+
+model ElearningQuizAttempt {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  quizId      String   @db.ObjectId
+  quiz        ElearningQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String   @db.ObjectId
+  student     Student  @relation(fields: [studentId], references: [id])
+  answers     Json
+  score       Float?
+  maxScore    Float?
+  passed      Boolean?
+  submittedAt DateTime @default(now())
+
+  @@index([quizId])
+  @@index([studentId])
+  @@map("elearning_quiz_attempts")
+}
+
+model ElearningLessonProgress {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  lessonId    String   @db.ObjectId
+  lesson      ElearningLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId   String   @db.ObjectId
+  student     Student  @relation(fields: [studentId], references: [id])
+  completedAt DateTime @default(now())
+
+  @@unique([lessonId, studentId])
+  @@map("elearning_lesson_progress")
+}
+
+/// Banque de ressources pédagogiques partagées (§10.3)
+model PedagogicalResourceBank {
+  id                  String                  @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  kind                PedagogicalResourceKind
+  subject             String?
+  level               String?
+  fileUrl             String?
+  externalUrl         String?
+  tags                String[]
+  sharedWithTeachers  Boolean                 @default(true)
+  createdByTeacherId  String                  @db.ObjectId
+  teacher             Teacher                 @relation(fields: [createdByTeacherId], references: [id])
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([subject])
+  @@index([level])
+  @@index([createdByTeacherId])
+  @@map("pedagogical_resource_bank")
+}
+
+/// Classe virtuelle (visio, tableau blanc, enregistrement — liens externes en v1)
+model VirtualClassSession {
+  id                  String                    @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  scheduledStart      DateTime
+  durationMinutes     Int                       @default(60)
+  status              VirtualClassSessionStatus @default(SCHEDULED)
+  meetingUrl          String?
+  recordingUrl        String?
+  whiteboardUrl       String?
+  screenShareEnabled  Boolean                   @default(true)
+  chatEnabled         Boolean                   @default(true)
+  breakoutRoomsNotes  String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  teacherId           String                    @db.ObjectId
+  teacher             Teacher                   @relation(fields: [teacherId], references: [id])
+  elearningCourseId   String?                   @db.ObjectId
+  elearningCourse     ElearningCourse?          @relation(fields: [elearningCourseId], references: [id])
+  courseId            String?                   @db.ObjectId
+  course              Course?                   @relation(fields: [courseId], references: [id])
+  classId             String?                   @db.ObjectId
+  class               Class?                    @relation(fields: [classId], references: [id])
+
+  @@index([teacherId])
+  @@index([scheduledStart])
+  @@index([status])
+  @@map("virtual_class_sessions")
 }
 

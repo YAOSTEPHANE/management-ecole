@@ -18,6 +18,12 @@ export type AppBrandingPayload = {
   faviconUrl: string | null;
   appTitle: string | null;
   appTagline: string | null;
+  schoolDisplayName: string | null;
+  schoolAddress: string | null;
+  schoolPhone: string | null;
+  schoolEmail: string | null;
+  schoolWebsite: string | null;
+  schoolPrincipal: string | null;
 };
 
 type AppBrandingContextValue = {
@@ -36,6 +42,12 @@ const DEFAULT_BRANDING: AppBrandingPayload = {
   faviconUrl: null,
   appTitle: null,
   appTagline: null,
+  schoolDisplayName: null,
+  schoolAddress: null,
+  schoolPhone: null,
+  schoolEmail: null,
+  schoolWebsite: null,
+  schoolPrincipal: null,
 };
 
 const AppBrandingContext = createContext<AppBrandingContextValue | null>(null);
@@ -55,6 +67,12 @@ export function AppBrandingProvider({ children }: { children: ReactNode }) {
         faviconUrl: data.faviconUrl ?? null,
         appTitle: data.appTitle ?? null,
         appTagline: data.appTagline ?? null,
+        schoolDisplayName: data.schoolDisplayName ?? null,
+        schoolAddress: data.schoolAddress ?? null,
+        schoolPhone: data.schoolPhone ?? null,
+        schoolEmail: data.schoolEmail ?? null,
+        schoolWebsite: data.schoolWebsite ?? null,
+        schoolPrincipal: data.schoolPrincipal ?? null,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Chargement de la charte impossible';

@@ -18,10 +18,14 @@ import {
   FiUsers,
   FiCheckCircle,
   FiClock,
-  FiXCircle
+  FiXCircle,
+  FiPaperclip,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import AssignmentAttachmentsField, {
+  type AssignmentAttachmentItem,
+} from '../assignments/AssignmentAttachmentsField';
 
 interface AssignmentsManagerProps {
   searchQuery?: string;
@@ -267,6 +271,16 @@ const AssignmentsManager = ({ searchQuery = '' }: AssignmentsManagerProps) => {
                             {submittedCount}/{totalStudents} élèves ont rendu
                           </span>
                         </div>
+                        {assignment.attachments?.length > 0 && (
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <FiPaperclip className="w-4 h-4" />
+                            <span>
+                              {assignment.attachments.length} pièce
+                              {assignment.attachments.length > 1 ? 's' : ''} jointe
+                              {assignment.attachments.length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Progress Bar */}
@@ -340,13 +354,16 @@ const AddAssignmentModal = ({ isOpen, onClose, courseId, courseData, assignment 
   const queryClient = useQueryClient();
   const isEditMode = !!assignment;
 
+  const toAttachmentItems = (urls: string[] | undefined): AssignmentAttachmentItem[] =>
+    (urls ?? []).map((url, i) => ({ url, name: `Fichier ${i + 1}` }));
+
   const [formData, setFormData] = useState({
     title: assignment?.title || '',
     description: assignment?.description || '',
     dueDate: assignment?.dueDate
       ? new Date(assignment.dueDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0],
-    attachments: assignment?.attachments || [],
+    attachmentItems: toAttachmentItems(assignment?.attachments),
   });
 
   const createMutation = useMutation({
@@ -374,7 +391,7 @@ const AddAssignmentModal = ({ isOpen, onClose, courseId, courseData, assignment 
       title: formData.title,
       description: formData.description,
       dueDate: formData.dueDate,
-      attachments: formData.attachments,
+      attachments: formData.attachmentItems.map((a) => a.url),
     };
 
     createMutation.mutate(submitData);
@@ -429,6 +446,19 @@ const AddAssignmentModal = ({ isOpen, onClose, courseId, courseData, assignment 
             disabled={isEditMode}
           />
         </div>
+
+        {!isEditMode ? (
+          <AssignmentAttachmentsField
+            value={formData.attachmentItems}
+            onChange={(attachmentItems) => setFormData((prev) => ({ ...prev, attachmentItems }))}
+          />
+        ) : (
+          <AssignmentAttachmentsField
+            value={toAttachmentItems(assignment?.attachments)}
+            onChange={() => {}}
+            disabled
+          />
+        )}
 
         {isEditMode && assignment?.students && (
           <div>

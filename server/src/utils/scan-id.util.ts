@@ -12,3 +12,9 @@ export function matchTeacherScanId(scanId: string): Prisma.TeacherWhereInput {
     OR: [{ nfcId: scanId }, { biometricId: scanId }],
   };
 }
+
+export function matchStaffScanId(scanId: string): Prisma.StaffMemberWhereInput {
+  return {
+    OR: [{ nfcId: scanId }, { biometricId: scanId }],
+  };
+}

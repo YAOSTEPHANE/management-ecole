@@ -18,6 +18,10 @@ import {
   FiCheck,
   FiBook
 } from 'react-icons/fi';
+import {
+  TEACHER_ENGAGEMENT_KIND_OPTIONS,
+  normalizeTeacherEngagementKind,
+} from '@/lib/teacherEngagementKind';
 
 interface EditTeacherModalProps {
   isOpen: boolean;
@@ -47,6 +51,7 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
     
     // Informations professionnelles
     specialization: '',
+    engagementKind: 'PERMANENT' as 'PERMANENT' | 'VACATAIRE',
     contractType: 'CDI',
     salary: '',
     isActive: true,
@@ -65,6 +70,7 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
         email: teacher.user?.email || '',
         phone: teacher.user?.phone || '',
         specialization: teacher.specialization || '',
+        engagementKind: normalizeTeacherEngagementKind(teacher.engagementKind),
         contractType: teacher.contractType || 'CDI',
         salary: teacher.salary ? teacher.salary.toString() : '',
         isActive: teacher.user?.isActive !== undefined ? teacher.user.isActive : true,
@@ -165,6 +171,7 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
 
     if (step === 2) {
       if (!formData.specialization.trim()) newErrors.specialization = 'La spécialité est requise';
+      if (!formData.engagementKind) newErrors.engagementKind = 'Le type d\'enseignant est requis';
       if (!formData.contractType) newErrors.contractType = 'Le type de contrat est requis';
     }
 
@@ -200,6 +207,7 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
       lastName: formData.lastName,
       phone: formData.phone || undefined,
       specialization: formData.specialization,
+      engagementKind: normalizeTeacherEngagementKind(formData.engagementKind),
       contractType: formData.contractType,
       salary: formData.salary || undefined,
       isActive: formData.isActive,
@@ -451,6 +459,34 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Type d&apos;enseignant <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="engagementKind"
+                    value={formData.engagementKind}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                      errors.engagementKind ? 'border-red-500' : 'border-stone-200'
+                    }`}
+                  >
+                    {TEACHER_ENGAGEMENT_KIND_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.engagementKind && (
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
+                      {errors.engagementKind}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Type de contrat <span className="text-red-500">*</span>

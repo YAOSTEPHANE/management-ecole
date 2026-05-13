@@ -16,6 +16,9 @@ import TeacherLeavesTab from '../../components/teacher/TeacherLeavesTab';
 import TeacherSelfAttendance from '../../components/teacher/TeacherSelfAttendance';
 import TeacherAppointmentsPanel from '../../components/teacher/TeacherAppointmentsPanel';
 import TeacherInternalMessaging from '../../components/teacher/TeacherInternalMessaging';
+import AcademicValidationPanel from '../../components/academic/AcademicValidationPanel';
+import DigitalLibraryBrowser from '../../components/digital-library/DigitalLibraryBrowser';
+import ElearningHub from '../../components/elearning/ElearningHub';
 import {
   FiLayout,
   FiBook,
@@ -33,6 +36,9 @@ import {
   FiCommand,
   FiClock,
   FiMessageCircle,
+  FiCheckCircle,
+  FiCloud,
+  FiMonitor,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -52,6 +58,9 @@ const VALID_TAB_IDS = [
   'assignments',
   'conduct',
   'messaging',
+  'validations',
+  'digital-library',
+  'elearning',
 ] as const;
 
 type TabId = (typeof VALID_TAB_IDS)[number];
@@ -82,6 +91,7 @@ const TeacherDashboard = () => {
       { id: 'leaves', label: 'Congés & absences', icon: FiSun, color: 'from-sky-500 to-teal-600', description: 'Demandes de congé et absences' },
       { id: 'courses', label: 'Mes cours', icon: FiBook, color: 'from-emerald-600 to-green-700', description: 'Groupes, contenus et suivi par classe' },
       { id: 'grades', label: 'Notes', icon: FiClipboard, color: 'from-violet-500 to-purple-600', description: 'Saisie et suivi des évaluations' },
+      { id: 'validations', label: 'Validations', icon: FiCheckCircle, color: 'from-blue-600 to-indigo-600', description: 'Valider les notes et moyennes (professeur principal)' },
       { id: 'attendance', label: 'Présences', icon: FiUserCheck, color: 'from-cyan-500 to-teal-600', description: 'Appels et assiduité' },
       { id: 'assignments', label: 'Devoirs', icon: FiFileText, color: 'from-indigo-500 to-blue-600', description: 'Travaux donnés et rendus' },
       { id: 'conduct', label: 'Conduite', icon: FiShield, color: 'from-rose-500 to-pink-600', description: 'Appréciations de comportement' },
@@ -92,6 +102,8 @@ const TeacherDashboard = () => {
         color: 'from-sky-500 to-indigo-600',
         description: 'Échanges avec l’administration, les collègues, les familles et messages groupés par classe',
       },
+      { id: 'digital-library', label: 'Bibliothèque numérique', icon: FiCloud, color: 'from-sky-500 to-indigo-600', description: 'E-books, PDF et ressources pédagogiques' },
+      { id: 'elearning', label: 'E-learning', icon: FiMonitor, color: 'from-violet-500 to-purple-600', description: 'Cours en ligne, classes virtuelles et banque de ressources' },
     ],
     []
   );
@@ -256,10 +268,15 @@ const TeacherDashboard = () => {
                 {activeTab === 'leaves' && <TeacherLeavesTab />}
                 {activeTab === 'courses' && <CoursesList searchQuery={searchQuery} />}
                 {activeTab === 'grades' && <GradesManager searchQuery={searchQuery} />}
+                {activeTab === 'validations' && (
+                  <AcademicValidationPanel title="Validations (professeur principal)" />
+                )}
                 {activeTab === 'attendance' && <AttendanceManager searchQuery={searchQuery} />}
                 {activeTab === 'assignments' && <AssignmentsManager searchQuery={searchQuery} />}
                 {activeTab === 'conduct' && <TeacherConduct />}
                 {activeTab === 'messaging' && <TeacherInternalMessaging />}
+                {activeTab === 'digital-library' && <DigitalLibraryBrowser />}
+                {activeTab === 'elearning' && <ElearningHub mode="teacher" />}
               </div>
             </div>
           </main>

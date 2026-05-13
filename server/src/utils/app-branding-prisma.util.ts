@@ -16,6 +16,12 @@ export type AppBrandingRow = {
   faviconUrl: string | null;
   appTitle: string | null;
   appTagline: string | null;
+  schoolDisplayName: string | null;
+  schoolAddress: string | null;
+  schoolPhone: string | null;
+  schoolEmail: string | null;
+  schoolWebsite: string | null;
+  schoolPrincipal: string | null;
 };
 
 /** Après ajout du modèle AppBranding, un `npx prisma generate` est requis. */

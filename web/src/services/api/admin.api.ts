@@ -1266,7 +1266,7 @@ export const adminApi = {
   },
   createEducator: async (data: {
     email: string;
-    password: string;
+    password?: string;
     firstName: string;
     lastName: string;
     phone?: string;
@@ -1344,7 +1344,7 @@ export const adminApi = {
   },
   createStaffMember: async (data: {
     email: string;
-    password: string;
+    password?: string;
     firstName: string;
     lastName: string;
     phone?: string;
@@ -1357,6 +1357,8 @@ export const adminApi = {
       | 'ACCOUNTANT'
       | 'IT'
       | 'MAINTENANCE'
+      | 'STUDIES_DIRECTOR'
+      | 'BURSAR'
       | 'OTHER';
     jobTitle?: string;
     department?: string;
@@ -1368,6 +1370,7 @@ export const adminApi = {
     biometricId?: string;
     jobDescriptionId?: string | null;
     managerId?: string | null;
+    visibleStaffModules?: string[];
   }) => {
     const response = await api.post('/admin/staff', data);
     return response.data;
@@ -1392,6 +1395,7 @@ export const adminApi = {
       jobDescriptionId: string | null;
       managerId: string | null;
       isActive: boolean;
+      visibleStaffModules?: string[];
     }>
   ) => {
     const response = await api.put(`/admin/staff/${id}`, data);
@@ -1443,7 +1447,7 @@ export const adminApi = {
   enrollFromAdmission: async (
     id: string,
     data: {
-      password: string;
+      password?: string;
       studentId?: string;
       classId?: string;
       address?: string;

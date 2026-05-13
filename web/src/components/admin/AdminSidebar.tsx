@@ -52,7 +52,7 @@ const AdminSidebar = ({
       )}
 
       <aside
-        className={`fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] border-r border-amber-900/20 bg-gradient-to-b from-zinc-950 via-stone-950 to-zinc-950 shadow-lux backdrop-blur-xl
+        className={`fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] border-r border-cptb-blue/30 bg-gradient-to-b from-cptb-blue-dark via-cptb-blue to-brand-900 shadow-lux backdrop-blur-xl
           transition-[transform,width] duration-300 ease-in-out
           w-[min(16rem,calc(100vw-2rem))]
           ${collapsed ? 'lg:w-[4.25rem]' : 'lg:w-64'}

@@ -40,9 +40,9 @@ export async function fetchPublicAppBrandingForMetadata(): Promise<BrandingPaylo
   }
 }
 
-const DEFAULT_TITLE = 'Gestion scolaire';
+const DEFAULT_TITLE = 'Collège Privé Tranlefet de Bouaké';
 const DEFAULT_DESCRIPTION =
-  'Plateforme de gestion scolaire : administration, pédagogie, familles et paiements.';
+  'Collège Privé Tranlefet de Bouaké (CPTB) : excellence éducative, innovation et formation de qualité au cœur de Bouaké.';
 
 export async function buildHomePageMetadata(): Promise<Metadata> {
   const b = await fetchPublicAppBrandingForMetadata();

@@ -26,6 +26,12 @@ function toPublicShape(row: {
   faviconUrl: string | null;
   appTitle: string | null;
   appTagline: string | null;
+  schoolDisplayName: string | null;
+  schoolAddress: string | null;
+  schoolPhone: string | null;
+  schoolEmail: string | null;
+  schoolWebsite: string | null;
+  schoolPrincipal: string | null;
 }) {
   return {
     navigationLogoUrl: row.navigationLogoUrl,
@@ -33,6 +39,12 @@ function toPublicShape(row: {
     faviconUrl: row.faviconUrl,
     appTitle: row.appTitle,
     appTagline: row.appTagline,
+    schoolDisplayName: row.schoolDisplayName,
+    schoolAddress: row.schoolAddress,
+    schoolPhone: row.schoolPhone,
+    schoolEmail: row.schoolEmail,
+    schoolWebsite: row.schoolWebsite,
+    schoolPrincipal: row.schoolPrincipal,
   };
 }
 
@@ -62,6 +74,12 @@ router.get('/app-branding', async (_req, res) => {
         faviconUrl: null,
         appTitle: null,
         appTagline: null,
+        schoolDisplayName: null,
+        schoolAddress: null,
+        schoolPhone: null,
+        schoolEmail: null,
+        schoolWebsite: null,
+        schoolPrincipal: null,
       });
     }
     res.json(toPublicShape(row));
@@ -84,6 +102,19 @@ router.put('/app-branding', async (req, res) => {
     const tagline = trimText(body.appTagline, 160);
     if (title !== undefined) data.appTitle = title;
     if (tagline !== undefined) data.appTagline = tagline;
+
+    const schoolName = trimText(body.schoolDisplayName, 200);
+    const schoolAddr = trimText(body.schoolAddress, 500);
+    const schoolPh = trimText(body.schoolPhone, 80);
+    const schoolEm = trimText(body.schoolEmail, 120);
+    const schoolWeb = trimText(body.schoolWebsite, 200);
+    const schoolPr = trimText(body.schoolPrincipal, 120);
+    if (schoolName !== undefined) data.schoolDisplayName = schoolName;
+    if (schoolAddr !== undefined) data.schoolAddress = schoolAddr;
+    if (schoolPh !== undefined) data.schoolPhone = schoolPh;
+    if (schoolEm !== undefined) data.schoolEmail = schoolEm;
+    if (schoolWeb !== undefined) data.schoolWebsite = schoolWeb;
+    if (schoolPr !== undefined) data.schoolPrincipal = schoolPr;
 
     const prev = await appBranding.findUnique({ where: { id: APP_BRANDING_ID } });
 

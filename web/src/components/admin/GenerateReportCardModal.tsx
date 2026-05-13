@@ -5,32 +5,18 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import FilterDropdown from '../ui/FilterDropdown';
 import toast from 'react-hot-toast';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+import { useAppBranding } from '@/contexts/AppBrandingContext';
+import {
+  generateTranlefetReportCardPdf,
+  TRANLEFET_DEFAULT_BRANDING,
+} from '@/lib/tranlefetReportCardPdf';
 
 import {
   FiFileText,
-  FiBook,
   FiUsers,
   FiAlertCircle,
-  FiCalendar,
-  FiDownload,
   FiLoader,
-  FiCheck,
-  FiAward,
-  FiTrendingUp,
-  FiTrendingDown,
-  FiMinus,
 } from 'react-icons/fi';
-import { format } from 'date-fns';
-import fr from 'date-fns/locale/fr';
 
 interface GenerateReportCardModalProps {
   isOpen: boolean;
@@ -54,6 +40,7 @@ const academicYears = [
 
 const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpen, onClose }) => {
   const queryClient = useQueryClient();
+  const { branding } = useAppBranding();
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('trim1');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('2024-2025');
@@ -79,6 +66,27 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
     enabled: isOpen && !!selectedClass && !!selectedPeriod && !!selectedAcademicYear,
   });
 
+  const pdfBranding = useMemo(
+    () => ({
+      schoolName:
+        branding.schoolDisplayName?.trim() || TRANLEFET_DEFAULT_BRANDING.schoolName,
+      schoolPhone:
+        branding.schoolPhone?.trim() || TRANLEFET_DEFAULT_BRANDING.schoolPhone,
+      schoolAddress:
+        branding.schoolAddress?.trim() || TRANLEFET_DEFAULT_BRANDING.schoolAddress,
+      principalName: branding.schoolPrincipal?.trim() || '',
+      city: branding.schoolAddress?.includes('Bouaké')
+        ? 'Bouaké'
+        : TRANLEFET_DEFAULT_BRANDING.city,
+    }),
+    [branding],
+  );
+
+  const periodLabel = useMemo(
+    () => periods.find((p) => p.value === selectedPeriod)?.label || selectedPeriod,
+    [selectedPeriod],
+  );
+
   // Generate report card mutation
   const generateReportCardMutation = useMutation({
     mutationFn: async () => {
@@ -88,7 +96,15 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
 
       // Generate PDF for each student
       for (const studentData of reportCardData) {
-        await generateStudentReportCardPDF(studentData);
+        generateTranlefetReportCardPdf(
+          studentData as Parameters<typeof generateTranlefetReportCardPdf>[0],
+          {
+            periodLabel,
+            periodKey: selectedPeriod,
+            academicYear: selectedAcademicYear,
+            branding: pdfBranding,
+          },
+        );
       }
 
       // Save report cards to database
@@ -113,368 +129,8 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
       console.error('Error generating report cards:', error);
       toast.error(error.response?.data?.error || 'Erreur lors de la génération des bulletins');
     },
+    onSettled: () => setIsGenerating(false),
   });
-
-  const generateStudentReportCardPDF = async (studentData: any) => {
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    // ===== HEADER WITH BACKGROUND =====
-    doc.setFillColor(59, 130, 246);
-    doc.rect(0, 0, pageWidth, 35, 'F');
-    
-    // Logo area
-    doc.setFillColor(255, 255, 255);
-    doc.circle(25, 17.5, 8, 'F');
-    doc.setFontSize(12);
-    doc.setTextColor(59, 130, 246);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SM', 21.5, 20);
-
-    // Title
-    doc.setFontSize(22);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('School Manager', 38, 18);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('BULLETIN DE NOTES', pageWidth / 2, 26, { align: 'center' });
-
-        // Period and Year in header
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255); // Blanc (sur fond bleu)
-        const periodLabel = periods.find(p => p.value === selectedPeriod)?.label || selectedPeriod;
-        doc.text(`${periodLabel} - Année scolaire ${selectedAcademicYear}`, pageWidth / 2, 32, { align: 'center' });
-
-    // ===== STUDENT INFORMATION SECTION =====
-    let yPos = 45;
-    
-    // Box for student info
-    doc.setDrawColor(220, 220, 220);
-    doc.setFillColor(250, 250, 252);
-    doc.roundedRect(14, yPos, pageWidth - 28, 42, 3, 3, 'FD');
-
-    // Student Photo (on the right side)
-    const photoSize = 32;
-    const photoX = pageWidth - 50;
-    const photoY = yPos + 5;
-    const photoCenterX = photoX + photoSize/2;
-    const photoCenterY = photoY + photoSize/2;
-    
-    // Photo border
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(2);
-    doc.circle(photoCenterX, photoCenterY, photoSize/2 + 1, 'D');
-    
-    try {
-      if (studentData.user.avatar) {
-        // Try to add image (if URL is accessible)
-        doc.addImage(studentData.user.avatar, 'JPEG', photoX, photoY, photoSize, photoSize, undefined, 'FAST');
-      } else {
-        // Default avatar placeholder with gradient effect
-        doc.setFillColor(200, 200, 200);
-        doc.circle(photoCenterX, photoCenterY, photoSize/2, 'F');
-        doc.setFontSize(18);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'bold');
-        const initials = `${studentData.user.firstName[0] || ''}${studentData.user.lastName[0] || ''}`.toUpperCase();
-        doc.text(initials, photoCenterX, photoCenterY + 4, { align: 'center' });
-      }
-    } catch (error) {
-      // If image fails, use placeholder
-      doc.setFillColor(200, 200, 200);
-      doc.circle(photoCenterX, photoCenterY, photoSize/2, 'F');
-      doc.setFontSize(18);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont('helvetica', 'bold');
-      const initials = `${studentData.user.firstName[0] || ''}${studentData.user.lastName[0] || ''}`.toUpperCase();
-      doc.text(initials, photoCenterX, photoCenterY + 4, { align: 'center' });
-    }
-
-    // Student Information Text
-    const infoX = 20;
-    let infoY = yPos + 8;
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0); // Noir
-    doc.text('INFORMATIONS DE L\'ÉLÈVE', infoX, infoY);
-    infoY += 9;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0); // Noir
-    
-    doc.text('Nom complet:', infoX, infoY);
-    doc.text(`${studentData.user.lastName} ${studentData.user.firstName}`, infoX + 35, infoY);
-    infoY += 6;
-    
-    doc.text('Numéro d\'élève:', infoX, infoY);
-    doc.text(studentData.studentIdNumber || studentData.studentId || 'N/A', infoX + 35, infoY);
-    infoY += 6;
-    
-    if (studentData.class) {
-      doc.text('Classe:', infoX, infoY);
-      doc.text(`${studentData.class.name} (${studentData.class.level})`, infoX + 35, infoY);
-      infoY += 6;
-    }
-    
-    doc.text('Année scolaire:', infoX, infoY);
-    doc.text(selectedAcademicYear, infoX + 35, infoY);
-    
-    yPos = 97;
-
-    // Organiser les notes par matière
-    const coursesMap = new Map<string, { course: any; grades: any[]; average: number }>();
-    
-    // D'abord, ajouter tous les cours de la classe (même ceux sans notes)
-    if (studentData.allCourses && studentData.allCourses.length > 0) {
-      studentData.allCourses.forEach((course: any) => {
-        if (!coursesMap.has(course.id)) {
-          coursesMap.set(course.id, {
-            course: course,
-            grades: [],
-            average: 0,
-          });
-        }
-      });
-    }
-    
-    // Ensuite, grouper les notes par matière et associer aux cours
-    if (studentData.grades && studentData.grades.length > 0) {
-      studentData.grades.forEach((grade: any) => {
-        const courseId = grade.courseId;
-        if (!coursesMap.has(courseId)) {
-          // Si le cours n'est pas dans allCourses, l'ajouter quand même
-          coursesMap.set(courseId, {
-            course: grade.course,
-            grades: [],
-            average: 0,
-          });
-        }
-        coursesMap.get(courseId)!.grades.push(grade);
-      });
-    }
-
-    // Calculer la moyenne pour chaque matière (utiliser les données du serveur)
-    coursesMap.forEach((courseData, courseId) => {
-      const courseAvg = studentData.courseAverages?.[courseId];
-      if (courseAvg && courseAvg.average !== undefined) {
-        courseData.average = courseAvg.average;
-      } else if (courseData.grades.length > 0) {
-        // Calculer la moyenne si elle n'est pas fournie mais qu'on a des notes
-        let total = 0;
-        let totalCoeff = 0;
-        courseData.grades.forEach((grade: any) => {
-          const gradeOn20 = (grade.score / grade.maxScore) * 20;
-          total += gradeOn20 * grade.coefficient;
-          totalCoeff += grade.coefficient;
-        });
-        courseData.average = totalCoeff > 0 ? total / totalCoeff : 0;
-      } else {
-        // Pas de notes pour cette matière
-        courseData.average = 0;
-      }
-    });
-
-    // Créer le tableau avec toutes les notes détaillées par matière
-    const tableData: any[][] = [];
-    
-    // Trier les matières par nom pour un affichage cohérent
-    const sortedCourses = Array.from(coursesMap.entries()).sort((a, b) => 
-      a[1].course.name.localeCompare(b[1].course.name)
-    );
-    
-    sortedCourses.forEach(([courseId, courseData]) => {
-      const { course, grades, average } = courseData;
-      
-      // Si pas de notes, afficher quand même la matière
-      if (!grades || grades.length === 0) {
-        let appreciation = 'Non noté';
-        if (average > 0) {
-          if (average >= 16) appreciation = 'Excellent';
-          else if (average >= 14) appreciation = 'Très Bien';
-          else if (average >= 12) appreciation = 'Bien';
-          else if (average >= 10) appreciation = 'Assez Bien';
-          else appreciation = 'À Améliorer';
-        }
-        
-        tableData.push([
-          course.name,
-          average > 0 ? `${average.toFixed(2)}/20` : '-',
-          appreciation,
-          'Aucune note',
-          '-',
-          '-',
-          '-',
-        ]);
-        return;
-      }
-      
-      // Trier les notes par date (plus récente en premier)
-      const sortedGrades = [...grades].sort((a: any, b: any) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-
-      // Appréciation
-      let appreciation = '';
-      if (average >= 16) appreciation = 'Excellent';
-      else if (average >= 14) appreciation = 'Très Bien';
-      else if (average >= 12) appreciation = 'Bien';
-      else if (average >= 10) appreciation = 'Assez Bien';
-      else appreciation = 'À Améliorer';
-
-      // Pour chaque note de cette matière, créer une ligne
-      sortedGrades.forEach((grade: any, index: number) => {
-        tableData.push([
-          index === 0 ? course.name : '', // Nom de la matière seulement sur la première ligne
-          index === 0 ? `${average.toFixed(2)}/20` : '', // Moyenne seulement sur la première ligne
-          index === 0 ? appreciation : '', // Appréciation seulement sur la première ligne
-          grade.title || 'Sans titre',
-          `${grade.score}/${grade.maxScore}`,
-          `coeff. ${grade.coefficient}`,
-          format(new Date(grade.date), 'dd/MM/yyyy', { locale: fr }),
-        ]);
-      });
-    });
-
-    if (tableData.length > 0) {
-      // Title before table - amélioré
-      yPos += 3; // Espace avant le titre
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0); // Noir
-      doc.text('DÉTAIL DES NOTES PAR MATIÈRE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 10; // Plus d'espace après le titre
-      
-      const tableOptions = {
-        startY: yPos,
-        head: [['Matière', 'Moyenne', 'Appréciation', 'Évaluation', 'Note', 'Coeff.', 'Date']],
-        body: tableData,
-        theme: 'striped' as const,
-        headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        styles: { fontSize: 7, cellPadding: 2, fontStyle: 'bold', textColor: [0, 0, 0] }, // Tous les textes en gras et noir
-        columnStyles: {
-          0: { cellWidth: 38, fontStyle: 'bold' },
-          1: { cellWidth: 26, halign: 'center' as const, fontStyle: 'bold' },
-          2: { cellWidth: 30, halign: 'center' as const },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 24, halign: 'center' as const },
-          5: { cellWidth: 22, halign: 'center' as const },
-          6: { cellWidth: 30, halign: 'center' as const, cellPadding: 3 }, // Date avec plus d'espace
-        },
-        margin: { left: 14, right: 14, bottom: 50 },
-        pageBreak: 'auto' as const,
-        rowPageBreak: 'avoid' as const,
-        showHead: 'everyPage' as const,
-        didParseCell: (data: any) => {
-          // Mettre en évidence les lignes avec le nom de la matière
-          if (data.column.index === 0 && data.cell.raw !== '') {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [240, 248, 255];
-          }
-          if (data.column.index === 1 && data.cell.raw !== '') {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [240, 248, 255];
-            // Color code based on average
-            const avg = parseFloat(data.cell.raw.replace('/20', '')) || 0;
-            if (avg >= 16) data.cell.styles.textColor = [16, 185, 129]; // green
-            else if (avg >= 14) data.cell.styles.textColor = [59, 130, 246]; // blue
-            else if (avg >= 10) data.cell.styles.textColor = [245, 158, 11]; // orange
-            else data.cell.styles.textColor = [239, 68, 68]; // red
-          }
-          if (data.column.index === 2 && data.cell.raw !== '') {
-            data.cell.styles.fillColor = [240, 248, 255];
-          }
-        },
-      };
-
-      // Utiliser autoTable comme fonction plutôt que comme méthode
-      if (typeof (doc as any).autoTable === 'function') {
-        (doc as any).autoTable(tableOptions);
-        yPos = (doc as any).lastAutoTable.finalY + 10;
-      } else if (typeof autoTable === 'function') {
-        autoTable(doc, tableOptions as any);
-        yPos = (doc as any).lastAutoTable.finalY + 10;
-      } else {
-        console.error('autoTable is not available');
-      }
-    }
-
-    // ===== OVERALL AVERAGE AND RANK SECTION =====
-    if (studentData.average !== undefined) {
-      // Vérifier si on a assez d'espace, sinon créer une nouvelle page
-      const avgBoxHeight = studentData.rank ? 25 : 18;
-      if (yPos + avgBoxHeight + 30 > pageHeight - 30) {
-        doc.addPage();
-        yPos = 20;
-      } else {
-        yPos += 5;
-      }
-      
-      // Background box for average
-      doc.setFillColor(245, 247, 250);
-      doc.setDrawColor(59, 130, 246);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(14, yPos, pageWidth - 28, avgBoxHeight, 3, 3, 'FD');
-      
-      const avgBoxCenterY = yPos + avgBoxHeight / 2;
-      
-      // Average
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0); // Noir
-      doc.text('Moyenne Générale', pageWidth / 2, avgBoxCenterY - 4, { align: 'center' });
-      
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0); // Noir
-      const avgValue = studentData.average.toFixed(2);
-      doc.text(`${avgValue}/20`, pageWidth / 2, avgBoxCenterY + 8, { align: 'center' });
-
-      // Rank if available
-      if (studentData.rank) {
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0); // Noir
-        doc.text(`Rang: ${studentData.rank}/${studentData.totalStudents || ''} dans la classe`, pageWidth / 2, avgBoxCenterY + 15, { align: 'center' });
-      }
-    }
-
-    // ===== FOOTER ON ALL PAGES =====
-    const pageCount = doc.internal.pages.length - 1;
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      const currentPageHeight = doc.internal.pageSize.getHeight();
-      const footerY = currentPageHeight - 20;
-      
-      // Footer line
-      doc.setDrawColor(220, 220, 220);
-      doc.setLineWidth(0.5);
-      doc.line(14, footerY - 8, pageWidth - 14, footerY - 8);
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0); // Noir
-      if (i === pageCount) {
-        doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, pageWidth / 2, footerY, { align: 'center' });
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.text('School Manager - Système de Gestion Scolaire', pageWidth / 2, footerY + 5, { align: 'center' });
-      }
-      // Page number
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0); // Noir
-      doc.text(`Page ${i}/${pageCount}`, pageWidth - 20, footerY + 5, { align: 'right' });
-    }
-
-    // Save PDF
-    const fileName = `bulletin_${studentData.user.lastName}_${studentData.user.firstName}_${selectedPeriod}_${selectedAcademicYear}.pdf`;
-    doc.save(fileName);
-  };
 
   const handleGenerate = async () => {
     if (!selectedClass) {
@@ -514,10 +170,10 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
             <div>
               <p className="text-sm text-blue-800 font-medium mb-1">Instructions</p>
               <p className="text-sm text-blue-700">
-                Sélectionnez une classe, une période et une année scolaire pour générer les bulletins PDF de tous les
-                élèves. Les moyennes et rangs sont calculés automatiquement à partir des notes saisies sur la période,
-                puis enregistrés en base. Cochez « Publier » pour que les bulletins apparaissent dans l’espace élève et
-                parent.
+                Sélectionnez une classe, une période et une année scolaire. Le bulletin PDF reprend la
+                charte du <strong>Collège Privé TRANLEFET</strong> (en-tête ministériel, identité élève,
+                tableau des moyennes, absences, signatures). Les données proviennent des notes saisies sur
+                la période. Cochez « Publier » pour l’espace élève et parent.
               </p>
             </div>
           </div>

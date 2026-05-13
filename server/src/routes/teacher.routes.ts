@@ -5,6 +5,13 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth.middlew
 import { decryptParentTeacherAppointmentRow } from '../utils/student-sensitive-crypto.util';
 import { notifyUsersImportant } from '../utils/notify-important.util';
 import { appointmentInclude } from '../utils/parent-teacher-appointment.util';
+import { punchStudentCourseAttendance } from '../utils/attendance-punch.util';
+import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
+import {
+  createGradeChangeRequest,
+  gradeToPayload,
+  workflowStatusLabel,
+} from '../utils/academic-change-request.util';
 
 const router = express.Router();
 
@@ -144,7 +151,7 @@ router.post(
   [
     body('studentId').notEmpty(),
     body('courseId').notEmpty(),
-    body('evaluationType').isIn(['EXAM', 'QUIZ', 'HOMEWORK', 'PROJECT', 'ORAL']),
+    body('evaluationType').isIn([...EVALUATION_TYPE_VALUES]),
     body('title').notEmpty(),
     body('score').isFloat({ min: 0 }),
     body('maxScore').isFloat({ min: 0 }),
@@ -186,8 +193,11 @@ router.post(
         return res.status(403).json({ error: 'Vous n\'enseignez pas ce cours' });
       }
 
-      const grade = await prisma.grade.create({
-        data: {
+      const grade = await createGradeChangeRequest({
+        kind: 'CREATE',
+        requestedByUserId: req.user!.id,
+        studentId,
+        payload: {
           studentId,
           courseId,
           teacherId,
@@ -197,26 +207,21 @@ router.post(
           maxScore: parseFloat(maxScore) || 20,
           coefficient: parseFloat(coefficient) || 1,
           date: date ? new Date(date) : new Date(),
-          comments,
-        },
-        include: {
-          student: {
-            include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-          course: true,
+          comments: comments ?? null,
         },
       });
 
-      res.status(201).json(grade);
+      res.status(202).json({
+        message:
+          'Demande enregistrée. Validation requise : professeur principal, éducateur, directeur des études.',
+        request: {
+          ...grade,
+          statusLabel: workflowStatusLabel(grade.status),
+        },
+      });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      const statusCode = error.statusCode ?? 500;
+      res.status(statusCode).json({ error: error.message });
     }
   }
 );
@@ -240,33 +245,37 @@ router.put('/grades/:id', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Note non trouvée' });
     }
 
-    const updatedGrade = await prisma.grade.update({
-      where: { id: req.params.id },
-      data: {
-        ...(title && { title }),
-        ...(score !== undefined && { score: parseFloat(score) }),
-        ...(maxScore !== undefined && { maxScore: parseFloat(maxScore) }),
-        ...(coefficient !== undefined && { coefficient: parseFloat(coefficient) }),
-        ...(comments !== undefined && { comments }),
-      },
-      include: {
-        student: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-        course: true,
+    const request = await createGradeChangeRequest({
+      kind: 'UPDATE',
+      requestedByUserId: req.user!.id,
+      gradeId: grade.id,
+      studentId: grade.studentId,
+      previousPayload: gradeToPayload(grade),
+      payload: {
+        studentId: grade.studentId,
+        courseId: grade.courseId,
+        teacherId: grade.teacherId,
+        evaluationType: grade.evaluationType,
+        title: title ?? grade.title,
+        score: score !== undefined ? parseFloat(score) : grade.score,
+        maxScore: maxScore !== undefined ? parseFloat(maxScore) : grade.maxScore,
+        coefficient: coefficient !== undefined ? parseFloat(coefficient) : grade.coefficient,
+        date: grade.date,
+        comments: comments !== undefined ? comments : grade.comments,
       },
     });
 
-    res.json(updatedGrade);
+    res.status(202).json({
+      message:
+        'Demande de modification enregistrée. Validation en 3 étapes requise avant prise en compte.',
+      request: {
+        ...request,
+        statusLabel: workflowStatusLabel(request.status),
+      },
+    });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.statusCode ?? 500;
+    res.status(statusCode).json({ error: error.message });
   }
 });
 
@@ -287,13 +296,26 @@ router.delete('/grades/:id', async (req: AuthRequest, res) => {
         return res.status(404).json({ error: 'Note non trouvée' });
       }
 
-      await prisma.grade.delete({
-        where: { id: req.params.id },
+      const request = await createGradeChangeRequest({
+        kind: 'DELETE',
+        requestedByUserId: req.user!.id,
+        gradeId: grade.id,
+        studentId: grade.studentId,
+        previousPayload: gradeToPayload(grade),
+        payload: gradeToPayload(grade),
       });
 
-    res.json({ message: 'Note supprimée' });
+    res.status(202).json({
+      message:
+        'Demande de suppression enregistrée. Validation en 3 étapes requise avant prise en compte.',
+      request: {
+        ...request,
+        statusLabel: workflowStatusLabel(request.status),
+      },
+    });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.statusCode ?? 500;
+    res.status(statusCode).json({ error: error.message });
   }
 });
 
@@ -374,64 +396,27 @@ router.post(
         return res.status(403).json({ error: 'Vous n\'enseignez pas ce cours' });
       }
 
-      // Vérifier si une absence existe déjà pour cette date
-      const existingAbsence = await prisma.absence.findFirst({
-        where: {
-          studentId,
-          courseId,
-          date: new Date(date),
+      const punch = await punchStudentCourseAttendance({
+        studentId,
+        courseId,
+        teacherId,
+        at: new Date(date),
+        source: 'NFC',
+        forceStatus: status,
+      });
+
+      const absence = await prisma.absence.findUnique({
+        where: { id: punch.absence.id },
+        include: {
+          student: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
         },
       });
 
-      let absence;
-      if (existingAbsence) {
-        // Mettre à jour l'absence existante - le scan NFC marque toujours comme PRESENT
-        absence = await prisma.absence.update({
-          where: { id: existingAbsence.id },
-          data: {
-            status: 'PRESENT' as any, // Scan NFC = toujours présent
-            updatedAt: new Date(),
-          },
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-      } else {
-        // Créer une nouvelle absence - le scan NFC marque toujours comme PRESENT
-        absence = await prisma.absence.create({
-          data: {
-            studentId,
-            courseId,
-            teacherId,
-            date: new Date(date),
-            status: 'PRESENT' as any, // Scan NFC = toujours présent
-            excused: false,
-          },
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-      }
-
-      res.status(201).json(absence);
+      res.status(201).json({ ...absence, punchPhase: punch.punchPhase });
     } catch (error: any) {
       console.error('Error recording NFC attendance:', error);
       res.status(500).json({ error: error.message || 'Erreur serveur' });
@@ -941,6 +926,13 @@ router.post(
 
       const { courseId, title, description, dueDate, attachments } = req.body;
 
+      const attachmentUrls = Array.isArray(attachments)
+        ? attachments
+            .filter((u: unknown): u is string => typeof u === 'string' && u.trim().length > 0)
+            .map((u: string) => u.trim())
+            .slice(0, 10)
+        : [];
+
       const teacherId = await getTeacherId(req.user!.id);
 
       if (!teacherId) {
@@ -973,7 +965,7 @@ router.post(
           title,
           description,
           dueDate: new Date(dueDate),
-          attachments: attachments || [],
+          attachments: attachmentUrls,
         },
         include: {
           course: true,

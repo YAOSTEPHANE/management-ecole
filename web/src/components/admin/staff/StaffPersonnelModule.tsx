@@ -23,8 +23,12 @@ import {
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../../utils/currency';
+import StaffModuleAccessField from './StaffModuleAccessField';
+import StaffModulesRecapPanel from './StaffModulesRecapPanel';
+import { resolveStaffSupportKind } from '@/views/staff/staffSpaceConfig';
+import { getEligibleModulesForSupportKind, type StaffModuleId } from '@/lib/staffModules';
 
-type StaffTab = 'members' | 'org' | 'jobs';
+type StaffTab = 'members' | 'modules' | 'org' | 'jobs';
 
 const CAT_LABEL: Record<string, string> = {
   ADMINISTRATION: 'Administration',
@@ -35,8 +39,10 @@ const CAT_LABEL: Record<string, string> = {
 const KIND_LABEL: Record<string, string> = {
   LIBRARIAN: 'Bibliothécaire',
   NURSE: 'Infirmier(e)',
-  SECRETARY: 'Secrétariat',
+  SECRETARY: 'Secrétaire',
   ACCOUNTANT: 'Comptabilité',
+  STUDIES_DIRECTOR: 'Directeur(trice) des études',
+  BURSAR: 'Économe',
   IT: 'Informatique',
   MAINTENANCE: 'Maintenance',
   OTHER: 'Autre',
@@ -150,6 +156,7 @@ const StaffPersonnelModule: React.FC = () => {
 
   const subTabs: { id: StaffTab; label: string; icon: typeof FiUsers }[] = [
     { id: 'members', label: 'Personnel', icon: FiUsers },
+    { id: 'modules', label: 'Espace personnel', icon: FiCheckSquare },
     { id: 'org', label: 'Organigramme', icon: FiGitBranch },
     { id: 'jobs', label: 'Fiches de poste', icon: FiFileText },
   ];
@@ -160,7 +167,8 @@ const StaffPersonnelModule: React.FC = () => {
         <h2 className={ADM.h2}>Personnel administratif &amp; soutien</h2>
         <p className={ADM.intro}>
           Administration, personnel de soutien (bibliothèque, infirmerie, etc.), sécurité, organigramme,
-          fiches de poste et pointages.
+          fiches de poste et pointages. L&apos;onglet <strong>Espace personnel</strong> récapitule les modules
+          visibles sur le tableau de bord STAFF de chaque agent de soutien.
         </p>
       </div>
 
@@ -181,6 +189,17 @@ const StaffPersonnelModule: React.FC = () => {
           );
         })}
       </div>
+
+      {tab === 'modules' && (
+        <StaffModulesRecapPanel
+          staffList={staffList as any[]}
+          isLoading={loadStaff}
+          onEditStaff={(id) => {
+            setEditingStaffId(id);
+            setStaffModal(true);
+          }}
+        />
+      )}
 
       {tab === 'members' && (
         <Card className="p-3 space-y-3">
@@ -728,6 +747,7 @@ function StaffFormModal({
   const [jobDescriptionId, setJobDesc] = useState('');
   const [managerId, setManager] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [visibleStaffModules, setVisibleStaffModules] = useState<StaffModuleId[]>(['overview']);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -752,6 +772,11 @@ function StaffFormModal({
       setJobDesc(s.jobDescriptionId ?? '');
       setManager(s.managerId ?? '');
       setIsActive(s.user?.isActive !== false);
+      const kind = resolveStaffSupportKind(s.supportKind || 'OTHER');
+      const stored = Array.isArray(s.visibleStaffModules) ? (s.visibleStaffModules as StaffModuleId[]) : [];
+      setVisibleStaffModules(
+        stored.length ? stored : getEligibleModulesForSupportKind(kind),
+      );
     }
     if (!staffId && isOpen) {
       setEmail('');
@@ -773,8 +798,15 @@ function StaffFormModal({
       setJobDesc('');
       setManager('');
       setIsActive(true);
+      setVisibleStaffModules(getEligibleModulesForSupportKind('LIBRARIAN'));
     }
   }, [isOpen, staffId, existing]);
+
+  useEffect(() => {
+    if (!isOpen || staffCategory !== 'SUPPORT') return;
+    if (staffId && existing) return;
+    setVisibleStaffModules(getEligibleModulesForSupportKind(resolveStaffSupportKind(supportKind)));
+  }, [supportKind, staffCategory, isOpen, staffId, existing]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -799,14 +831,13 @@ function StaffFormModal({
           jobDescriptionId: jobDescriptionId || null,
           managerId: managerId || null,
           isActive,
+          visibleStaffModules: staffCategory === 'SUPPORT' ? visibleStaffModules : [],
         });
       }
-      if (!password || password.length < 6) {
-        throw new Error('Mot de passe (min. 6 caractères) requis pour un nouveau compte');
-      }
+      const pw = password.trim();
       return adminApi.createStaffMember({
         email,
-        password,
+        ...(pw.length >= 6 ? { password: pw } : {}),
         firstName,
         lastName,
         phone: phone || undefined,
@@ -824,10 +855,16 @@ function StaffFormModal({
         biometricId: biometricId || undefined,
         jobDescriptionId: jobDescriptionId || undefined,
         managerId: managerId || undefined,
+        visibleStaffModules: staffCategory === 'SUPPORT' ? visibleStaffModules : undefined,
       });
     },
-    onSuccess: () => {
-      toast.success(staffId ? 'Mis à jour' : 'Personnel créé');
+    onSuccess: (data) => {
+      const sent = (data as { passwordSetupEmailSent?: boolean })?.passwordSetupEmailSent;
+      if (!staffId && sent) {
+        toast.success('Personnel créé. Un lien pour choisir le mot de passe a été envoyé par e-mail (48 h).');
+      } else {
+        toast.success(staffId ? 'Mis à jour' : 'Personnel créé');
+      }
       qc.invalidateQueries({ queryKey: ['admin-staff-member-edit', staffId] });
       onSaved();
     },
@@ -854,8 +891,9 @@ function StaffFormModal({
               <input type="email" className="w-full border rounded-lg px-2 py-1.5 mt-0.5" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-xs font-medium">Mot de passe *</label>
-              <input type="password" className="w-full border rounded-lg px-2 py-1.5 mt-0.5" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <label className="text-xs font-medium">Mot de passe (optionnel)</label>
+              <input type="password" className="w-full border rounded-lg px-2 py-1.5 mt-0.5" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder="Min. 6 car. ou vide = e-mail de création" />
+              <p className="text-[11px] text-stone-500 mt-0.5">Si vide, la personne reçoit un lien pour définir son mot de passe (48 h).</p>
             </div>
           </>
         )}
@@ -887,6 +925,13 @@ function StaffFormModal({
             <option value="SECURITY">Sécurité / gardiennage</option>
           </select>
         </div>
+        {staffCategory !== 'SUPPORT' && (
+          <p className="sm:col-span-2 text-[11px] text-stone-500 rounded-lg border border-dashed border-stone-200 bg-stone-50/60 px-2.5 py-2">
+            L&apos;<strong>espace personnel</strong> STAFF (modules guichet, admissions, etc.) est réservé à la
+            catégorie <strong>Soutien</strong>. Les autres catégories n&apos;ont que la vue d&apos;ensemble sur{' '}
+            <code className="text-[10px]">/staff</code>.
+          </p>
+        )}
         {staffCategory === 'SUPPORT' && (
           <div>
             <label className="text-xs font-medium">Type de soutien *</label>
@@ -898,6 +943,13 @@ function StaffFormModal({
               ))}
             </select>
           </div>
+        )}
+        {staffCategory === 'SUPPORT' && (
+          <StaffModuleAccessField
+            supportKind={resolveStaffSupportKind(supportKind)}
+            value={visibleStaffModules}
+            onChange={setVisibleStaffModules}
+          />
         )}
         <div>
           <label className="text-xs font-medium">Intitulé de poste</label>
@@ -974,7 +1026,7 @@ function StaffFormModal({
               !firstName.trim() ||
               !lastName.trim() ||
               !employeeId.trim() ||
-              (!staffId && (!email.trim() || !password))
+              (!staffId && !email.trim())
             }
           >
             Enregistrer

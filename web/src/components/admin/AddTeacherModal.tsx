@@ -18,6 +18,10 @@ import {
   FiCheck,
   FiBook
 } from 'react-icons/fi';
+import {
+  TEACHER_ENGAGEMENT_KIND_OPTIONS,
+  normalizeTeacherEngagementKind,
+} from '@/lib/teacherEngagementKind';
 
 interface AddTeacherModalProps {
   isOpen: boolean;
@@ -43,6 +47,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
     employeeId: '',
     specialization: '',
     hireDate: new Date().toISOString().split('T')[0],
+    engagementKind: 'PERMANENT' as 'PERMANENT' | 'VACATAIRE',
     contractType: 'CDI',
     salary: '',
     nfcId: '',
@@ -92,10 +97,15 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
   // Mutation pour créer l'enseignant
   const createTeacherMutation = useMutation({
     mutationFn: adminApi.createTeacher,
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      toast.success('Enseignant créé avec succès !');
+      const sent = (data as { passwordSetupEmailSent?: boolean })?.passwordSetupEmailSent;
+      toast.success(
+        sent
+          ? 'Enseignant créé. Un lien pour choisir le mot de passe a été envoyé à son e-mail (48 h).'
+          : 'Enseignant créé avec succès !'
+      );
       handleClose();
     },
     onError: (error: any) => {
@@ -138,13 +148,17 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Email invalide';
       }
-      if (!formData.password) {
-        newErrors.password = 'Le mot de passe est requis';
-      } else if (formData.password.length < 6) {
-        newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
-      }
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+      const pw = formData.password.trim();
+      const cpw = formData.confirmPassword.trim();
+      if (pw.length > 0) {
+        if (pw.length < 6) {
+          newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+        }
+        if (pw !== cpw) {
+          newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+        }
+      } else if (cpw.length > 0) {
+        newErrors.confirmPassword = 'Videz la confirmation ou saisissez un mot de passe';
       }
     }
 
@@ -152,6 +166,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
       if (!formData.employeeId.trim()) newErrors.employeeId = 'Le numéro d\'employé est requis';
       if (!formData.specialization.trim()) newErrors.specialization = 'La spécialité est requise';
       if (!formData.hireDate) newErrors.hireDate = 'La date d\'embauche est requise';
+      if (!formData.engagementKind) newErrors.engagementKind = 'Le type d\'enseignant est requis';
       if (!formData.contractType) newErrors.contractType = 'Le type de contrat est requis';
     }
 
@@ -176,9 +191,10 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
       return;
     }
 
+    const pw = formData.password.trim();
     const submitData = {
       email: formData.email,
-      password: formData.password,
+      ...(pw.length >= 6 ? { password: pw } : {}),
       firstName: formData.firstName,
       lastName: formData.lastName,
       phone: formData.phone || undefined,
@@ -186,6 +202,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
       specialization: formData.specialization,
       hireDate: formData.hireDate,
       contractType: formData.contractType,
+      engagementKind: normalizeTeacherEngagementKind(formData.engagementKind),
       salary: formData.salary ? parseFloat(formData.salary.toString()) : undefined,
       ...(formData.nfcId.trim() && { nfcId: formData.nfcId.trim() }),
       ...(formData.biometricId.trim() && { biometricId: formData.biometricId.trim() }),
@@ -212,6 +229,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
       employeeId: '',
       specialization: '',
       hireDate: new Date().toISOString().split('T')[0],
+      engagementKind: 'PERMANENT',
       contractType: 'CDI',
       salary: '',
       nfcId: '',
@@ -362,7 +380,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Mot de passe <span className="text-red-500">*</span>
+                    Mot de passe <span className="text-stone-500 font-normal">(optionnel)</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
@@ -376,9 +394,13 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
                       className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                         errors.password ? 'border-red-500' : 'border-stone-200'
                       }`}
-                      placeholder="Minimum 6 caractères"
+                      placeholder="Laisser vide = lien par e-mail"
+                      autoComplete="new-password"
                     />
                   </div>
+                  <p className="mt-0.5 text-[11px] text-stone-500 leading-snug">
+                    Si vide, la personne reçoit un e-mail pour définir son mot de passe (48 h).
+                  </p>
                   {errors.password && (
                     <p className="mt-1 text-xs text-red-500 flex items-center">
                       <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -389,7 +411,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Confirmer le mot de passe <span className="text-red-500">*</span>
+                    Confirmer le mot de passe
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
@@ -403,7 +425,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
                       className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                         errors.confirmPassword ? 'border-red-500' : 'border-stone-200'
                       }`}
-                      placeholder="Confirmer le mot de passe"
+                      placeholder="Même mot de passe si renseigné"
+                      autoComplete="new-password"
                     />
                   </div>
                   {errors.confirmPassword && (
@@ -529,6 +552,38 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose }) =>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Type d&apos;enseignant <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="engagementKind"
+                    value={formData.engagementKind}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
+                      errors.engagementKind ? 'border-red-500' : 'border-stone-200'
+                    }`}
+                  >
+                    {TEACHER_ENGAGEMENT_KIND_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-stone-500">
+                    {
+                      TEACHER_ENGAGEMENT_KIND_OPTIONS.find((o) => o.value === formData.engagementKind)
+                        ?.description
+                    }
+                  </p>
+                  {errors.engagementKind && (
+                    <p className="mt-1 text-xs text-red-500 flex items-center">
+                      <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
+                      {errors.engagementKind}
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Type de contrat <span className="text-red-500">*</span>

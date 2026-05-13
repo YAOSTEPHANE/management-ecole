@@ -17,6 +17,12 @@ router.get('/app-branding', async (_req, res) => {
         faviconUrl: null,
         appTitle: null,
         appTagline: null,
+        schoolDisplayName: null,
+        schoolAddress: null,
+        schoolPhone: null,
+        schoolEmail: null,
+        schoolWebsite: null,
+        schoolPrincipal: null,
       });
     }
 
@@ -28,6 +34,12 @@ router.get('/app-branding', async (_req, res) => {
         faviconUrl: null,
         appTitle: null,
         appTagline: null,
+        schoolDisplayName: null,
+        schoolAddress: null,
+        schoolPhone: null,
+        schoolEmail: null,
+        schoolWebsite: null,
+        schoolPrincipal: null,
       });
     }
     res.json({
@@ -36,6 +48,12 @@ router.get('/app-branding', async (_req, res) => {
       faviconUrl: row.faviconUrl,
       appTitle: row.appTitle,
       appTagline: row.appTagline,
+      schoolDisplayName: row.schoolDisplayName ?? null,
+      schoolAddress: row.schoolAddress ?? null,
+      schoolPhone: row.schoolPhone ?? null,
+      schoolEmail: row.schoolEmail ?? null,
+      schoolWebsite: row.schoolWebsite ?? null,
+      schoolPrincipal: row.schoolPrincipal ?? null,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';

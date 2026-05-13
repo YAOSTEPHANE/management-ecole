@@ -63,14 +63,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
 
-  // School settings
+  // School settings (persistés via AppBranding côté serveur)
   const [schoolSettings, setSchoolSettings] = useState({
-    name: 'École Primaire Exemple',
-    address: '123 Rue de l\'Éducation, 75001 Paris',
-    phone: '+33 1 23 45 67 89',
-    email: 'contact@ecole-exemple.fr',
-    website: 'www.ecole-exemple.fr',
-    principal: 'M. Directeur',
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    website: '',
+    principal: '',
   });
 
   // Academic settings
@@ -139,11 +139,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         if (!cancelled) {
           setAppTitleDraft(typeof b.appTitle === 'string' ? b.appTitle : '');
           setAppTaglineDraft(typeof b.appTagline === 'string' ? b.appTagline : '');
+          setSchoolSettings({
+            name: typeof b.schoolDisplayName === 'string' ? b.schoolDisplayName : '',
+            address: typeof b.schoolAddress === 'string' ? b.schoolAddress : '',
+            phone: typeof b.schoolPhone === 'string' ? b.schoolPhone : '',
+            email: typeof b.schoolEmail === 'string' ? b.schoolEmail : '',
+            website: typeof b.schoolWebsite === 'string' ? b.schoolWebsite : '',
+            principal: typeof b.schoolPrincipal === 'string' ? b.schoolPrincipal : '',
+          });
         }
       } catch {
         if (!cancelled) {
           setAppTitleDraft('');
           setAppTaglineDraft('');
+          setSchoolSettings({
+            name: '',
+            address: '',
+            phone: '',
+            email: '',
+            website: '',
+            principal: '',
+          });
         }
       }
     })();
@@ -208,6 +224,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       await adminApi.updateAppBranding({
         appTitle: appTitleDraft.trim() || null,
         appTagline: appTaglineDraft.trim() || null,
+        schoolDisplayName: schoolSettings.name.trim() || null,
+        schoolAddress: schoolSettings.address.trim() || null,
+        schoolPhone: schoolSettings.phone.trim() || null,
+        schoolEmail: schoolSettings.email.trim() || null,
+        schoolWebsite: schoolSettings.website.trim() || null,
+        schoolPrincipal: schoolSettings.principal.trim() || null,
       });
       await refreshBranding();
       await new Promise((resolve) => setTimeout(resolve, 400));

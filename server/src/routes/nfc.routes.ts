@@ -1,9 +1,8 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
-import { notifyParentsOfAttendanceChange } from '../utils/attendance-parent-notify.util';
-import { matchStudentScanId, matchTeacherScanId } from '../utils/scan-id.util';
-import { parseAttendanceStatus, upsertTeacherAttendance } from '../utils/teacher-attendance.util';
+import { punchStudentCourseAttendance, punchStaffAttendance, punchTeacherCourseAttendance } from '../utils/attendance-punch.util';
+import { matchStudentScanId, matchTeacherScanId, matchStaffScanId } from '../utils/scan-id.util';
 
 const router = express.Router();
 
@@ -98,93 +97,49 @@ router.post(
           return res.status(404).json({ error: 'Cours non trouvé' });
         }
 
-        // Vérifier si une absence existe déjà pour cette date
-        const existingAbsence = await prisma.absence.findFirst({
-          where: {
-            studentId: student.id,
-            courseId,
-            date: scanDate,
+        // Pointage entrée / sortie
+        const punch = await punchStudentCourseAttendance({
+          studentId: student.id,
+          courseId,
+          teacherId: course.teacher.id,
+          at: scanDate,
+          source: 'NFC',
+        });
+
+        const absence = await prisma.absence.findUnique({
+          where: { id: punch.absence.id },
+          include: {
+            student: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+            course: { select: { name: true, code: true } },
           },
         });
 
-        let absence;
-        if (existingAbsence) {
-          // Mettre à jour l'absence existante - le scan NFC marque toujours comme PRESENT
-          absence = await prisma.absence.update({
-            where: { id: existingAbsence.id },
-            data: {
-              status: 'PRESENT' as any, // Scan NFC = toujours présent
-              updatedAt: new Date(),
-            },
-            include: {
-              student: {
-                include: {
-                  user: {
-                    select: {
-                      firstName: true,
-                      lastName: true,
-                    },
-                  },
-                },
-              },
-              course: {
-                select: {
-                  name: true,
-                  code: true,
-                },
-              },
-            },
-          });
-        } else {
-          // Créer une nouvelle absence - le scan NFC marque toujours comme PRESENT
-          absence = await prisma.absence.create({
-            data: {
-              studentId: student.id,
-              courseId,
-              teacherId: course.teacher.id,
-              date: scanDate,
-              status: 'PRESENT' as any, // Scan NFC = toujours présent
-              excused: false,
-            },
-            include: {
-              student: {
-                include: {
-                  user: {
-                    select: {
-                      firstName: true,
-                      lastName: true,
-                    },
-                  },
-                },
-              },
-              course: {
-                select: {
-                  name: true,
-                  code: true,
-                },
-              },
-            },
-          });
-        }
-
-        void notifyParentsOfAttendanceChange({
-          studentId: student.id,
-          status: 'PRESENT',
-          date: scanDate,
-          courseName: course.name || 'Cours',
-          courseCode: course.code,
-        });
+        const phaseLabel =
+          punch.punchPhase === 'CHECK_IN'
+            ? 'Entrée enregistrée'
+            : punch.punchPhase === 'CHECK_OUT'
+              ? 'Sortie enregistrée'
+              : 'Pointage déjà complet (entrée et sortie)';
 
         return res.status(200).json({
           success: true,
-          message: `Présence de ${student.user.firstName} ${student.user.lastName} enregistrée avec succès`,
+          message: `${phaseLabel} — ${student.user.firstName} ${student.user.lastName}`,
           type: 'STUDENT',
+          punchPhase: punch.punchPhase,
           data: {
-            absence: {
-              id: absence.id,
-              status: absence.status,
-              date: absence.date,
-            },
+            absence: absence
+              ? {
+                  id: absence.id,
+                  status: absence.status,
+                  date: absence.date,
+                  checkInAt: absence.checkInAt,
+                  checkOutAt: absence.checkOutAt,
+                }
+              : punch.absence,
             student: {
               id: student.id,
               name: `${student.user.firstName} ${student.user.lastName}`,
@@ -200,7 +155,46 @@ router.post(
         });
       }
 
-      // Si ce n'est pas un étudiant, chercher un professeur
+      // Personnel administratif (secrétariat, etc.)
+      const staffMember = await prisma.staffMember.findFirst({
+        where: matchStaffScanId(nfcId),
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      });
+
+      if (staffMember) {
+        const punch = await punchStaffAttendance({
+          staffId: staffMember.id,
+          at: scanDate,
+          source: 'NFC',
+        });
+        const phaseLabel =
+          punch.punchPhase === 'CHECK_IN'
+            ? 'Entrée enregistrée'
+            : punch.punchPhase === 'CHECK_OUT'
+              ? 'Sortie enregistrée'
+              : 'Pointage déjà complet';
+
+        return res.status(200).json({
+          success: true,
+          message: `${phaseLabel} — ${staffMember.user.firstName} ${staffMember.user.lastName}`,
+          type: 'STAFF',
+          punchPhase: punch.punchPhase,
+          data: {
+            attendance: punch.attendance,
+            staff: {
+              id: staffMember.id,
+              name: `${staffMember.user.firstName} ${staffMember.user.lastName}`,
+              employeeId: staffMember.employeeId,
+            },
+          },
+        });
+      }
+
+      // Si ce n'est pas un étudiant ni personnel, chercher un professeur
       let teacher = await prisma.teacher.findFirst({
         where: matchTeacherScanId(nfcId),
         include: {
@@ -217,38 +211,53 @@ router.post(
 
       // Si c'est un professeur
       if (teacher) {
-        const resolvedStatus = parseAttendanceStatus(status, 'PRESENT');
-        const saved = await upsertTeacherAttendance({
-          teacherId: teacher.id,
-          date: scanDate,
-          status: resolvedStatus,
-          source: 'NFC',
-        });
+        try {
+          const punch = await punchTeacherCourseAttendance({
+            teacherId: teacher.id,
+            at: scanDate,
+            source: 'NFC',
+            courseId: courseId || undefined,
+          });
 
-        return res.status(200).json({
-          success: true,
-          message: `Présence de ${teacher.user.firstName} ${teacher.user.lastName} enregistrée avec succès`,
-          type: 'TEACHER',
-          data: {
-            attendance: {
-              id: saved.id,
-              teacherId: saved.teacherId,
-              attendanceDate: saved.attendanceDate,
-              status: saved.status,
-              source: saved.source,
-              createdAt: saved.createdAt,
+          const checkout = punch.attendance.checkOutAt;
+          const checkoutLabel = checkout
+            ? `${String(checkout.getHours()).padStart(2, '0')}:${String(checkout.getMinutes()).padStart(2, '0')}`
+            : '—';
+
+          return res.status(200).json({
+            success: true,
+            message: `Arrivée enregistrée — fin de séance prévue à ${checkoutLabel} (emploi du temps) · ${punch.attendance.teachingMinutes ?? 0} min décomptées depuis le pointage`,
+            type: 'TEACHER',
+            punchPhase: punch.punchPhase,
+            data: {
+              attendance: punch.attendance,
+              teacher: {
+                id: teacher.id,
+                name: `${teacher.user.firstName} ${teacher.user.lastName}`,
+                employeeId: teacher.employeeId,
+                specialization: teacher.specialization,
+              },
+              courseId: punch.courseId,
+              schedule: punch.slot
+                ? {
+                    startTime: punch.slot.startTime,
+                    endTime: punch.slot.endTime,
+                    room: punch.slot.room,
+                  }
+                : null,
             },
-            teacher: {
-              id: teacher.id,
-              name: `${teacher.user.firstName} ${teacher.user.lastName}`,
-              employeeId: teacher.employeeId,
-              specialization: teacher.specialization,
-            },
-          },
-        });
+          });
+        } catch (e: unknown) {
+          const statusCode = (e as { statusCode?: number })?.statusCode ?? 400;
+          return res.status(statusCode).json({
+            success: false,
+            error: e instanceof Error ? e.message : 'Pointage impossible',
+            type: 'TEACHER',
+          });
+        }
       }
 
-      // Si ni étudiant ni professeur trouvé
+      // Si ni étudiant, personnel ni professeur trouvé
       return res.status(404).json({
         success: false,
         error: 'Aucun utilisateur trouvé avec cet ID NFC',

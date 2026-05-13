@@ -390,6 +390,7 @@ router.get('/me', authenticate, async (req: any, res) => {
             hireDate: true,
             contractType: true,
             salary: true,
+            visibleStaffModules: true,
           },
         },
       },

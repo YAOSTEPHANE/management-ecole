@@ -88,6 +88,9 @@ const StudentAcademicHistory = ({ searchQuery = '' }: AcademicHistoryProps) => {
     ? format(new Date(data.enrollmentDate), 'd MMMM yyyy', { locale: fr })
     : null;
   const currentClass = data?.currentClass;
+  const tuitionBlock = data?.tuitionBlock as
+    | { active?: boolean; hiddenAcademicYears?: string[] }
+    | undefined;
 
   const hasAnyActivity =
     (data?.totals?.reportCards ?? 0) > 0 ||
@@ -97,6 +100,24 @@ const StudentAcademicHistory = ({ searchQuery = '' }: AcademicHistoryProps) => {
 
   return (
     <div className="space-y-6">
+      {tuitionBlock?.active && (tuitionBlock.hiddenAcademicYears?.length ?? 0) > 0 && (
+        <Card className="border-l-4 border-amber-500 bg-amber-50/90 ring-1 ring-amber-200/80">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <FiAlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold text-amber-900 mb-1">Historique partiellement masqué</p>
+              <p className="text-amber-900/90 leading-relaxed">
+                Notes et bulletins des années{' '}
+                <span className="font-medium">{tuitionBlock.hiddenAcademicYears?.join(', ')}</span> ne sont pas
+                affichés tant que la scolarité ou l&apos;inscription n&apos;est pas réglée.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {searchQuery && (
         <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
           <div className="flex items-center gap-3">

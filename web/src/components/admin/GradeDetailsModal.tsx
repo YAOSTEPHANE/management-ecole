@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import { getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 
 interface GradeDetailsModalProps {
   isOpen: boolean;
@@ -46,17 +47,6 @@ const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
     if (percentage >= 60) return 'from-blue-500 to-blue-600';
     if (percentage >= 40) return 'from-yellow-500 to-yellow-600';
     return 'from-red-500 to-red-600';
-  };
-
-  const getEvaluationTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      EXAM: 'Examen',
-      QUIZ: 'Contrôle',
-      HOMEWORK: 'Devoir maison',
-      PROJECT: 'Projet',
-      ORAL: 'Oral',
-    };
-    return types[type] || type;
   };
 
   const percentage = grade ? ((grade.score / grade.maxScore) * 100).toFixed(1) : '0';

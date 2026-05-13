@@ -9,6 +9,15 @@ import Button from '../components/ui/Button';
 import Footer from '../components/Footer';
 import HomeReveal from '../components/public/HomeReveal';
 import { getCurrentAcademicYear } from '../utils/academicYear';
+import { getRoleDashboardPath } from '../lib/rolePaths';
+import {
+  TRANLEFET_MARQUEE,
+  TRANLEFET_NEWS,
+  TRANLEFET_OPENING_HOURS,
+  TRANLEFET_SCHOOL,
+  TRANLEFET_STATS,
+  TRANLEFET_VALUES,
+} from '../data/tranlefetSchool';
 import {
   FiArrowRight,
   FiAward,
@@ -21,140 +30,127 @@ import {
   FiHelpCircle,
   FiHeart,
   FiLayers,
-  FiLock,
+  FiMapPin,
   FiMenu,
   FiMessageSquare,
+  FiPhone,
   FiShield,
-  FiSmartphone,
   FiStar,
-  FiTarget,
   FiUsers,
   FiX,
   FiZap,
 } from 'react-icons/fi';
 
 const NAV_LINKS = [
+  { href: '#etablissement', label: 'Établissement' },
+  { href: '#actualites', label: 'Actualités' },
   { href: '/inscription', label: 'Inscription' },
-  { href: '/faq', label: 'FAQ' },
-  { href: '/help', label: 'Aide' },
   { href: '/contact', label: 'Contact' },
 ];
 
-const MARQUEE_ITEMS = [
-  'Secrétariat & finances',
-  'Suivi pédagogique',
-  'Lien avec les familles',
-  'Accès maîtrisés',
-  'Informations à jour',
-  'Bulletins & absences',
-];
+const MARQUEE_ITEMS = [...TRANLEFET_MARQUEE];
 
 const TRUST_PILLS = [
-  { icon: FiShield, text: 'Données protégées' },
-  { icon: FiZap, text: 'Vue claire pour la direction' },
-  { icon: FiSmartphone, text: 'Ordinateur & smartphone' },
+  { icon: FiAward, text: 'Excellence éducative' },
+  { icon: FiShield, text: 'Cadre structuré' },
+  { icon: FiHeart, text: 'Épanouissement des élèves' },
 ];
 
 const PILLARS = [
   {
-    title: 'Administration',
-    text: 'Inscriptions, classes, personnel et finances au même endroit.',
+    title: 'Formation de qualité',
+    text: TRANLEFET_SCHOOL.mission,
+    icon: FiBook,
+    accent: 'from-emerald-500 to-teal-600',
+    span: 'md:col-span-2',
+    image: '/home/pillar-pedagogy.jpg',
+    imageAlt: 'Salle de classe au Collège Privé Tranlefet de Bouaké',
+  },
+  {
+    title: 'Innovation pédagogique',
+    text: 'Une approche moderne pour préparer les leaders compétents et responsables de demain.',
+    icon: FiZap,
+    accent: 'from-amber-500 to-orange-600',
+    span: 'md:col-span-1',
+    image: '/home/pillar-portals.jpg',
+    imageAlt: 'Élèves et enseignants en activité pédagogique',
+  },
+  {
+    title: 'Vie scolaire',
+    text: 'Discipline, accompagnement et écoute pour garantir un climat de travail serein.',
+    icon: FiShield,
+    accent: 'from-rose-500 to-pink-600',
+    span: 'md:col-span-1',
+    image: '/home/pillar-security.jpg',
+    imageAlt: 'Encadrement et discipline au quotidien',
+  },
+  {
+    title: 'Administration & familles',
+    text: 'Inscriptions, suivi scolaire et lien renforcé avec les parents d’élèves.',
     icon: FiLayers,
     accent: 'from-stone-700 to-amber-800',
     span: 'md:col-span-2',
     image: '/home/pillar-administration.jpg',
-    imageAlt: 'Équipe en réunion autour de documents et graphiques de pilotage',
-  },
-  {
-    title: 'Pédagogie',
-    text: 'Notes, absences, devoirs et bulletins sans double saisie.',
-    icon: FiBook,
-    accent: 'from-emerald-500 to-teal-600',
-    span: 'md:col-span-1',
-    image: '/home/pillar-pedagogy.jpg',
-    imageAlt: 'Salle de classe avec élèves et matériel pédagogique',
-  },
-  {
-    title: 'Familles & équipes',
-    text: 'Espaces distincts pour les enseignants, les élèves, les parents et le personnel.',
-    icon: FiUsers,
-    accent: 'from-amber-500 to-orange-600',
-    span: 'md:col-span-1',
-    image: '/home/pillar-portals.jpg',
-    imageAlt: 'Groupe de personnes collaborant autour d’un ordinateur portable',
-  },
-  {
-    title: 'Sécurité',
-    text: 'Chaque profil ne voit que ce qui le concerne, avec une connexion sécurisée.',
-    icon: FiLock,
-    accent: 'from-rose-500 to-pink-600',
-    span: 'md:col-span-2',
-    image: '/home/pillar-security.jpg',
-    imageAlt: 'Sécurité numérique et protection des données sur ordinateur portable',
+    imageAlt: 'Équipe éducative et administrative du collège',
   },
 ];
 
 const ROLES = [
   {
-    label: 'Direction & administration',
-    desc: 'Organisation de l’établissement, suivi et indicateurs utiles au quotidien.',
+    label: 'Direction',
+    desc: 'Pilotage de l’établissement, vie scolaire et orientation vers la réussite.',
     gradient: 'from-violet-600 to-indigo-700',
     ring: 'ring-violet-500/25',
     icon: FiBarChart2,
     image: '/home/role-admin.jpg',
-    imageAlt: 'Équipe de direction en réunion autour de documents et indicateurs',
+    imageAlt: 'Direction du Collège Privé Tranlefet',
   },
   {
     label: 'Enseignant',
-    desc: 'Cours, évaluations, pointage et suivi des élèves.',
+    desc: 'Transmission des savoirs, évaluations et accompagnement personnalisé.',
     gradient: 'from-emerald-600 to-teal-700',
     ring: 'ring-emerald-500/25',
     icon: FiBook,
     image: '/home/role-teacher.jpg',
-    imageAlt: 'Enseignant avec des élèves en classe',
+    imageAlt: 'Corps enseignant du CPTB',
   },
   {
     label: 'Élève',
-    desc: 'Emploi du temps, notes, devoirs et absences.',
+    desc: 'Progression, motivation et révélation du plein potentiel de chaque élève.',
     gradient: 'from-sky-600 to-blue-700',
     ring: 'ring-sky-500/25',
     icon: FiAward,
     image: '/home/role-student.jpg',
-    imageAlt: 'Élève concentré sur le travail scolaire',
+    imageAlt: 'Élèves du Collège Privé Tranlefet de Bouaké',
   },
   {
     label: 'Parent',
-    desc: 'Suivi des enfants et informations sur la scolarité.',
+    desc: 'Partenaire essentiel : suivi, dialogue et engagement pour la réussite scolaire.',
     gradient: 'from-amber-600 to-orange-700',
     ring: 'ring-amber-500/25',
     icon: FiHeart,
     image: '/home/role-parent.jpg',
-    imageAlt: 'Famille partageant un moment ensemble',
+    imageAlt: 'Familles et parents d’élèves',
   },
 ];
 
-const HIGHLIGHTS = [
-  {
-    title: 'Des espaces sur mesure',
-    text: 'Direction, équipes, élèves et parents : chacun retrouve ce qui le concerne.',
-    icon: FiUsers,
-  },
-  {
-    title: 'Une seule base',
-    text: 'Moins de doubles saisies et d’informations contradictoires entre les services.',
-    icon: FiTarget,
-  },
-  {
-    title: 'Confiance & traçabilité',
-    text: 'Connexion sécurisée et historique des actions importantes pour l’établissement.',
-    icon: FiShield,
-  },
-];
+const VALUE_ICONS = {
+  award: FiAward,
+  heart: FiHeart,
+  shield: FiShield,
+  users: FiUsers,
+} as const;
+
+const HIGHLIGHTS = TRANLEFET_VALUES.map((v) => ({
+  title: v.title,
+  text: v.text,
+  icon: VALUE_ICONS[v.icon],
+}));
 
 const HERO_FLOATING = [
-  { t: 'Inscriptions', ok: true },
-  { t: 'Notes & bulletins', ok: true },
-  { t: 'Familles informées', ok: true },
+  { t: 'Excellence', ok: true },
+  { t: 'Discipline & écoute', ok: true },
+  { t: 'Parents partenaires', ok: true },
 ];
 
 export default function Home() {
@@ -162,9 +158,10 @@ export default function Home() {
   const { navigationLogoAbsolute, branding } = useAppBranding();
   const year = getCurrentAcademicYear();
   const [menuOpen, setMenuOpen] = useState(false);
-  const headerTitle = (branding.appTitle && branding.appTitle.trim()) || 'Gestion scolaire';
+  const headerTitle =
+    (branding.appTitle && branding.appTitle.trim()) || TRANLEFET_SCHOOL.fullName;
   const headerTagline =
-    (branding.appTagline && branding.appTagline.trim()) || 'École & familles';
+    (branding.appTagline && branding.appTagline.trim()) || TRANLEFET_SCHOOL.tagline;
 
   useEffect(() => {
     document.title = `${headerTitle} · Accueil`;
@@ -219,7 +216,7 @@ export default function Home() {
 
           <div className="hidden items-center gap-2 sm:gap-3 md:flex">
             {user ? (
-                <Link href={`/${user.role.toLowerCase()}`}>
+                <Link href={getRoleDashboardPath(user.role)}>
                 <Button>Mon espace</Button>
               </Link>
             ) : (
@@ -315,20 +312,22 @@ export default function Home() {
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                     </span>
-                    Une seule plateforme
+                    {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
                   </span>
                 </div>
 
-                <h1 className="home-hero-h1 home-hero-title-line font-display text-[2.35rem] font-black leading-[1.06] tracking-tight text-white sm:text-5xl sm:leading-[1.05] lg:text-6xl lg:leading-[1.04]">
-                  Simplifiez le quotidien de votre{' '}
-                  <span className="bg-gradient-to-r from-amber-200 via-amber-50 to-amber-200/90 bg-clip-text text-transparent">
-                    établissement scolaire
+                <h1 className="home-hero-h1 home-hero-title-line font-display text-[2.1rem] font-black leading-[1.08] tracking-tight text-white sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem] lg:leading-[1.04]">
+                  <span className="block text-amber-200/95 text-lg sm:text-xl font-bold uppercase tracking-[0.12em] mb-3">
+                    {TRANLEFET_SCHOOL.shortName}
                   </span>
-                  .
+                  Collège Privé{' '}
+                  <span className="bg-gradient-to-r from-amber-200 via-amber-50 to-amber-200/90 bg-clip-text text-transparent">
+                    Tranlefet
+                  </span>{' '}
+                  de Bouaké
                 </h1>
                 <p className="home-hero-sub-line mt-7 max-w-xl text-lg leading-relaxed text-stone-400 sm:text-xl">
-                  Administration, enseignants et familles s’appuient sur les mêmes informations — claires, à jour et
-                  protégées.
+                  {TRANLEFET_SCHOOL.intro}
                 </p>
 
                 <ul className="mt-9 flex flex-wrap gap-3">
@@ -390,7 +389,7 @@ export default function Home() {
                 )}
                 {user && (
                   <div className="mt-11">
-                    <Link href={`/${user.role.toLowerCase()}`}>
+                    <Link href={getRoleDashboardPath(user.role)}>
                       <Button
                         size="lg"
                         variant="secondary"
@@ -404,11 +403,7 @@ export default function Home() {
                 )}
 
                 <div className="mt-14 grid grid-cols-3 gap-3 sm:max-w-lg sm:gap-4">
-                  {[
-                    { n: '4', l: 'profils', d: 'adaptés' },
-                    { n: '1', l: 'école', d: 'une base commune' },
-                    { n: '∞', l: 'usages', d: 'selon vos besoins' },
-                  ].map((s) => (
+                  {TRANLEFET_STATS.map((s) => (
                     <div
                       key={s.l}
                       className="home-stat-tile rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-center shadow-inner backdrop-blur-sm sm:px-4 sm:text-left"
@@ -436,13 +431,13 @@ export default function Home() {
                           <span className="h-3 w-3 rounded-full bg-emerald-400/90 shadow-sm" />
                         </div>
                         <span className="rounded-lg border border-white/10 bg-stone-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
-                          Illustration
+                          CPTB · Bouaké
                         </span>
                       </div>
                       <div className="relative aspect-[4/3] min-h-[280px] sm:min-h-[320px] lg:min-h-[380px]">
                         <Image
                           src="/home/hero-platform.jpg"
-                          alt="Salle de classe : élève levant la main, ambiance d’apprentissage"
+                          alt="Collège Privé Tranlefet de Bouaké — vie scolaire et apprentissage"
                           fill
                           className="object-cover"
                           sizes="(max-width: 1024px) 100vw, 50vw"
@@ -513,15 +508,14 @@ export default function Home() {
             <div className="home-bento-inner relative rounded-[1.65rem] bg-gradient-to-b from-white via-white to-stone-50/95 px-5 py-12 ring-1 ring-stone-900/[0.04] sm:px-8 sm:py-14 lg:px-12 lg:py-16">
               <div className="mb-12 flex flex-col gap-4 text-center lg:mb-14">
                 <span className="mx-auto inline-flex w-fit items-center rounded-full border border-amber-200/90 bg-gradient-to-r from-amber-50 to-amber-100/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-950 shadow-sm ring-1 ring-amber-900/10">
-                  Au quotidien
+                  Notre projet éducatif
                 </span>
                 <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl lg:tracking-tight">
-                  Tout ce dont votre école a besoin
+                  {TRANLEFET_SCHOOL.mottoShort}
                 </h2>
                 <div className="home-section-accent home-section-accent--glow" aria-hidden />
                 <p className="mx-auto max-w-2xl text-lg leading-relaxed text-stone-600">
-                  Des usages pensés pour le terrain : une seule connexion, la même vision pour les équipes et les
-                  familles.
+                  {TRANLEFET_SCHOOL.mission}
                 </p>
               </div>
               <div className="grid gap-5 md:grid-cols-3 md:gap-6">
@@ -563,8 +557,8 @@ export default function Home() {
           </HomeReveal>
         </section>
 
-        {/* Bandeau campus */}
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+        {/* Établissement */}
+        <section id="etablissement" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
           <HomeReveal>
           <div className="home-campus-split group overflow-hidden rounded-[2rem] border border-stone-200/90 bg-white shadow-[0_28px_56px_-24px_rgba(12,10,9,0.18)] ring-1 ring-amber-500/15 transition-all duration-500 hover:ring-amber-500/25 lg:grid lg:grid-cols-2">
             <div className="relative min-h-[260px] lg:min-h-[400px]">
@@ -580,36 +574,46 @@ export default function Home() {
                 aria-hidden
               />
               <div className="absolute bottom-6 left-6 right-6 z-10 rounded-2xl border border-white/15 bg-stone-950/50 p-4 backdrop-blur-md lg:max-w-xs">
-                <p className="text-sm font-semibold text-white">Une vision partagée</p>
+                <p className="text-sm font-semibold text-white">{TRANLEFET_SCHOOL.city}</p>
                 <p className="mt-1 text-xs text-stone-300">
-                  Même information pour la direction, les équipes et les familles.
+                  Collège privé au cœur de la ville, ouvert du lundi au vendredi.
                 </p>
               </div>
             </div>
             <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-14">
               <span className="inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-950">
-                Établissement
+                {TRANLEFET_SCHOOL.shortName}
               </span>
               <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                L’école, sans angles morts
+                Un collège privé exigeant à Bouaké
               </h2>
               <div className="home-section-accent mx-0 mt-3" aria-hidden />
               <p className="mt-5 text-lg leading-relaxed text-stone-600">
-                De la direction aux familles, tout le monde s’appuie sur des données à jour. Moins d’erreurs, moins de
-                relances, plus de temps pour l’essentiel.
+                {TRANLEFET_SCHOOL.intro}
               </p>
               <ul className="mt-8 space-y-3 text-stone-700">
-                {['Données unifiées', 'Notifications ciblées', 'Historique tracé'].map((line) => (
+                {[
+                  'Éducation complète au-delà des cours',
+                  'Équipes pédagogiques à l’écoute',
+                  'Partenariat actif avec les familles',
+                ].map((line) => (
                   <li key={line} className="flex items-center gap-3 text-sm font-medium">
                     <FiCheck className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
                     {line}
                   </li>
                 ))}
               </ul>
-              <div className="mt-10">
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <a
+                  href={TRANLEFET_SCHOOL.phoneTel}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/25 transition-all hover:bg-stone-800"
+                >
+                  <FiPhone className="h-4 w-4" aria-hidden />
+                  {TRANLEFET_SCHOOL.phoneDisplay}
+                </a>
                 <Link href="/inscription">
-                  <span className="inline-flex items-center gap-2 rounded-2xl bg-stone-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/25 transition-all hover:bg-stone-800 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45">
-                    Démarrer une candidature
+                  <span className="inline-flex items-center gap-2 rounded-2xl border border-stone-300 bg-white px-7 py-4 text-sm font-bold text-stone-900 shadow-sm transition-all hover:border-amber-400 hover:bg-amber-50">
+                    Candidature en ligne
                     <FiArrowRight className="h-4 w-4" aria-hidden />
                   </span>
                 </Link>
@@ -624,11 +628,11 @@ export default function Home() {
           <HomeReveal>
           <div className="text-center">
             <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
-              Une place pour chacun
+              La communauté CPTB
             </h2>
             <div className="home-section-accent mt-4" aria-hidden />
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
-              Chaque personne accède à ce qui la concerne, avec des droits adaptés à son rôle dans l’établissement.
+              Direction, enseignants, élèves et parents : chacun a sa place dans un projet éducatif commun.
             </p>
           </div>
           <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -663,17 +667,95 @@ export default function Home() {
           </HomeReveal>
         </section>
 
+        {/* Actualités */}
+        <section id="actualites" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
+          <HomeReveal>
+            <div className="text-center mb-12">
+              <span className="inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-950">
+                Vie de l&apos;établissement
+              </span>
+              <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                Actualités du CPTB
+              </h2>
+              <div className="home-section-accent mt-4" aria-hidden />
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              {TRANLEFET_NEWS.map((item, idx) => (
+                <HomeReveal key={item.title} delayMs={idx * 60}>
+                  <article className="h-full rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg shadow-stone-900/[0.04] transition-all hover:-translate-y-1 hover:border-amber-200 hover:shadow-xl">
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-800">{item.date}</p>
+                    <h3 className="mt-2 font-display text-xl font-semibold text-stone-900">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-stone-600">{item.excerpt}</p>
+                  </article>
+                </HomeReveal>
+              ))}
+            </div>
+          </HomeReveal>
+        </section>
+
+        {/* Infos pratiques */}
+        <section className="border-y border-stone-200/80 bg-gradient-to-b from-amber-50/40 via-white to-stone-50/80 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <HomeReveal>
+              <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+                <div>
+                  <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                    Infos pratiques
+                  </h2>
+                  <div className="home-section-accent mx-0 mt-3" aria-hidden />
+                  <div className="mt-6 space-y-4">
+                    <p className="flex items-start gap-3 text-stone-700">
+                      <FiMapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+                      <span>
+                        <span className="font-semibold text-stone-900">{TRANLEFET_SCHOOL.fullName}</span>
+                        <br />
+                        {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
+                      </span>
+                    </p>
+                    <p className="flex items-center gap-3 text-stone-700">
+                      <FiPhone className="h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+                      <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-stone-900 hover:text-amber-800">
+                        {TRANLEFET_SCHOOL.phoneDisplay}
+                      </a>
+                    </p>
+                  </div>
+                  <Link href="/contact" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-amber-900 hover:text-amber-700">
+                    <FiMessageSquare className="h-4 w-4" />
+                    Nous écrire
+                  </Link>
+                </div>
+                <div className="rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg ring-1 ring-stone-900/[0.03] sm:p-8">
+                  <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-stone-900">
+                    <FiClock className="h-5 w-5 text-amber-700" aria-hidden />
+                    Heures d&apos;ouverture
+                  </h3>
+                  <table className="mt-5 w-full text-sm">
+                    <tbody>
+                      {TRANLEFET_OPENING_HOURS.map((row) => (
+                        <tr key={row.day} className="border-b border-stone-100 last:border-0">
+                          <td className="py-2.5 font-medium text-stone-800">{row.day}</td>
+                          <td className="py-2.5 text-right tabular-nums text-stone-600">{row.hours}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </HomeReveal>
+          </div>
+        </section>
+
         {/* Points forts */}
         <section className="border-y border-stone-200/80 bg-gradient-to-b from-stone-50/90 via-white to-amber-50/20 py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <HomeReveal>
             <div className="text-center">
               <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                Pourquoi tout regrouper ici ?
+                Pourquoi choisir Tranlefet ?
               </h2>
               <div className="home-section-accent mt-4" aria-hidden />
               <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
-                Moins de friction au quotidien, plus de clarté pour les équipes et les familles.
+                Nos élèves sont notre fierté : motivation, courage et détermination au service de la réussite.
               </p>
             </div>
             <div className="mt-16 grid gap-6 md:grid-cols-3">
@@ -712,17 +794,16 @@ export default function Home() {
             </span>
             <FiMessageSquare className="relative z-10 mx-auto h-11 w-11 text-amber-800 drop-shadow-sm" aria-hidden />
             <blockquote className="relative z-10 mx-auto mt-8 max-w-3xl font-display text-2xl font-medium leading-snug text-stone-900 sm:text-3xl sm:leading-snug">
-              Une école fluide, c’est la même information pour tout le monde — au bon moment, avec le bon niveau de
-              détail.
+              {TRANLEFET_SCHOOL.motto}
             </blockquote>
             <p className="relative z-10 mt-8 text-sm font-semibold uppercase tracking-wider text-stone-500">
-              Notre engagement — {headerTitle}
+              {TRANLEFET_SCHOOL.fullName}
             </p>
             <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-2">
               {[...Array(5)].map((_, i) => (
                 <FiStar key={i} className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
               ))}
-              <span className="ml-2 text-sm font-medium text-stone-600">Conçu avec les équipes de terrain</span>
+              <span className="ml-2 text-sm font-medium text-stone-600">Nos élèves, notre fierté</span>
             </div>
           </div>
           </HomeReveal>
@@ -738,11 +819,14 @@ export default function Home() {
                 <FiClock className="h-8 w-8 text-amber-200" aria-hidden />
               </div>
               <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">
-                Un outil moderne au service de votre établissement
+                Rejoignez le Collège Privé Tranlefet de Bouaké
               </h2>
               <p className="mt-5 text-lg text-stone-400">
-                Connexion sécurisée, accès adaptés à chaque fonction, et guides pour aider vos équipes à démarrer en
-                douceur.
+                Inscription en ligne, espace sécurisé pour les familles et l’équipe pédagogique. Pour toute question :{' '}
+                <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-amber-200 hover:text-white">
+                  {TRANLEFET_SCHOOL.phoneDisplay}
+                </a>
+                .
               </p>
               <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 {!user ? (
@@ -763,7 +847,7 @@ export default function Home() {
                     </Link>
                   </>
                 ) : (
-                  <Link href={`/${user.role.toLowerCase()}`}>
+                  <Link href={getRoleDashboardPath(user.role)}>
                     <Button
                       size="lg"
                       variant="secondary"

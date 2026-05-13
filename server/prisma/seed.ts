@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { generateDigitalCardPublicId } from '../src/utils/digital-card.util';
 
 const prisma = new PrismaClient();
 
@@ -26,14 +27,81 @@ async function main() {
   await prisma.parentInteraction.deleteMany();
   await prisma.parentContact.deleteMany();
   await prisma.studentParent.deleteMany();
+  await prisma.elearningLessonProgress.deleteMany();
+  await prisma.elearningQuizAttempt.deleteMany();
+  await prisma.elearningQuizQuestion.deleteMany();
+  await prisma.elearningQuiz.deleteMany();
+  await prisma.elearningLesson.deleteMany();
+  await prisma.virtualClassSession.deleteMany();
+  await prisma.elearningCourse.deleteMany();
+  await prisma.pedagogicalResourceBank.deleteMany();
+  await prisma.healthCampaignParticipation.deleteMany();
+  await prisma.studentVaccination.deleteMany();
+  await prisma.infirmaryVisit.deleteMany();
+  await prisma.studentTreatment.deleteMany();
+  await prisma.studentAllergyRecord.deleteMany();
+  await prisma.studentHealthDossier.deleteMany();
+  await prisma.healthCampaign.deleteMany();
   await prisma.student.deleteMany();
   await prisma.parent.deleteMany();
+  await prisma.teacherLeave.deleteMany();
+  await prisma.teacherPerformanceReview.deleteMany();
+  await prisma.teacherAttendance.deleteMany();
+  await prisma.classCouncilSession.deleteMany();
+  await prisma.extracurricularRegistration.deleteMany();
+  await prisma.extracurricularOffering.deleteMany();
+  await prisma.announcement.deleteMany();
+  await prisma.admission.deleteMany();
+  await prisma.academicChangeRequest.deleteMany();
+  await prisma.class.deleteMany();
   await prisma.teacher.deleteMany();
   await prisma.educator.deleteMany();
   await prisma.staffAttendance.deleteMany();
+  await prisma.staffModuleRecord.deleteMany();
   await prisma.staffMember.deleteMany();
   await prisma.jobDescription.deleteMany();
-  await prisma.class.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.loginLog.deleteMany();
+  await prisma.securityEvent.deleteMany();
+  await prisma.pushSubscription.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.identityDocument.deleteMany();
+  await prisma.studentSchoolHistory.deleteMany();
+  await prisma.studentTransfer.deleteMany();
+  await prisma.studentDisciplinaryRecord.deleteMany();
+  await prisma.schoolDisciplinaryRulebook.deleteMany();
+  await prisma.studentOrientationPlacement.deleteMany();
+  await prisma.studentOrientationFollowUp.deleteMany();
+  await prisma.orientationAdvice.deleteMany();
+  await prisma.orientationAptitudeTest.deleteMany();
+  await prisma.orientationPartnership.deleteMany();
+  await prisma.orientationFiliere.deleteMany();
+  await prisma.libraryPenalty.deleteMany();
+  await prisma.libraryReservation.deleteMany();
+  await prisma.libraryLoan.deleteMany();
+  await prisma.libraryBook.deleteMany();
+  await prisma.materialStockOrderLine.deleteMany();
+  await prisma.materialStockOrder.deleteMany();
+  await prisma.materialStockMovement.deleteMany();
+  await prisma.materialAllocation.deleteMany();
+  await prisma.materialMaintenance.deleteMany();
+  await prisma.materialEquipment.deleteMany();
+  await prisma.materialRoomReservation.deleteMany();
+  await prisma.materialRoom.deleteMany();
+  await prisma.materialStockItem.deleteMany();
+  await prisma.schoolExpense.deleteMany();
+  await prisma.pettyCashMovement.deleteMany();
+  await prisma.budgetLine.deleteMany();
+  await prisma.supplier.deleteMany();
+  await prisma.teacherAdministrativeDocument.deleteMany();
+  await prisma.reportCardTemplate.deleteMany();
+  await prisma.schoolGalleryItem.deleteMany();
+  await prisma.schoolCalendarEvent.deleteMany();
+  await prisma.roomScheduleUnavailableSlot.deleteMany();
+  await prisma.appBranding.deleteMany();
+  await prisma.userTwoFactorSettings.deleteMany();
   await prisma.user.deleteMany();
 
   const hashedPassword = await bcrypt.hash('password123', 10);
@@ -48,6 +116,18 @@ async function main() {
       lastName: 'Dupont',
       role: 'ADMIN',
       phone: '+33 6 12 34 56 78',
+      isActive: true,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: 'superadmin@tranlefet.ci',
+      password: hashedPassword,
+      firstName: 'Super',
+      lastName: 'Admin CPTB',
+      role: 'SUPER_ADMIN',
+      phone: '0788948712',
       isActive: true,
     },
   });
@@ -110,7 +190,7 @@ async function main() {
           employeeId: 'EMP003',
           specialization: 'Histoire-Géographie',
           hireDate: new Date('2021-09-01'),
-          contractType: 'CDI',
+          contractType: 'CDD',
           salary: 3300,
         },
       },
@@ -217,6 +297,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU001',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-05-15'),
           gender: 'MALE',
           address: '123 Rue de la République, 75001 Paris',
@@ -242,6 +323,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU002',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-08-20'),
           gender: 'FEMALE',
           address: '456 Avenue des Champs, 75008 Paris',
@@ -267,6 +349,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU003',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-03-10'),
           gender: 'MALE',
           address: '789 Boulevard Saint-Germain, 75006 Paris',
@@ -292,6 +375,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU004',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-11-22'),
           gender: 'FEMALE',
           address: '12 rue des Écoles, Paris',
@@ -317,6 +401,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU005',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-04-18'),
           gender: 'MALE',
           address: '8 avenue Voltaire, Paris',
@@ -342,6 +427,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU006',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-07-30'),
           gender: 'FEMALE',
           address: '5 place d’Italie, Paris',
@@ -367,6 +453,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU007',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-01-25'),
           gender: 'MALE',
           address: '22 rue Monge, Paris',
@@ -392,6 +479,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU008',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-09-12'),
           gender: 'FEMALE',
           address: '9 boulevard de Belleville, Paris',
@@ -417,6 +505,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU009',
+          digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-12-05'),
           gender: 'MALE',
           address: '3 rue de la Grange, Paris',
@@ -555,6 +644,148 @@ async function main() {
     },
   });
 
+  // Personnel de soutien (espace personnel /staff)
+  console.log('🧑‍💼 Création du personnel de soutien (STAFF)...');
+  await prisma.user.create({
+    data: {
+      email: 'secretary@school.com',
+      password: hashedPassword,
+      firstName: 'Aminata',
+      lastName: 'Koné',
+      role: 'STAFF',
+      phone: '+225 07 00 00 01',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF001',
+          staffCategory: 'SUPPORT',
+          supportKind: 'SECRETARY',
+          jobTitle: 'Secrétaire de direction',
+          department: 'Administration',
+          hireDate: new Date('2019-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'bursar@school.com',
+      password: hashedPassword,
+      firstName: 'Ibrahim',
+      lastName: 'Traoré',
+      role: 'STAFF',
+      phone: '+225 07 00 00 02',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF002',
+          staffCategory: 'SUPPORT',
+          supportKind: 'BURSAR',
+          jobTitle: 'Économe',
+          department: 'Finances',
+          hireDate: new Date('2018-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'studies@school.com',
+      password: hashedPassword,
+      firstName: 'Fatou',
+      lastName: 'Diallo',
+      role: 'STAFF',
+      phone: '+225 07 00 00 03',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF003',
+          staffCategory: 'SUPPORT',
+          supportKind: 'STUDIES_DIRECTOR',
+          jobTitle: 'Directrice des études',
+          department: 'Pédagogie',
+          hireDate: new Date('2017-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'nurse@school.com',
+      password: hashedPassword,
+      firstName: 'Aïcha',
+      lastName: 'Ouattara',
+      role: 'STAFF',
+      phone: '+225 07 00 00 04',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF004',
+          staffCategory: 'SUPPORT',
+          supportKind: 'NURSE',
+          jobTitle: 'Infirmière scolaire',
+          department: 'Santé',
+          hireDate: new Date('2020-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'librarian@school.com',
+      password: hashedPassword,
+      firstName: 'Kouadio',
+      lastName: 'Yao',
+      role: 'STAFF',
+      phone: '+225 07 00 00 05',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF005',
+          staffCategory: 'SUPPORT',
+          supportKind: 'LIBRARIAN',
+          jobTitle: 'Bibliothécaire',
+          department: 'Documentation',
+          hireDate: new Date('2021-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'accountant@school.com',
+      password: hashedPassword,
+      firstName: 'Moussa',
+      lastName: 'Camara',
+      role: 'STAFF',
+      phone: '+225 07 00 00 06',
+      isActive: true,
+      staffProfile: {
+        create: {
+          employeeId: 'STF006',
+          staffCategory: 'SUPPORT',
+          supportKind: 'ACCOUNTANT',
+          jobTitle: 'Comptable',
+          department: 'Finances',
+          hireDate: new Date('2019-09-01'),
+          contractType: 'CDI',
+        },
+      },
+    },
+  });
+
+  const nurseStaff = await prisma.staffMember.findFirst({
+    where: { employeeId: 'STF004' },
+  });
+  const secretaryStaff = await prisma.staffMember.findFirst({
+    where: { employeeId: 'STF001' },
+  });
+
   await prisma.studentParent.create({
     data: {
       studentId: student2Profile!.id,
@@ -588,7 +819,7 @@ async function main() {
     new Date('2026-05-02'),
   ];
 
-  const evaluationCycle = ['EXAM', 'QUIZ', 'HOMEWORK'] as const;
+  const evaluationCycle = ['EXAM', 'EVALUATION', 'CLASS_HOMEWORK', 'LEVEL_HOMEWORK', 'HOME_EXERCISE'] as const;
   const gradeRows: {
     studentId: string;
     courseId: string;
@@ -865,12 +1096,680 @@ async function main() {
     ],
   });
 
+  const academicYear = '2024-2025';
+
+  // Admissions & pré-inscriptions
+  console.log('📥 Création des admissions...');
+  await prisma.admission.createMany({
+    data: [
+      {
+        reference: 'ADM-2025-001',
+        status: 'PENDING',
+        firstName: 'Yao',
+        lastName: 'Koffi',
+        email: 'yao.koffi@example.com',
+        phone: '+225 07 11 22 33',
+        dateOfBirth: new Date('2013-03-15'),
+        gender: 'MALE',
+        desiredLevel: '6ème',
+        academicYear,
+        previousSchool: 'École primaire Les Palmiers',
+        parentName: 'Mme Koffi',
+        parentPhone: '+225 07 11 22 34',
+        motivation: 'Souhaite intégrer le collège pour la qualité du suivi.',
+        proposedClassId: class1.id,
+      },
+      {
+        reference: 'ADM-2025-002',
+        status: 'UNDER_REVIEW',
+        firstName: 'Aya',
+        lastName: 'Sanogo',
+        email: 'aya.sanogo@example.com',
+        phone: '+225 07 22 33 44',
+        dateOfBirth: new Date('2012-08-20'),
+        gender: 'FEMALE',
+        desiredLevel: '5ème',
+        academicYear,
+        previousSchool: 'Groupe scolaire Horizon',
+        parentName: 'M. Sanogo',
+        parentEmail: 'sanogo.pere@example.com',
+        adminNotes: 'Dossier complet — vérifier pièce d’identité.',
+        proposedClassId: class2.id,
+        reviewedById: admin1.id,
+        reviewedAt: new Date('2026-04-10'),
+      },
+      {
+        reference: 'ADM-2025-003',
+        status: 'ACCEPTED',
+        firstName: 'Issa',
+        lastName: 'Bamba',
+        email: 'issa.bamba@example.com',
+        dateOfBirth: new Date('2013-01-08'),
+        gender: 'MALE',
+        desiredLevel: '6ème',
+        academicYear,
+        parentName: 'Mme Bamba',
+        parentPhone: '+225 07 33 44 55',
+        proposedClassId: class1.id,
+        reviewedById: admin1.id,
+        reviewedAt: new Date('2026-04-15'),
+      },
+      {
+        reference: 'ADM-2025-004',
+        status: 'WAITLIST',
+        firstName: 'Mariam',
+        lastName: 'Coulibaly',
+        email: 'mariam.c@example.com',
+        dateOfBirth: new Date('2012-11-30'),
+        gender: 'FEMALE',
+        desiredLevel: '5ème',
+        academicYear,
+        adminNotes: 'Liste d’attente — classe complète.',
+        proposedClassId: class2.id,
+      },
+      {
+        reference: 'ADM-2025-005',
+        status: 'REJECTED',
+        firstName: 'Eric',
+        lastName: 'N’Guessan',
+        email: 'eric.ng@example.com',
+        dateOfBirth: new Date('2014-05-12'),
+        gender: 'MALE',
+        desiredLevel: '6ème',
+        academicYear,
+        adminNotes: 'Niveau scolaire insuffisant pour l’entrée en 6ème.',
+        reviewedById: admin1.id,
+        reviewedAt: new Date('2026-03-20'),
+      },
+    ],
+  });
+
+  // Rendez-vous parents–enseignants
+  console.log('📅 Création des rendez-vous parents–enseignants...');
+  await prisma.parentTeacherAppointment.createMany({
+    data: [
+      {
+        parentId: parent1Profile!.id,
+        teacherId: teacher1Profile!.id,
+        studentId: student1Profile!.id,
+        scheduledStart: new Date('2026-05-20T10:00:00'),
+        durationMinutes: 30,
+        topic: 'Progrès en mathématiques',
+        status: 'CONFIRMED',
+      },
+      {
+        parentId: parent2Profile!.id,
+        teacherId: teacher2Profile!.id,
+        studentId: student4Profile!.id,
+        scheduledStart: new Date('2026-05-22T14:30:00'),
+        durationMinutes: 45,
+        topic: 'Comportement et assiduité',
+        status: 'PENDING',
+      },
+      {
+        parentId: parent1Profile!.id,
+        teacherId: teacher2Profile!.id,
+        studentId: student2Profile!.id,
+        scheduledStart: new Date('2026-05-08T09:00:00'),
+        durationMinutes: 30,
+        topic: 'Français — difficultés de rédaction',
+        status: 'COMPLETED',
+        notesTeacher: 'Plan de soutien proposé pour juin.',
+      },
+      {
+        parentId: parent2Profile!.id,
+        teacherId: teacher1Profile!.id,
+        studentId: student5Profile!.id,
+        scheduledStart: new Date('2026-06-02T11:00:00'),
+        durationMinutes: 30,
+        topic: 'Orientation fin de cycle',
+        status: 'PENDING',
+      },
+    ],
+  });
+
+  // Frais de scolarité & paiements
+  console.log('💰 Création des frais et paiements...');
+  const tuitionCatalog = await prisma.tuitionFeeCatalog.create({
+    data: {
+      label: 'Scolarité 6ème — trimestre',
+      academicYear,
+      scope: 'BY_LEVEL',
+      classLevel: '6ème',
+      feeType: 'TUITION',
+      billingPeriod: 'QUARTERLY',
+      defaultAmount: 85000,
+      periodLabelHint: 'Trimestre',
+      sortOrder: 1,
+    },
+  });
+  const scheduleTemplate = await prisma.tuitionPaymentScheduleTemplate.create({
+    data: {
+      name: 'Trimestre en 2 versements',
+      academicYear,
+      description: '40 % à l’échéance, 60 % à +30 jours',
+      lines: [
+        { label: 'Acompte', percentOfTotal: 40, dueOffsetDays: 0 },
+        { label: 'Solde', percentOfTotal: 60, dueOffsetDays: 30 },
+      ],
+    },
+  });
+
+  const feePaid = await prisma.tuitionFee.create({
+    data: {
+      studentId: student1Profile!.id,
+      academicYear,
+      period: 'Trimestre 2',
+      amount: 85000,
+      baseAmount: 85000,
+      dueDate: new Date('2026-01-15'),
+      description: 'Scolarité T2',
+      feeType: 'TUITION',
+      billingPeriod: 'QUARTERLY',
+      catalogId: tuitionCatalog.id,
+      scheduleTemplateId: scheduleTemplate.id,
+      installmentIndex: 1,
+      isPaid: true,
+      paidAt: new Date('2026-01-10'),
+      invoiceNumber: 'FAC-2026-0042',
+      invoiceIssuedAt: new Date('2026-01-05'),
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      tuitionFeeId: feePaid.id,
+      studentId: student1Profile!.id,
+      payerId: parent1.id,
+      payerRole: 'PARENT',
+      amount: 85000,
+      paymentMethod: 'MOBILE_MONEY',
+      status: 'COMPLETED',
+      paymentReference: 'PAY-SEED-001',
+      paidAt: new Date('2026-01-10'),
+    },
+  });
+
+  const feeUnpaid = await prisma.tuitionFee.create({
+    data: {
+      studentId: student2Profile!.id,
+      academicYear,
+      period: 'Trimestre 2',
+      amount: 85000,
+      dueDate: new Date('2026-05-01'),
+      description: 'Scolarité T2 — en attente',
+      feeType: 'TUITION',
+      catalogId: tuitionCatalog.id,
+      isPaid: false,
+      invoiceNumber: 'FAC-2026-0087',
+      invoiceIssuedAt: new Date('2026-04-01'),
+    },
+  });
+  await prisma.tuitionFee.createMany({
+    data: [
+      {
+        studentId: student3Profile!.id,
+        academicYear,
+        period: 'Cantine — mai',
+        amount: 12000,
+        dueDate: new Date('2026-05-05'),
+        description: 'Cantine mensuelle',
+        feeType: 'CANTEEN',
+        isPaid: false,
+      },
+      {
+        studentId: student4Profile!.id,
+        academicYear,
+        period: 'Transport — trimestre',
+        amount: 25000,
+        dueDate: new Date('2026-04-20'),
+        description: 'Bus scolaire T2',
+        feeType: 'TRANSPORT',
+        isPaid: true,
+        paidAt: new Date('2026-04-18'),
+      },
+    ],
+  });
+  await prisma.payment.create({
+    data: {
+      tuitionFeeId: feeUnpaid.id,
+      studentId: student2Profile!.id,
+      payerId: parent1.id,
+      payerRole: 'PARENT',
+      amount: 34000,
+      paymentMethod: 'CASH',
+      status: 'PENDING',
+      notes: 'Acompte partiel au guichet',
+    },
+  });
+
+  // Annonces & calendrier
+  console.log('📢 Création des annonces et événements...');
+  await prisma.announcement.createMany({
+    data: [
+      {
+        authorId: admin1.id,
+        title: 'Réunion parents 6ème A',
+        content: 'Réunion d’information le vendredi 23 mai à 17 h en salle polyvalente.',
+        targetClassId: class1.id,
+        priority: 'high',
+        portalCategory: 'circular',
+        published: true,
+        publishedAt: new Date('2026-05-01'),
+      },
+      {
+        authorId: admin1.id,
+        title: 'Journée portes ouvertes',
+        content: 'Inscriptions ouvertes pour l’année 2025-2026 — visite guidée de 9 h à 16 h.',
+        priority: 'normal',
+        portalCategory: 'news',
+        published: true,
+        publishedAt: new Date('2026-04-25'),
+      },
+      {
+        authorId: admin1.id,
+        title: 'Rappel tenue scolaire',
+        content: 'Merci de vérifier l’uniforme et les chaussures avant les examens blancs.',
+        targetRole: 'STUDENT',
+        priority: 'normal',
+        published: true,
+        publishedAt: new Date('2026-05-10'),
+      },
+    ],
+  });
+  await prisma.schoolCalendarEvent.createMany({
+    data: [
+      {
+        title: 'Examens blancs — 6ème',
+        description: 'Maths et français',
+        startDate: new Date('2026-05-25'),
+        endDate: new Date('2026-05-27'),
+        type: 'EXAM_PERIOD',
+        academicYear,
+      },
+      {
+        title: 'Conseil de classe T2',
+        startDate: new Date('2026-06-10'),
+        endDate: new Date('2026-06-10'),
+        type: 'MEETING',
+        academicYear,
+      },
+    ],
+  });
+
+  // Conseils de classe
+  console.log('🏫 Création des conseils de classe...');
+  await prisma.classCouncilSession.createMany({
+    data: [
+      {
+        classId: class1.id,
+        period: 'Trimestre 1',
+        academicYear,
+        title: 'Conseil de classe T1 — 6ème A',
+        meetingDate: new Date('2025-12-18'),
+        summary: 'Bilan globalement positif ; vigilance sur l’homogénéité des résultats.',
+        decisions: 'Mise en place d’un tutorat maths pour 3 élèves.',
+        createdById: admin1.id,
+      },
+      {
+        classId: class2.id,
+        period: 'Trimestre 2',
+        academicYear,
+        title: 'Conseil de classe T2 — 5ème B',
+        meetingDate: new Date('2026-04-05'),
+        summary: 'Progrès en français ; absences en hausse sur février.',
+        recommendations: 'Relance parents sur l’assiduité.',
+        createdById: admin1.id,
+      },
+    ],
+  });
+
+  // Bibliothèque
+  console.log('📚 Création de la bibliothèque...');
+  const book1 = await prisma.libraryBook.create({
+    data: {
+      isbn: '978-2-07-036822-8',
+      title: 'Le Petit Prince',
+      author: 'Antoine de Saint-Exupéry',
+      publisher: 'Gallimard',
+      publicationYear: 1946,
+      category: 'Roman jeunesse',
+      copiesTotal: 5,
+      copiesAvailable: 3,
+      shelfLocation: 'A-12',
+    },
+  });
+  const book2 = await prisma.libraryBook.create({
+    data: {
+      isbn: '978-2-01-016810-8',
+      title: 'Les Misérables (abrégé)',
+      author: 'Victor Hugo',
+      category: 'Classiques',
+      copiesTotal: 3,
+      copiesAvailable: 2,
+      shelfLocation: 'B-04',
+    },
+  });
+  await prisma.libraryBook.createMany({
+    data: [
+      {
+        title: 'Cours de mathématiques 6ème',
+        author: 'Collectif',
+        category: 'Manuel',
+        copiesTotal: 10,
+        copiesAvailable: 7,
+        shelfLocation: 'C-01',
+      },
+      {
+        title: 'Atlas géographique',
+        author: 'IGN Jeunesse',
+        category: 'Référence',
+        copiesTotal: 4,
+        copiesAvailable: 4,
+        shelfLocation: 'D-02',
+      },
+    ],
+  });
+  await prisma.libraryLoan.create({
+    data: {
+      bookId: book1.id,
+      borrowerId: student1.id,
+      status: 'ACTIVE',
+      loanedAt: new Date('2026-04-28'),
+      dueDate: new Date('2026-05-28'),
+      createdById: admin1.id,
+    },
+  });
+  await prisma.libraryReservation.create({
+    data: {
+      bookId: book2.id,
+      userId: student2.id,
+      status: 'PENDING',
+      reservedAt: new Date('2026-05-12'),
+      expiresAt: new Date('2026-05-26'),
+    },
+  });
+
+  // E-learning
+  console.log('💻 Création des parcours e-learning...');
+  const eCourse = await prisma.elearningCourse.create({
+    data: {
+      title: 'Fractions — révision 6ème',
+      description: 'Parcours interactif avant l’évaluation de mai.',
+      subject: 'Mathématiques',
+      level: '6ème',
+      isPublished: true,
+      teacherId: teacher1Profile!.id,
+      classId: class1.id,
+      courseId: course1.id,
+    },
+  });
+  const lessonVideo = await prisma.elearningLesson.create({
+    data: {
+      elearningCourseId: eCourse.id,
+      title: 'Vidéo — addition de fractions',
+      kind: 'VIDEO',
+      sortOrder: 1,
+      externalUrl: 'https://example.com/videos/fractions-add',
+      durationMinutes: 12,
+      isPublished: true,
+    },
+  });
+  const lessonQuiz = await prisma.elearningLesson.create({
+    data: {
+      elearningCourseId: eCourse.id,
+      title: 'Quiz — fractions',
+      kind: 'QUIZ',
+      sortOrder: 2,
+      isPublished: true,
+    },
+  });
+  const quiz = await prisma.elearningQuiz.create({
+    data: {
+      lessonId: lessonQuiz.id,
+      title: 'QCM fractions',
+      passingScore: 60,
+      autoGrade: true,
+    },
+  });
+  await prisma.elearningQuizQuestion.createMany({
+    data: [
+      {
+        quizId: quiz.id,
+        kind: 'MCQ',
+        prompt: '1/2 + 1/4 = ?',
+        options: ['1/6', '3/4', '2/6', '1/8'],
+        correctAnswer: '3/4',
+        points: 2,
+        sortOrder: 1,
+      },
+      {
+        quizId: quiz.id,
+        kind: 'TRUE_FALSE',
+        prompt: 'Pour additionner des fractions, il faut le même dénominateur.',
+        correctAnswer: 'true',
+        points: 1,
+        sortOrder: 2,
+      },
+    ],
+  });
+  await prisma.elearningLessonProgress.create({
+    data: { lessonId: lessonVideo.id, studentId: student1Profile!.id },
+  });
+  await prisma.elearningQuizAttempt.create({
+    data: {
+      quizId: quiz.id,
+      studentId: student1Profile!.id,
+      answers: { q1: '3/4', q2: 'true' },
+      score: 3,
+      maxScore: 3,
+      passed: true,
+    },
+  });
+  await prisma.pedagogicalResourceBank.createMany({
+    data: [
+      {
+        title: 'Fiche méthode — équations du 1er degré',
+        kind: 'DOCUMENT',
+        subject: 'Mathématiques',
+        level: '5ème',
+        externalUrl: 'https://example.com/docs/equations.pdf',
+        tags: ['algèbre', 'fiche'],
+        createdByTeacherId: teacher1Profile!.id,
+      },
+      {
+        title: 'Carte mentale — Révolution française',
+        kind: 'IMAGE',
+        subject: 'Histoire',
+        level: '6ème',
+        tags: ['histoire', 'carte mentale'],
+        createdByTeacherId: teacher3Profile!.id,
+      },
+    ],
+  });
+  await prisma.virtualClassSession.create({
+    data: {
+      title: 'Classe virtuelle — révision maths',
+      description: 'Session live avant contrôle.',
+      scheduledStart: new Date('2026-05-18T15:00:00'),
+      durationMinutes: 45,
+      status: 'SCHEDULED',
+      meetingUrl: 'https://meet.example.com/math-6a-rev',
+      teacherId: teacher1Profile!.id,
+      elearningCourseId: eCourse.id,
+      courseId: course1.id,
+      classId: class1.id,
+    },
+  });
+
+  // Santé & infirmerie
+  console.log('🏥 Création des dossiers santé...');
+  await prisma.studentHealthDossier.create({
+    data: {
+      studentId: student1Profile!.id,
+      medicalHistory: 'Varicelle en 2018',
+      familyDoctorName: 'Dr Martin',
+      familyDoctorPhone: '+33 1 23 45 67 89',
+      insuranceInfo: 'CMU — n° 123456',
+    },
+  });
+  await prisma.studentAllergyRecord.createMany({
+    data: [
+      {
+        studentId: student3Profile!.id,
+        allergen: 'Arachides',
+        severity: 'Élevée',
+        reaction: 'Urticaire, risque anaphylaxie',
+        notes: 'Épî pen en permanence au cartable',
+      },
+      {
+        studentId: student8Profile!.id,
+        allergen: 'Latex',
+        severity: 'Modérée',
+        reaction: 'Éruption cutanée',
+      },
+    ],
+  });
+  const healthCampaign = await prisma.healthCampaign.create({
+    data: {
+      kind: 'VACCINATION',
+      title: 'Rappel DTP — 5ème et 6ème',
+      description: 'Campagne de rappel vaccinal avec accord parental.',
+      startDate: new Date('2026-05-15'),
+      endDate: new Date('2026-05-30'),
+      targetLevels: ['6ème', '5ème'],
+      isActive: true,
+    },
+  });
+  await prisma.healthCampaignParticipation.createMany({
+    data: [
+      { campaignId: healthCampaign.id, studentId: student1Profile!.id, status: 'COMPLETED', completedAt: new Date('2026-05-16') },
+      { campaignId: healthCampaign.id, studentId: student4Profile!.id, status: 'SCHEDULED' },
+    ],
+  });
+  await prisma.infirmaryVisit.createMany({
+    data: [
+      {
+        studentId: student2Profile!.id,
+        staffMemberId: nurseStaff?.id,
+        visitedAt: new Date('2026-05-11T10:30:00'),
+        motive: 'Maux de tête',
+        careAdministered: 'Repos 20 min, hydratation',
+        outcome: 'RETURN_TO_CLASS',
+        parentNotified: true,
+      },
+      {
+        studentId: student7Profile!.id,
+        staffMemberId: nurseStaff?.id,
+        visitedAt: new Date('2026-05-09T14:15:00'),
+        motive: 'Chute dans la cour — genou',
+        careAdministered: 'Glace, pansement',
+        outcome: 'REST_INFIRMARY',
+        parentNotified: true,
+        notes: 'Surveillance 1 h',
+      },
+    ],
+  });
+
+  // Fiches de poste & pointages staff
+  console.log('📋 Fiches de poste et présences staff...');
+  const jobSecretary = await prisma.jobDescription.create({
+    data: {
+      title: 'Secrétaire de direction',
+      code: 'JD-SECRETARY',
+      summary: 'Accueil, courrier, dossiers élèves et coordination.',
+      responsibilities: 'Gestion agenda direction, archivage, accueil familles, coordination rendez-vous.',
+      isActive: true,
+    },
+  });
+  await prisma.jobDescription.create({
+    data: {
+      title: 'Infirmier(ère) scolaire',
+      code: 'JD-NURSE',
+      summary: 'Soins de première intention et prévention.',
+      responsibilities: 'Accueil élèves malades, carnet de liaison, campagnes de prévention.',
+      isActive: true,
+    },
+  });
+  if (secretaryStaff) {
+    await prisma.staffMember.update({
+      where: { id: secretaryStaff.id },
+      data: { jobDescriptionId: jobSecretary.id },
+    });
+  }
+  await prisma.staffAttendance.createMany({
+    data: [
+      {
+        staffId: secretaryStaff!.id,
+        attendanceDate: '2026-05-12',
+        checkInAt: new Date('2026-05-12T07:55:00'),
+        checkOutAt: new Date('2026-05-12T17:10:00'),
+        status: 'PRESENT',
+      },
+      {
+        staffId: nurseStaff!.id,
+        attendanceDate: '2026-05-12',
+        checkInAt: new Date('2026-05-12T08:00:00'),
+        status: 'PRESENT',
+      },
+    ],
+  });
+
+  // Activités parascolaires
+  console.log('⚽ Création des activités parascolaires...');
+  const clubFoot = await prisma.extracurricularOffering.create({
+    data: {
+      kind: 'CLUB',
+      category: 'SPORT_COMPETITION',
+      title: 'Club football',
+      description: 'Entraînements mercredi après-midi',
+      maxParticipants: 22,
+      academicYear,
+      isActive: true,
+      isPublished: true,
+      meetSchedule: 'Mercredi 14 h – 16 h',
+      createdById: admin1.id,
+    },
+  });
+  await prisma.extracurricularOffering.create({
+    data: {
+      kind: 'CLUB',
+      category: 'ARTS_CULTURE',
+      title: 'Atelier théâtre',
+      description: 'Préparation spectacle de fin d’année',
+      maxParticipants: 15,
+      academicYear,
+      isActive: true,
+      isPublished: true,
+      createdById: admin1.id,
+    },
+  });
+  await prisma.extracurricularRegistration.createMany({
+    data: [
+      { offeringId: clubFoot.id, studentId: student1Profile!.id, status: 'CONFIRMED' },
+      { offeringId: clubFoot.id, studentId: student7Profile!.id, status: 'CONFIRMED' },
+      { offeringId: clubFoot.id, studentId: student5Profile!.id, status: 'PENDING' },
+    ],
+  });
+
   console.log('✅ Seed terminé avec succès !');
   console.log('\n📊 Résumé des données créées :');
+  console.log(`   - 1 Super administrateur (superadmin@tranlefet.ci / password123)`);
   console.log(`   - 1 Administrateur (admin@school.com / password123)`);
   console.log(`   - 3 Enseignants (teacher1@school.com … / password123)`);
   console.log(`   - 9 Élèves (student1@school.com … student9@school.com / password123)`);
   console.log(`   - 2 Parents (parent1@school.com, parent2@school.com / password123)`);
+  console.log(`   - 3 Comptes STAFF soutien (secretary@, bursar@, studies@school.com / password123)`);
+  console.log(`   - 3 STAFF suppl. (nurse@, librarian@, accountant@school.com / password123)`);
+  console.log(`   - 5 Admissions (statuts variés)`);
+  console.log(`   - 4 Rendez-vous parents–enseignants`);
+  console.log(`   - Frais de scolarité, catalogue, gabarit et paiements`);
+  console.log(`   - 3 Annonces + 2 événements calendrier`);
+  console.log(`   - 2 Conseils de classe`);
+  console.log(`   - 4 Ouvrages bibliothèque + prêt + réservation`);
+  console.log(`   - Parcours e-learning (cours, quiz, classe virtuelle, ressources)`);
+  console.log(`   - Dossiers santé, allergies, campagne vaccin, visites infirmerie`);
+  console.log(`   - 2 Fiches de poste + pointages staff`);
+  console.log(`   - 2 Activités parascolaires + inscriptions`);
   console.log(`   - 2 Classes (6ème A : 5 élèves, 5ème B : 4 élèves)`);
   console.log(`   - 5 Cours (3 en 6ème A, 2 en 5ème B)`);
   console.log(`   - Nombreuses notes sur sept. 2025 – mai 2026 (graphiques admin / élève)`);

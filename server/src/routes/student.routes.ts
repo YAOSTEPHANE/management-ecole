@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { autoReceiptUrl } from '../utils/tuition-financial-automation.util';
+import { syncTuitionFeePaidStatusForFeeId } from '../utils/tuition-fee-paid-sync.util';
 import { academicYearFromDate } from '../utils/academicYear.util';
 import { deleteUploadedFileByPublicUrl } from '../utils/deleteUpload.util';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
@@ -19,6 +20,10 @@ import {
   buildPortalOfferingWhere,
   registerStudentForExtracurricular,
 } from '../utils/extracurricular.util';
+import {
+  getAcademicYearsWithTuitionBlockForParent,
+  parentTuitionBlockFromYears,
+} from '../utils/parent-academic-result-access.util';
 
 const router = express.Router();
 
@@ -268,7 +273,7 @@ router.get('/grades', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Élève non trouvé' });
     }
 
-    const grades = await prisma.grade.findMany({
+    const gradesRaw = await prisma.grade.findMany({
       where: {
         studentId: student.id,
       },
@@ -294,6 +299,14 @@ router.get('/grades', async (req: AuthRequest, res) => {
       },
     });
 
+    const blockedAcademicYears = await getAcademicYearsWithTuitionBlockForParent(prisma, student.id);
+    const tuitionBlock = parentTuitionBlockFromYears(blockedAcademicYears);
+    const grades = gradesRaw.filter((grade) => {
+      const ay = (grade.course?.class?.academicYear ?? '').trim();
+      if (!ay) return true;
+      return !blockedAcademicYears.has(ay);
+    });
+
     // Calculer les moyennes par cours
     const courseAverages: Record<string, { total: number; count: number; average: number }> = {};
 
@@ -314,6 +327,7 @@ router.get('/grades', async (req: AuthRequest, res) => {
     res.json({
       grades,
       courseAverages,
+      tuitionBlock,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -800,7 +814,10 @@ router.get('/report-cards', async (req: AuthRequest, res) => {
 
     const { period, academicYear } = req.query;
 
-    const reportCards = await prisma.reportCard.findMany({
+    const blockedAcademicYears = await getAcademicYearsWithTuitionBlockForParent(prisma, student.id);
+    const tuitionBlock = parentTuitionBlockFromYears(blockedAcademicYears);
+
+    const reportCardsRaw = await prisma.reportCard.findMany({
       where: {
         studentId: student.id,
         published: true,
@@ -812,7 +829,13 @@ router.get('/report-cards', async (req: AuthRequest, res) => {
       },
     });
 
-    res.json(reportCards);
+    const reportCards = reportCardsRaw.filter((rc) => {
+      const ay = (rc.academicYear ?? '').trim();
+      if (!ay) return true;
+      return !blockedAcademicYears.has(ay);
+    });
+
+    res.json({ reportCards, tuitionBlock });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1146,6 +1169,9 @@ router.get('/academic-history', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Élève non trouvé' });
     }
 
+    const blockedAcademicYears = await getAcademicYearsWithTuitionBlockForParent(prisma, student.id);
+    const tuitionBlock = parentTuitionBlockFromYears(blockedAcademicYears);
+
     const [reportCards, conducts, gradesList, absences] = await Promise.all([
       prisma.reportCard.findMany({
         where: { studentId: student.id },
@@ -1197,6 +1223,7 @@ router.get('/academic-history', async (req: AuthRequest, res) => {
     gradesList.forEach((g) => {
       const classYear = g.course?.class?.academicYear;
       const year = classYear || academicYearFromDate(new Date(g.date));
+      if (blockedAcademicYears.has(year.trim())) return;
       if (!gradesByYear[year]) gradesByYear[year] = [];
       gradesByYear[year].push(g);
     });
@@ -1227,7 +1254,9 @@ router.get('/academic-history', async (req: AuthRequest, res) => {
     });
 
     const yearSet = new Set<string>();
-    reportCards.forEach((r) => yearSet.add(r.academicYear));
+    reportCards.forEach((r) => {
+      if (!blockedAcademicYears.has((r.academicYear ?? '').trim())) yearSet.add(r.academicYear);
+    });
     conducts.forEach((c) => yearSet.add(c.academicYear));
     Object.keys(gradesByYear).forEach((y) => yearSet.add(y));
     Object.keys(absenceCountByYear).forEach((y) => yearSet.add(y));
@@ -1243,7 +1272,9 @@ router.get('/academic-history', async (req: AuthRequest, res) => {
       return sb - sa;
     });
 
-    const byYear = yearsSorted.map((academicYear) => ({
+    const byYear = yearsSorted
+      .filter((academicYear) => !blockedAcademicYears.has(academicYear.trim()))
+      .map((academicYear) => ({
       academicYear,
       reportCards: reportCards.filter((r) => r.academicYear === academicYear),
       conducts: conducts.filter((c) => c.academicYear === academicYear),
@@ -1254,14 +1285,24 @@ router.get('/academic-history', async (req: AuthRequest, res) => {
       absenceCount: absenceCountByYear[academicYear] ?? 0,
     }));
 
+    const visibleReportCards = reportCards.filter(
+      (r) => !blockedAcademicYears.has((r.academicYear ?? '').trim()),
+    );
+    const visibleGrades = gradesList.filter((g) => {
+      const classYear = g.course?.class?.academicYear;
+      const year = (classYear || academicYearFromDate(new Date(g.date))).trim();
+      return !blockedAcademicYears.has(year);
+    });
+
     res.json({
       enrollmentDate: student.enrollmentDate,
       currentClass: student.class,
       byYear,
+      tuitionBlock,
       totals: {
-        reportCards: reportCards.length,
+        reportCards: visibleReportCards.length,
         conducts: conducts.length,
-        grades: gradesList.length,
+        grades: visibleGrades.length,
         absences: absences.length,
       },
     });
@@ -1554,22 +1595,7 @@ router.post('/payments/:id/confirm', async (req: AuthRequest, res) => {
       },
     });
 
-    const completedPayments = await prisma.payment.findMany({
-      where: {
-        tuitionFeeId: payment.tuitionFeeId,
-        status: 'COMPLETED',
-      },
-    });
-    const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-    const isFullyPaid = totalPaid >= payment.tuitionFee.amount;
-
-    await prisma.tuitionFee.update({
-      where: { id: payment.tuitionFeeId },
-      data: {
-        isPaid: isFullyPaid,
-        paidAt: isFullyPaid ? new Date() : null,
-      },
-    });
+    await syncTuitionFeePaidStatusForFeeId(prisma, payment.tuitionFeeId);
 
     res.json({
       payment: updatedPayment,

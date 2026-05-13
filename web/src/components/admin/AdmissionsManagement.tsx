@@ -118,17 +118,22 @@ const AdmissionsManagement = () => {
     }: {
       id: string;
       payload: {
-        password: string;
+        password?: string;
         studentId?: string;
         classId?: string;
         stateAssignment?: 'STATE_ASSIGNED' | 'NOT_STATE_ASSIGNED';
       };
     }) => adminApi.enrollFromAdmission(id, payload),
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
       queryClient.invalidateQueries({ queryKey: ['admissions'] });
       queryClient.invalidateQueries({ queryKey: ['admission-stats'] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
-      toast.success('Compte élève créé et dossier marqué comme inscrit');
+      const sent = (data as { passwordSetupEmailSent?: boolean })?.passwordSetupEmailSent;
+      toast.success(
+        sent
+          ? 'Compte élève créé. Un lien pour choisir le mot de passe a été envoyé à l’adresse du dossier (48 h).'
+          : 'Compte élève créé et dossier marqué comme inscrit'
+      );
       setEnrollTarget(null);
       setEnrollPassword('');
       setEnrollStudentId('');
@@ -173,7 +178,7 @@ const AdmissionsManagement = () => {
     enrollMutation.mutate({
       id: enrollTarget.id,
       payload: {
-        password: enrollPassword,
+        ...(enrollPassword.trim().length >= 6 ? { password: enrollPassword.trim() } : {}),
         stateAssignment: enrollStateAssignment,
         ...(enrollStudentId.trim() ? { studentId: enrollStudentId.trim() } : {}),
         ...(enrollClassId ? { classId: enrollClassId } : {}),
@@ -441,16 +446,21 @@ const AdmissionsManagement = () => {
               <strong className="text-gray-900">{enrollTarget.email}</strong>
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe initial *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mot de passe initial <span className="text-gray-500 font-normal">(optionnel)</span>
+              </label>
               <input
                 type="password"
-                required
                 minLength={6}
                 value={enrollPassword}
                 onChange={(e) => setEnrollPassword(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2"
                 autoComplete="new-password"
+                placeholder="Laisser vide : l’élève reçoit un lien par e-mail (48 h)"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Si vous ne renseignez rien, un e-mail est envoyé à l’adresse du dossier pour que l’élève choisisse son mot de passe.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Numéro élève (optionnel)</label>

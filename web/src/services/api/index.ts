@@ -14,4 +14,7 @@ export { studentApi } from './student.api';
 export { parentApi } from './parent.api';
 export { parentFamilyPortalApi } from './parent-family-portal.api';
 export { educatorApi } from './educator.api';
-export { uploadIdentityDocument, uploadTeacherAdministrativeDocument } from './upload';
+export { superAdminApi } from './superAdmin.api';
+export { academicValidationApi } from './academicValidation.api';
+export { elearningApi, uploadElearningFile } from './elearning.api';
+export { uploadIdentityDocument, uploadTeacherAdministrativeDocument, uploadAssignmentAttachment } from './upload';

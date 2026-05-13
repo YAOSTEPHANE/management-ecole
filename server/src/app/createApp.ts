@@ -11,6 +11,12 @@ import nfcRoutes from '../routes/nfc.routes';
 import pushRoutes from '../routes/push.routes';
 import admissionPublicRoutes from '../routes/admission.public.routes';
 import publicRoutes from '../routes/public.routes';
+import staffRoutes from '../routes/staff.routes';
+import superAdminRoutes from '../routes/super-admin.routes';
+import academicValidationRoutes from '../routes/academic-validation.routes';
+import digitalLibraryRoutes from '../routes/digital-library.routes';
+import healthRoutes from '../routes/health.routes';
+import elearningRoutes from '../routes/elearning.routes';
 import { getUploadsRootDir } from '../utils/uploads-path';
 import { getAllowedCorsOrigins } from '../utils/cors-origins.util';
 import { recordRequestMetric } from '../utils/performance-metrics.util';
@@ -112,15 +118,21 @@ export function createApp(): express.Express {
 
   app.use(`${apiPrefix}/auth`, authRoutes);
   app.use(`${apiPrefix}/admin`, adminRoutes);
+  app.use(`${apiPrefix}/super-admin`, superAdminRoutes);
   app.use(`${apiPrefix}/teacher`, teacherRoutes);
   app.use(`${apiPrefix}/student`, studentRoutes);
   app.use(`${apiPrefix}/parent`, parentRoutes);
+  app.use(`${apiPrefix}/staff`, staffRoutes);
   app.use(`${apiPrefix}/educator`, educatorRoutes);
   app.use(`${apiPrefix}/upload`, uploadRoutes);
   app.use(`${apiPrefix}/nfc`, nfcRoutes);
   app.use(`${apiPrefix}/push`, pushRoutes);
   app.use(`${apiPrefix}/public/admissions`, admissionPublicRoutes);
   app.use(`${apiPrefix}/public`, publicRoutes);
+  app.use(`${apiPrefix}/academic-validation`, academicValidationRoutes);
+  app.use(`${apiPrefix}/digital-library`, digitalLibraryRoutes);
+  app.use(`${apiPrefix}/health`, healthRoutes);
+  app.use(`${apiPrefix}/elearning`, elearningRoutes);
 
   const healthJson = { status: 'OK', message: 'School Manager API is running' };
   app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));

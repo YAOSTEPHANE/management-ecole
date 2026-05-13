@@ -33,6 +33,8 @@ import PointageEleves from '../../components/admin/PointageEleves';
 import AttendanceManagementModule from '../../components/admin/AttendanceManagementModule';
 import HRManagementModule from '../../components/admin/hr/HRManagementModule';
 import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
+import HealthManagementModule from '../../components/admin/health/HealthManagementModule';
+import ElearningHub from '../../components/elearning/ElearningHub';
 import MaterialManagementModule from '../../components/admin/material/MaterialManagementModule';
 import DisciplineAdminModule from '../../components/admin/DisciplineAdminModule';
 import ExtracurricularAdminModule from '../../components/admin/ExtracurricularAdminModule';
@@ -87,6 +89,7 @@ import {
   FiAlertTriangle,
   FiMap,
   FiNavigation,
+  FiMonitor,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -111,6 +114,8 @@ const VALID_TAB_IDS = [
   'orientation',
   'communication',
   'library',
+  'health',
+  'elearning',
   'material',
   'reports',
   'analytics',
@@ -244,6 +249,8 @@ const AdminDashboard = () => {
     },
     { id: 'communication', label: 'Communication', icon: FiBell, color: 'from-rose-500 to-rose-600', description: 'Messagerie, alertes, circulaires, actualités et demandes' },
     { id: 'library', label: 'Bibliothèque', icon: FiBookOpen, color: 'from-sky-500 to-indigo-600', description: 'Catalogue, emprunts, réservations, pénalités et inventaire' },
+    { id: 'health', label: 'Infirmerie & santé', icon: FiHeart, color: 'from-rose-500 to-pink-600', description: 'Dossiers médicaux, visites, campagnes sanitaires et urgences' },
+    { id: 'elearning', label: 'E-learning', icon: FiMonitor, color: 'from-violet-500 to-purple-600', description: 'Plateforme d’apprentissage, classes virtuelles et ressources numériques' },
     { id: 'material', label: 'Gestion matérielle', icon: FiTool, color: 'from-slate-500 to-slate-700', description: 'Salles, inventaire, maintenance et allocations de matériel' },
     { id: 'reports', label: 'Rapports & statistiques', icon: FiPieChart, color: 'from-cyan-500 to-blue-700', description: 'Tableaux de bord, finances, académique, inscriptions et performances' },
     { id: 'analytics', label: 'Analytique avancée', icon: FiBarChart, color: 'from-emerald-500 to-emerald-600', description: 'Statistiques et analyses' },
@@ -460,6 +467,8 @@ const AdminDashboard = () => {
               {activeTab === 'orientation' && <OrientationAdminModule />}
               {activeTab === 'communication' && <CommunicationHubModule />}
               {activeTab === 'library' && <LibraryManagementModule />}
+              {activeTab === 'health' && <HealthManagementModule />}
+              {activeTab === 'elearning' && <ElearningHub mode="admin" />}
               {activeTab === 'material' && <MaterialManagementModule />}
               {activeTab === 'reports' && <ReportsStatisticsModule />}
               {activeTab === 'analytics' && <AdvancedAnalytics />}

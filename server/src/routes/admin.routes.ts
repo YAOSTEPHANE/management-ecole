@@ -3,6 +3,10 @@ import type { Prisma, MessageCategory, MessageChannel } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { hashPassword } from '../utils/password.util';
+import {
+  inviteNewUserToSetPassword,
+  resolveAdminProvidedOrInvitePassword,
+} from '../utils/admin-user-initial-password.util';
 import prisma from '../utils/prisma';
 import { deleteUploadedFileByPublicUrl } from '../utils/deleteUpload.util';
 import { computeClassBulletinRanks } from '../utils/report-card.util';
@@ -16,6 +20,7 @@ import {
   notifyParentsForAbsenceById,
   shouldNotifyParentsOnAttendanceChange,
 } from '../utils/attendance-parent-notify.util';
+import { punchStudentCourseAttendance, punchTeacherCourseAttendance } from '../utils/attendance-punch.util';
 import QRCode from 'qrcode';
 import { generateDigitalCardPublicId } from '../utils/digital-card.util';
 import staffAdminRoutes from './admin-staff.routes';
@@ -23,6 +28,7 @@ import parentAdminRoutes from './admin-parent.routes';
 import tuitionCatalogRoutes from './admin-tuition-catalog.routes';
 import accountingRoutes from './admin-accounting.routes';
 import disciplineAdminRoutes from './admin-discipline.routes';
+import adminDigitalLibraryRoutes from './admin-digital-library.routes';
 import extracurricularAdminRoutes from './admin-extracurricular.routes';
 import orientationAdminRoutes from './admin-orientation.routes';
 import adminReportsRoutes from './admin-reports.routes';
@@ -35,18 +41,32 @@ import {
 import { runMongoBackup } from '../utils/mongodb-backup.util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
+import {
+  createGradeChangeRequest,
+  createReportCardChangeRequest,
+  gradeToPayload,
+  workflowStatusLabel,
+  type ReportCardPayload,
+} from '../utils/academic-change-request.util';
+import type { AuthRequest } from '../middleware/auth.middleware';
+import {
+  isTeacherEngagementKind,
+  normalizeTeacherEngagementKind,
+} from '../utils/teacher-engagement-kind.util';
 import { getMetricsSummary, getSlowEndpoints } from '../utils/performance-metrics.util';
 
 const router = express.Router();
 
 // Toutes les routes nécessitent une authentification et le rôle ADMIN
 router.use(authenticate);
-router.use(authorize('ADMIN'));
+router.use(authorize('ADMIN', 'SUPER_ADMIN'));
 router.use(staffAdminRoutes);
 router.use(parentAdminRoutes);
 router.use(tuitionCatalogRoutes);
 router.use(accountingRoutes);
 router.use(disciplineAdminRoutes);
+router.use(adminDigitalLibraryRoutes);
 router.use(extracurricularAdminRoutes);
 router.use(orientationAdminRoutes);
 router.use(adminReportsRoutes);
@@ -175,7 +195,11 @@ router.post(
   '/students',
   [
     body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
+    body('password')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 6 })
+      .withMessage('Mot de passe : au moins 6 caractères si renseigné'),
     body('firstName').notEmpty(),
     body('lastName').notEmpty(),
     body('studentId').notEmpty(),
@@ -228,7 +252,7 @@ router.post(
         return res.status(400).json({ error: 'Ce numéro d\'élève existe déjà' });
       }
 
-      const hashedPassword = await hashPassword(password);
+      const { hashedPassword, shouldSendSetupEmail } = await resolveAdminProvidedOrInvitePassword(password);
 
       // Créer l'utilisateur et le profil élève
       const user = await prisma.user.create({
@@ -287,7 +311,16 @@ router.post(
         console.error('Erreur lors de la création de l\'événement de sécurité:', eventError);
       }
 
-      res.status(201).json(user);
+      if (shouldSendSetupEmail) {
+        try {
+          await inviteNewUserToSetPassword(user.id, user.email, user.firstName);
+        } catch (inviteErr) {
+          console.error('Invitation mot de passe (élève):', inviteErr);
+        }
+      }
+
+      const { password: _pw, ...userWithoutPassword } = user;
+      res.status(201).json({ ...userWithoutPassword, passwordSetupEmailSent: shouldSendSetupEmail });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -964,25 +997,19 @@ router.get('/teachers/nfc/:nfcId', async (req, res) => {
   }
 });
 
-// Enregistrer la présence d'un enseignant via NFC
+// Enregistrer la présence d'un enseignant via NFC (arrivée + départ auto + heures)
 router.post('/teachers/nfc-attendance', async (req, res) => {
   try {
-    const { teacherId, date, status } = req.body;
+    const { teacherId, date, courseId } = req.body;
 
     if (!teacherId || !date) {
       return res.status(400).json({ error: 'teacherId et date sont requis' });
     }
 
-    // Vérifier que l'enseignant existe
     const teacher = await prisma.teacher.findUnique({
       where: { id: teacherId },
       include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
+        user: { select: { firstName: true, lastName: true } },
       },
     });
 
@@ -990,32 +1017,85 @@ router.post('/teachers/nfc-attendance', async (req, res) => {
       return res.status(404).json({ error: 'Enseignant non trouvé' });
     }
 
-    // Pour l'instant, on peut simplement logger la présence
-    // Vous pouvez créer un modèle TeacherAttendance si nécessaire
-    const attendanceRecord = {
+    const punch = await punchTeacherCourseAttendance({
       teacherId,
-      teacherName: `${teacher.user.firstName} ${teacher.user.lastName}`,
-      date: new Date(date),
-      status: status || 'PRESENT',
-      recordedAt: new Date(),
-    };
-
-    // TODO: Créer un modèle TeacherAttendance dans Prisma si nécessaire
-    // Pour l'instant, on retourne juste la confirmation
-    res.status(201).json({
-      message: 'Présence enregistrée avec succès',
-      attendance: attendanceRecord,
+      at: new Date(date),
+      source: 'ADMIN',
+      courseId: courseId || undefined,
+      recordedByUserId: req.user!.id,
     });
-  } catch (error: any) {
+
+    res.status(201).json({
+      message: 'Pointage enseignant enregistré',
+      punchPhase: punch.punchPhase,
+      attendance: punch.attendance,
+    });
+  } catch (error: unknown) {
+    const statusCode = (error as { statusCode?: number })?.statusCode ?? 500;
     console.error('Error recording teacher NFC attendance:', error);
-    res.status(500).json({ error: error.message || 'Erreur serveur' });
+    res.status(statusCode).json({
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+    });
+  }
+});
+
+// Historique pointages enseignants (par session de cours)
+router.get('/teachers/attendance', async (req, res) => {
+  try {
+    const { teacherId, from, to } = req.query;
+    const where: { teacherId?: string; attendanceDate?: { gte?: string; lte?: string } } = {};
+    if (teacherId && typeof teacherId === 'string') where.teacherId = teacherId;
+    if (from && typeof from === 'string') {
+      where.attendanceDate = { ...where.attendanceDate, gte: from.slice(0, 10) };
+    }
+    if (to && typeof to === 'string') {
+      where.attendanceDate = { ...where.attendanceDate, lte: to.slice(0, 10) };
+    }
+
+    const rows = await prisma.teacherAttendance.findMany({
+      where,
+      orderBy: [{ attendanceDate: 'desc' }, { updatedAt: 'desc' }],
+      include: {
+        teacher: {
+          include: {
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+    });
+
+    const courseIds = [...new Set(rows.map((r) => r.courseId).filter(Boolean))] as string[];
+    const courses =
+      courseIds.length > 0
+        ? await prisma.course.findMany({
+            where: { id: { in: courseIds } },
+            select: { id: true, name: true, code: true },
+          })
+        : [];
+    const courseMap = new Map(courses.map((c) => [c.id, c]));
+
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        course: r.courseId ? courseMap.get(r.courseId) ?? null : null,
+      })),
+    );
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
 
 // Lister tous les enseignants
 router.get('/teachers', async (req, res) => {
   try {
+    const engagementKindRaw = req.query.engagementKind;
+    const where =
+      typeof engagementKindRaw === 'string' && isTeacherEngagementKind(engagementKindRaw)
+        ? { engagementKind: engagementKindRaw }
+        : undefined;
+
     const teachers = await prisma.teacher.findMany({
+      where,
       include: {
         user: {
           select: {
@@ -1043,12 +1123,17 @@ router.post(
   '/teachers',
   [
     body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
+    body('password')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 6 })
+      .withMessage('Mot de passe : au moins 6 caractères si renseigné'),
     body('firstName').notEmpty(),
     body('lastName').notEmpty(),
     body('employeeId').notEmpty(),
     body('specialization').notEmpty(),
     body('hireDate').isISO8601(),
+    body('engagementKind').optional().isIn(['PERMANENT', 'VACATAIRE']),
   ],
   async (req, res) => {
     try {
@@ -1067,6 +1152,7 @@ router.post(
         specialization,
         hireDate,
         contractType,
+        engagementKind,
         salary,
         bio,
         maxWeeklyHours,
@@ -1088,7 +1174,7 @@ router.post(
         return res.status(400).json({ error: 'Ce numéro d\'employé existe déjà' });
       }
 
-      const hashedPassword = await hashPassword(password);
+      const { hashedPassword, shouldSendSetupEmail } = await resolveAdminProvidedOrInvitePassword(password);
 
       const user = await prisma.user.create({
         data: {
@@ -1104,6 +1190,7 @@ router.post(
               specialization,
               hireDate: new Date(hireDate),
               contractType: contractType || 'CDI',
+              engagementKind: normalizeTeacherEngagementKind(engagementKind),
               salary,
               ...(bio !== undefined && typeof bio === 'string' && bio.trim()
                 ? { bio: bio.trim().slice(0, 4000) }
@@ -1121,7 +1208,16 @@ router.post(
         },
       });
 
-      res.status(201).json(user);
+      if (shouldSendSetupEmail) {
+        try {
+          await inviteNewUserToSetPassword(user.id, user.email, user.firstName);
+        } catch (inviteErr) {
+          console.error('Invitation mot de passe (enseignant):', inviteErr);
+        }
+      }
+
+      const { password: _pw, ...userWithoutPassword } = user;
+      res.status(201).json({ ...userWithoutPassword, passwordSetupEmailSent: shouldSendSetupEmail });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1213,6 +1309,7 @@ router.put('/teachers/:id', async (req, res) => {
       phone,
       specialization,
       contractType,
+      engagementKind,
       salary,
       isActive,
       nfcId,
@@ -1255,6 +1352,9 @@ router.put('/teachers/:id', async (req, res) => {
     }
     if (contractType !== undefined && typeof contractType === 'string' && contractType.trim()) {
       data.contractType = contractType.trim();
+    }
+    if (engagementKind !== undefined && isTeacherEngagementKind(engagementKind)) {
+      data.engagementKind = engagementKind;
     }
     if (salary !== undefined) {
       data.salary =
@@ -2056,7 +2156,11 @@ router.post(
   '/educators',
   [
     body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
+    body('password')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 6 })
+      .withMessage('Mot de passe : au moins 6 caractères si renseigné'),
     body('firstName').notEmpty(),
     body('lastName').notEmpty(),
     body('employeeId').notEmpty(),
@@ -2099,7 +2203,7 @@ router.post(
         return res.status(400).json({ error: 'Ce numéro d\'employé existe déjà' });
       }
 
-      const hashedPassword = await hashPassword(password);
+      const { hashedPassword, shouldSendSetupEmail } = await resolveAdminProvidedOrInvitePassword(password);
 
       const user = await prisma.user.create({
         data: {
@@ -2124,7 +2228,16 @@ router.post(
         },
       });
 
-      res.status(201).json(user);
+      if (shouldSendSetupEmail) {
+        try {
+          await inviteNewUserToSetPassword(user.id, user.email, user.firstName);
+        } catch (inviteErr) {
+          console.error('Invitation mot de passe (éducateur):', inviteErr);
+        }
+      }
+
+      const { password: _pw, ...userWithoutPassword } = user;
+      res.status(201).json({ ...userWithoutPassword, passwordSetupEmailSent: shouldSendSetupEmail });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3080,12 +3193,12 @@ router.post(
     body('studentId').notEmpty(),
     body('courseId').notEmpty(),
     body('teacherId').notEmpty(),
-    body('evaluationType').isIn(['EXAM', 'QUIZ', 'HOMEWORK', 'PROJECT', 'ORAL']),
+    body('evaluationType').isIn([...EVALUATION_TYPE_VALUES]),
     body('title').notEmpty(),
     body('score').isFloat({ min: 0 }),
     body('maxScore').isFloat({ min: 0 }),
   ],
-  async (req, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -3105,8 +3218,11 @@ router.post(
         comments,
       } = req.body;
 
-      const grade = await prisma.grade.create({
-        data: {
+      const request = await createGradeChangeRequest({
+        kind: 'CREATE',
+        requestedByUserId: req.user!.id,
+        studentId,
+        payload: {
           studentId,
           courseId,
           teacherId,
@@ -3116,49 +3232,22 @@ router.post(
           maxScore: parseFloat(maxScore) || 20,
           coefficient: parseFloat(coefficient) || 1,
           date: date ? new Date(date) : new Date(),
-          comments,
-        },
-        include: {
-          student: {
-            include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                },
-              },
-              class: {
-                select: {
-                  name: true,
-                  level: true,
-                },
-              },
-            },
-          },
-          course: {
-            select: {
-              name: true,
-              code: true,
-            },
-          },
-          teacher: {
-            include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
+          comments: comments ?? null,
         },
       });
 
-      res.status(201).json(grade);
+      res.status(202).json({
+        message:
+          'Demande enregistrée. Validation requise : professeur principal, éducateur, directeur des études.',
+        request: {
+          ...request,
+          statusLabel: workflowStatusLabel(request.status),
+        },
+      });
     } catch (error: any) {
+      const statusCode = error.statusCode ?? 500;
       console.error('Erreur lors de la création de la note:', error);
-      res.status(500).json({ 
+      res.status(statusCode).json({ 
         error: error.message || 'Erreur serveur',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -3167,9 +3256,9 @@ router.post(
 );
 
 // Mettre à jour une note (Admin)
-router.put('/grades/:id', async (req, res) => {
+router.put('/grades/:id', async (req: AuthRequest, res) => {
   try {
-    const { title, score, maxScore, coefficient, comments, date } = req.body;
+    const { title, score, maxScore, coefficient, comments, date, evaluationType } = req.body;
 
     const grade = await prisma.grade.findUnique({
       where: { id: req.params.id },
@@ -3179,57 +3268,38 @@ router.put('/grades/:id', async (req, res) => {
       return res.status(404).json({ error: 'Note non trouvée' });
     }
 
-    const updatedGrade = await prisma.grade.update({
-      where: { id: req.params.id },
-      data: {
-        ...(title && { title }),
-        ...(score !== undefined && { score: parseFloat(score) }),
-        ...(maxScore !== undefined && { maxScore: parseFloat(maxScore) }),
-        ...(coefficient !== undefined && { coefficient: parseFloat(coefficient) }),
-        ...(comments !== undefined && { comments }),
-        ...(date && { date: new Date(date) }),
-      },
-      include: {
-        student: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            class: {
-              select: {
-                name: true,
-                level: true,
-              },
-            },
-          },
-        },
-        course: {
-          select: {
-            name: true,
-            code: true,
-          },
-        },
-        teacher: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
+    const request = await createGradeChangeRequest({
+      kind: 'UPDATE',
+      requestedByUserId: req.user!.id,
+      gradeId: grade.id,
+      studentId: grade.studentId,
+      previousPayload: gradeToPayload(grade),
+      payload: {
+        studentId: grade.studentId,
+        courseId: grade.courseId,
+        teacherId: grade.teacherId,
+        evaluationType: evaluationType ?? grade.evaluationType,
+        title: title ?? grade.title,
+        score: score !== undefined ? parseFloat(score) : grade.score,
+        maxScore: maxScore !== undefined ? parseFloat(maxScore) : grade.maxScore,
+        coefficient: coefficient !== undefined ? parseFloat(coefficient) : grade.coefficient,
+        date: date ? new Date(date) : grade.date,
+        comments: comments !== undefined ? comments : grade.comments,
       },
     });
 
-    res.json(updatedGrade);
+    res.status(202).json({
+      message:
+        'Demande de modification enregistrée. Validation en 3 étapes requise avant prise en compte.',
+      request: {
+        ...request,
+        statusLabel: workflowStatusLabel(request.status),
+      },
+    });
   } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
     console.error('Erreur lors de la mise à jour de la note:', error);
-    res.status(500).json({ 
+    res.status(statusCode).json({ 
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3237,7 +3307,7 @@ router.put('/grades/:id', async (req, res) => {
 });
 
 // Supprimer une note (Admin)
-router.delete('/grades/:id', async (req, res) => {
+router.delete('/grades/:id', async (req: AuthRequest, res) => {
   try {
     const grade = await prisma.grade.findUnique({
       where: { id: req.params.id },
@@ -3247,14 +3317,27 @@ router.delete('/grades/:id', async (req, res) => {
       return res.status(404).json({ error: 'Note non trouvée' });
     }
 
-    await prisma.grade.delete({
-      where: { id: req.params.id },
+    const request = await createGradeChangeRequest({
+      kind: 'DELETE',
+      requestedByUserId: req.user!.id,
+      gradeId: grade.id,
+      studentId: grade.studentId,
+      previousPayload: gradeToPayload(grade),
+      payload: gradeToPayload(grade),
     });
 
-    res.json({ message: 'Note supprimée avec succès' });
+    res.status(202).json({
+      message:
+        'Demande de suppression enregistrée. Validation en 3 étapes requise avant prise en compte.',
+      request: {
+        ...request,
+        statusLabel: workflowStatusLabel(request.status),
+      },
+    });
   } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
     console.error('Erreur lors de la suppression de la note:', error);
-    res.status(500).json({ 
+    res.status(statusCode).json({ 
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3359,83 +3442,45 @@ router.post(
       if (!course) return res.status(404).json({ error: 'Cours non trouvé' });
 
       const attendanceDate = new Date(date);
-      const startOfDay = new Date(attendanceDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
-
-      const resolvedStatus = status || 'PRESENT';
+      const resolvedStatus = (status || 'PRESENT') as 'PRESENT' | 'ABSENT' | 'LATE';
       const lateMins =
         resolvedStatus === 'LATE' && minutesLate != null && minutesLate !== ''
           ? Math.max(0, Math.min(480, Number(minutesLate)))
           : null;
 
-      const existing = await prisma.absence.findFirst({
-        where: {
-          studentId,
-          courseId,
-          date: { gte: startOfDay, lt: endOfDay },
+      const sourceNorm =
+        attendanceSource === 'BIOMETRIC'
+          ? 'BIOMETRIC'
+          : attendanceSource === 'MANUAL'
+            ? 'MANUAL'
+            : 'NFC';
+
+      const punch = await punchStudentCourseAttendance({
+        studentId,
+        courseId,
+        teacherId: course.teacherId,
+        at: attendanceDate,
+        source: sourceNorm,
+        forceStatus: resolvedStatus,
+        minutesLate: lateMins,
+        notifyParents: notifyParentsOnSave !== false,
+      });
+
+      const absence = await prisma.absence.findUnique({
+        where: { id: punch.absence.id },
+        include: {
+          student: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
         },
       });
 
-      let absence;
-      if (existing) {
-        absence = await prisma.absence.update({
-          where: { id: existing.id },
-          data: {
-            status: resolvedStatus,
-            minutesLate: lateMins ?? undefined,
-            attendanceSource: attendanceSource || 'NFC',
-            updatedAt: new Date(),
-          },
-          include: {
-            student: {
-              include: {
-                user: { select: { firstName: true, lastName: true } },
-              },
-            },
-          },
-        });
-      } else {
-        absence = await prisma.absence.create({
-          data: {
-            studentId,
-            courseId,
-            teacherId: course.teacherId,
-            date: attendanceDate,
-            status: resolvedStatus,
-            excused: false,
-            justificationDocuments: [],
-            minutesLate: lateMins ?? undefined,
-            attendanceSource: attendanceSource || 'NFC',
-          },
-          include: {
-            student: {
-              include: {
-                user: { select: { firstName: true, lastName: true } },
-              },
-            },
-          },
-        });
-      }
-
-      if (notifyParentsOnSave !== false && shouldNotifyParentsOnAttendanceChange(absence.status, absence.excused)) {
-        void notifyParentsOfAttendanceChange({
-          studentId: absence.studentId,
-          status: absence.status,
-          date: absence.date,
-          courseName: course.name,
-          courseCode: course.code,
-          minutesLate: absence.minutesLate,
-        }).then(() =>
-          prisma.absence.update({
-            where: { id: absence.id },
-            data: { parentNotifiedAt: new Date() },
-          })
-        );
-      }
-
-      res.status(201).json(absence);
+      res.status(201).json({
+        ...absence,
+        punchPhase: punch.punchPhase,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -6719,17 +6764,35 @@ router.get('/report-cards/generate-data', async (req, res) => {
         });
         const overallAverage = totalCoefficient > 0 ? totalWeightedAverage / totalCoefficient : 0;
 
+        const periodAbsences = await prisma.absence.findMany({
+          where: {
+            studentId: student.id,
+            date: { gte: periodDates.start, lte: periodDates.end },
+          },
+          select: { status: true, excused: true },
+        });
+        const absences = {
+          total: periodAbsences.filter((a) => a.status === 'ABSENT').length,
+          unexcused: periodAbsences.filter((a) => a.status === 'ABSENT' && !a.excused).length,
+          excused: periodAbsences.filter((a) => a.status === 'ABSENT' && a.excused).length,
+          late: periodAbsences.filter((a) => a.status === 'LATE').length,
+        };
+
         return {
           studentId: student.id,
           userId: student.userId,
           studentIdNumber: student.studentId,
+          gender: student.gender,
+          dateOfBirth: student.dateOfBirth,
+          address: student.address,
           user: student.user,
           class: student.class,
           grades,
           courseAverages,
-          allCourses: classCourses, // Ajouter tous les cours de la classe
+          allCourses: classCourses,
           average: overallAverage,
           totalStudents: students.length,
+          absences,
         };
       })
     );
@@ -6751,7 +6814,7 @@ router.get('/report-cards/generate-data', async (req, res) => {
 });
 
 // Sauvegarder les bulletins
-router.post('/report-cards/save', async (req, res) => {
+router.post('/report-cards/save', async (req: AuthRequest, res) => {
   try {
     const { classId, period, academicYear } = req.body;
 
@@ -6769,7 +6832,10 @@ router.post('/report-cards/save', async (req, res) => {
       },
     });
 
-    const savedReportCards = await Promise.all(
+    const changeRequests: Awaited<ReturnType<typeof createReportCardChangeRequest>>[] = [];
+    let skippedUnchanged = 0;
+
+    await Promise.all(
       students.map(async (student) => {
         const grades = await prisma.grade.findMany({
           where: {
@@ -6837,10 +6903,8 @@ router.post('/report-cards/save', async (req, res) => {
         allAverages.sort((a, b) => b - a);
         const rank = allAverages.findIndex((a) => a <= average) + 1;
 
-        // Créer ou mettre à jour le bulletin
         const periodLabel = getPeriodLabel(period);
         
-        // Vérifier si le bulletin existe déjà
         const existingReportCard = await prisma.reportCard.findUnique({
           where: {
             studentId_period_academicYear: {
@@ -6851,38 +6915,71 @@ router.post('/report-cards/save', async (req, res) => {
           },
         });
 
-        let reportCard;
-        if (existingReportCard) {
-          // Mettre à jour
-          reportCard = await prisma.reportCard.update({
-            where: { id: existingReportCard.id },
-            data: {
-              average,
-              rank,
-            },
-          });
-        } else {
-          // Créer
-          reportCard = await prisma.reportCard.create({
-            data: {
-              studentId: student.id,
-              period: periodLabel,
-              academicYear,
-              average,
-              rank,
-              published: false,
-            },
-          });
-        }
+        const proposed: ReportCardPayload = {
+          studentId: student.id,
+          period: periodLabel,
+          academicYear,
+          average,
+          rank,
+          published: existingReportCard?.published ?? false,
+          comments: existingReportCard?.comments ?? null,
+        };
 
-        return reportCard;
+        if (existingReportCard) {
+          const avgChanged = Math.abs(existingReportCard.average - average) > 0.001;
+          const rankChanged = (existingReportCard.rank ?? 0) !== rank;
+          if (!avgChanged && !rankChanged) {
+            skippedUnchanged += 1;
+            return;
+          }
+          const previous: ReportCardPayload = {
+            studentId: existingReportCard.studentId,
+            period: existingReportCard.period,
+            academicYear: existingReportCard.academicYear,
+            average: existingReportCard.average,
+            rank: existingReportCard.rank,
+            comments: existingReportCard.comments,
+            published: existingReportCard.published,
+          };
+          const request = await createReportCardChangeRequest({
+            kind: 'UPDATE',
+            requestedByUserId: req.user!.id,
+            reportCardId: existingReportCard.id,
+            studentId: student.id,
+            payload: proposed,
+            previousPayload: previous,
+          });
+          changeRequests.push(request);
+        } else {
+          const request = await createReportCardChangeRequest({
+            kind: 'CREATE',
+            requestedByUserId: req.user!.id,
+            studentId: student.id,
+            payload: proposed,
+          });
+          changeRequests.push(request);
+        }
       })
     );
 
-    res.json({ message: `${savedReportCards.length} bulletin(s) sauvegardé(s)`, count: savedReportCards.length });
+    res.json({
+      message:
+        changeRequests.length > 0
+          ? `${changeRequests.length} demande(s) de bulletin soumise(s) au circuit de validation (prof principal → éducateur → directeur des études).`
+          : 'Aucune modification de moyenne à soumettre.',
+      count: changeRequests.length,
+      skippedUnchanged,
+      requests: changeRequests.map((r) => ({
+        id: r.id,
+        studentId: r.studentId,
+        status: r.status,
+        statusLabel: workflowStatusLabel(r.status),
+      })),
+    });
   } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
     console.error('Erreur lors de la sauvegarde des bulletins:', error);
-    res.status(500).json({ 
+    res.status(statusCode).json({ 
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -8419,7 +8516,11 @@ async function generateUniqueStudentId(firstName: string, lastName: string): Pro
 router.post(
   '/admissions/:id/enroll',
   [
-    body('password').isLength({ min: 6 }).withMessage('Mot de passe (min. 6 caractères) requis'),
+    body('password')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 6 })
+      .withMessage('Mot de passe : au moins 6 caractères si renseigné'),
   ],
   async (req, res) => {
     try {
@@ -8473,7 +8574,7 @@ router.post(
       }
 
       const classId = bodyClassId || admission.proposedClassId || undefined;
-      const hashedPassword = await hashPassword(password);
+      const { hashedPassword, shouldSendSetupEmail } = await resolveAdminProvidedOrInvitePassword(password);
 
       const user = await prisma.user.create({
         data: {
@@ -8533,10 +8634,20 @@ router.post(
         /* ignore */
       }
 
+      if (shouldSendSetupEmail) {
+        try {
+          await inviteNewUserToSetPassword(user.id, user.email, admission.firstName);
+        } catch (inviteErr) {
+          console.error('Invitation mot de passe (admission):', inviteErr);
+        }
+      }
+
+      const { password: _pw, ...userWithoutPassword } = user;
       res.status(201).json({
         message: 'Élève inscrit et compte créé',
-        user,
+        user: userWithoutPassword,
         reference: admission.reference,
+        passwordSetupEmailSent: shouldSendSetupEmail,
       });
     } catch (error: any) {
       console.error('POST /admissions/:id/enroll:', error);

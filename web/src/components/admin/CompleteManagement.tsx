@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Card from '../ui/Card';
@@ -316,7 +317,7 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
             `"${grade.student.user.firstName} ${grade.student.user.lastName}"`,
             `"${grade.student.class?.name || 'N/A'}"`,
             `"${grade.course.name}"`,
-            `"${grade.evaluationType || grade.type || 'N/A'}"`,
+            `"${getEvaluationTypeLabel(grade.evaluationType || grade.type)}"`,
             `"${grade.title.replace(/"/g, '""')}"`,
             grade.score.toFixed(2),
             grade.maxScore.toFixed(2),
@@ -355,7 +356,7 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
         élève: `${grade.student.user.firstName} ${grade.student.user.lastName}`,
         classe: grade.student.class?.name || 'N/A',
         matière: grade.course.name,
-        type: grade.evaluationType || grade.type || 'N/A',
+        type: getEvaluationTypeLabel(grade.evaluationType || grade.type),
         titre: grade.title,
         note: grade.score,
         noteMaximale: grade.maxScore,
@@ -453,7 +454,7 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
           const studentName = `${grade.student?.user?.firstName || ''} ${grade.student?.user?.lastName || ''}`.trim() || 'N/A';
           const className = (grade.student?.class?.name || 'N/A').substring(0, 15);
           const courseName = (grade.course?.name || 'N/A').substring(0, 20);
-          const evalType = (grade.evaluationType || grade.type || 'N/A').substring(0, 10);
+          const evalType = getEvaluationTypeLabel(grade.evaluationType || grade.type).substring(0, 18);
           const title = (grade.title || 'N/A').substring(0, 25);
           const teacherName = `${grade.teacher?.user?.firstName || ''} ${grade.teacher?.user?.lastName || ''}`.trim().substring(0, 20) || 'N/A';
           const dateStr = grade.date ? format(new Date(grade.date), 'dd/MM/yyyy', { locale: fr }) : 'N/A';

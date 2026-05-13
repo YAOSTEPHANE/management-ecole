@@ -4,6 +4,7 @@ import Modal from '../ui/Modal';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import Avatar from '../ui/Avatar';
+import { getTeacherEngagementKindLabel, getTeacherEngagementBadgeVariant } from '@/lib/teacherEngagementKind';
 import {
   FiX,
   FiUser,
@@ -143,6 +144,12 @@ const TeacherDetailsModal: React.FC<TeacherDetailsModalProps> = ({
                   <Badge variant="info" className="text-base">
                     <FiBook className="w-4 h-4 mr-1 inline" />
                     {teacher.specialization}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Type d&apos;enseignant</p>
+                  <Badge variant={getTeacherEngagementBadgeVariant(teacher.engagementKind)}>
+                    {getTeacherEngagementKindLabel(teacher.engagementKind)}
                   </Badge>
                 </div>
                 <div>

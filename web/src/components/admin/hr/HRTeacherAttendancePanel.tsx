@@ -59,8 +59,10 @@ const HRTeacherAttendancePanel: React.FC = () => {
       <Card className="p-4 border border-teal-100 bg-teal-50/40">
         <p className="text-sm text-gray-700 flex items-start gap-2">
           <FiClock className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
-          Historique des <strong>pointages présence enseignants</strong> (carte NFC ou saisie depuis
-          l’admin). Les données proviennent de la base après chaque enregistrement réussi.
+          Pointages <strong>par session de cours</strong> : le <strong>1er pointage</strong> enregistre l&apos;arrivée ;
+          la <strong>fin</strong> est fixée à l&apos;heure de fin du créneau sur l&apos;emploi du temps ;
+          les <strong>heures décomptées</strong> correspondent à la durée entre ces deux instants (pas la durée
+          théorique complète du créneau si l&apos;arrivée est tardive).
         </p>
       </Card>
 
@@ -137,9 +139,12 @@ const HRTeacherAttendancePanel: React.FC = () => {
                 <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-600">
                   <th className="py-3 px-4 font-semibold">Date</th>
                   <th className="py-3 px-4 font-semibold">Enseignant</th>
+                  <th className="py-3 px-4 font-semibold">Cours</th>
                   <th className="py-3 px-4 font-semibold">Statut</th>
+                  <th className="py-3 px-4 font-semibold">Arrivée</th>
+                  <th className="py-3 px-4 font-semibold">Départ (auto)</th>
+                  <th className="py-3 px-4 font-semibold">Heures</th>
                   <th className="py-3 px-4 font-semibold">Source</th>
-                  <th className="py-3 px-4 font-semibold">Enregistré</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,18 +170,32 @@ const HRTeacherAttendancePanel: React.FC = () => {
                         </div>
                         <div className="text-xs text-gray-500">{row.teacher?.user?.email}</div>
                       </td>
+                      <td className="py-3 px-4 text-gray-700 text-xs">
+                        {row.course?.name ?? '—'}
+                        {row.course?.code ? ` (${row.course.code})` : ''}
+                      </td>
                       <td className="py-3 px-4">
                         <Badge variant={st.variant} size="sm">
                           {st.label}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {SOURCE_LABEL[row.source] ?? row.source ?? '—'}
+                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap text-xs">
+                        {row.checkInAt
+                          ? format(new Date(row.checkInAt), 'HH:mm', { locale: fr })
+                          : '—'}
                       </td>
                       <td className="py-3 px-4 text-gray-600 whitespace-nowrap text-xs">
-                        {row.updatedAt
-                          ? format(new Date(row.updatedAt), 'dd/MM/yyyy HH:mm', { locale: fr })
+                        {row.checkOutAt
+                          ? format(new Date(row.checkOutAt), 'HH:mm', { locale: fr })
                           : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-gray-800 whitespace-nowrap text-xs tabular-nums">
+                        {row.teachingMinutes != null
+                          ? `${(row.teachingMinutes / 60).toFixed(2).replace('.', ',')} h`
+                          : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">
+                        {SOURCE_LABEL[row.source] ?? row.source ?? '—'}
                       </td>
                     </tr>
                   );

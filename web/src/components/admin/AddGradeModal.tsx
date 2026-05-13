@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react';
+import {
+  EVALUATION_TYPE_OPTIONS,
+  normalizeEvaluationType,
+  type EvaluationTypeValue,
+} from '@/lib/evaluationTypes';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Modal from '../ui/Modal';
@@ -40,7 +45,7 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
     studentId: '',
     courseId: '',
     teacherId: '',
-    evaluationType: 'EXAM' as 'EXAM' | 'QUIZ' | 'HOMEWORK' | 'PROJECT' | 'ORAL',
+    evaluationType: 'EXAM' as EvaluationTypeValue,
     title: '',
     score: '',
     maxScore: '20',
@@ -56,7 +61,7 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
         studentId: existingGrade.studentId || '',
         courseId: existingGrade.courseId || '',
         teacherId: existingGrade.teacherId || '',
-        evaluationType: existingGrade.evaluationType || 'EXAM',
+        evaluationType: normalizeEvaluationType(existingGrade.evaluationType),
         title: existingGrade.title || '',
         score: existingGrade.score?.toString() || '',
         maxScore: existingGrade.maxScore?.toString() || '20',
@@ -261,13 +266,7 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
     onClose();
   };
 
-  const evaluationTypes = [
-    { value: 'EXAM', label: 'Examen' },
-    { value: 'QUIZ', label: 'Contrôle' },
-    { value: 'HOMEWORK', label: 'Devoir maison' },
-    { value: 'PROJECT', label: 'Projet' },
-    { value: 'ORAL', label: 'Oral' },
-  ];
+  const evaluationTypes = EVALUATION_TYPE_OPTIONS;
 
   const selectedStudent = students?.find((s: any) => s.id === formData.studentId);
   const selectedCourse = courses?.find((c: any) => c.id === formData.courseId);
@@ -463,7 +462,7 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
               className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                 errors.title ? 'border-red-500' : 'border-stone-200'
               }`}
-              placeholder="Ex: Contrôle de mathématiques - Chapitre 3"
+              placeholder="Ex: Évaluation de mathématiques - Chapitre 3"
             />
           </div>
           {errors.title && (

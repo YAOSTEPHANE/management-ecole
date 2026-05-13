@@ -1,20 +1,21 @@
 /** Paires [from, to] pour dégradés SVG — cohérentes sur tous les graphiques */
 export const PREMIUM_GRADIENT_PAIRS: readonly [string, string][] = [
-  ['#6366f1', '#8b5cf6'],
-  ['#0ea5e9', '#2563eb'],
-  ['#10b981', '#059669'],
-  ['#f59e0b', '#ea580c'],
-  ['#ec4899', '#db2777'],
-  ['#06b6d4', '#0891b2'],
-  ['#a855f7', '#7c3aed'],
-  ['#14b8a6', '#0d9488'],
+  ['#0018A8', '#1a3fd4'],
+  ['#EBB02D', '#f5c95a'],
+  ['#E31B23', '#ff4d55'],
+  ['#2d6a4f', '#40916c'],
+  ['#001070', '#0018A8'],
+  ['#c99420', '#EBB02D'],
+  ['#5a75f5', '#0018A8'],
+  ['#40916c', '#2d6a4f'],
 ];
 
 export const PREMIUM_SOLID = PREMIUM_GRADIENT_PAIRS.map(([a, b]) => a);
 
 /** Palette institutionnelle des tableaux de bord : uniquement bleu / rouge */
-export const CHART_BLUE = '#2563eb';
-export const CHART_RED = '#dc2626';
+export const CHART_BLUE = '#0018A8';
+export const CHART_RED = '#E31B23';
+export const CHART_GOLD = '#EBB02D';
 
 /** Alternance bleu (pair) / rouge (impair) pour séries sans sémantique fixe */
 export function chartBlueRed(index: number): string {

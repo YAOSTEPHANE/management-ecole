@@ -29,6 +29,10 @@ const storage = multer.diskStorage({
       folder = 'teacher-admin-documents';
     } else if (file.fieldname === 'branding') {
       folder = 'branding';
+    } else if (file.fieldname === 'digitalLibrary') {
+      folder = 'digital-library';
+    } else if (file.fieldname === 'elearning') {
+      folder = 'elearning';
     }
     
     const dir = path.join(uploadsDir, folder);
@@ -63,6 +67,32 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter,
+});
+
+const digitalLibraryFilter = (req: unknown, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowed = /pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|zip|txt/;
+  const extname = allowed.test(path.extname(file.originalname).toLowerCase());
+  if (extname) return cb(null, true);
+  cb(new Error('Type non autorisé. Formats : PDF, EPUB, MOBI, DOC, DOCX, XLS, PPT, ZIP, TXT.'));
+};
+
+export const digitalLibraryUpload = multer({
+  storage,
+  limits: { fileSize: 30 * 1024 * 1024 },
+  fileFilter: digitalLibraryFilter,
+});
+
+const elearningFilter = (req: unknown, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowed = /pdf|mp4|webm|mov|doc|docx|ppt|pptx|zip|txt|png|jpg|jpeg/;
+  const extname = allowed.test(path.extname(file.originalname).toLowerCase());
+  if (extname) return cb(null, true);
+  cb(new Error('Type non autorisé pour l’e-learning.'));
+};
+
+export const elearningUpload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: elearningFilter,
 });
 
 const BRANDING_ALLOWED_MIMES = new Set([

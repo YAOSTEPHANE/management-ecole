@@ -11,8 +11,12 @@ export const generateResetToken = (): string => {
 
 /**
  * Crée et sauvegarde un token de réinitialisation dans la base de données
+ * @param expiresInHours durée de validité (défaut 1 h pour « mot de passe oublié »)
  */
-export const createPasswordResetToken = async (userId: string): Promise<string> => {
+export const createPasswordResetToken = async (
+  userId: string,
+  expiresInHours: number = 1
+): Promise<string> => {
   // Supprimer les anciens tokens non utilisés pour cet utilisateur
   await prisma.passwordResetToken.deleteMany({
     where: {
@@ -27,7 +31,8 @@ export const createPasswordResetToken = async (userId: string): Promise<string> 
   // Générer un nouveau token
   const token = generateResetToken();
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 1); // Token valide pendant 1 heure
+  const hours = Number.isFinite(expiresInHours) && expiresInHours > 0 ? expiresInHours : 1;
+  expiresAt.setHours(expiresAt.getHours() + hours);
 
   // Sauvegarder le token
   await prisma.passwordResetToken.create({
@@ -180,6 +185,39 @@ export const sendPasswordResetEmail = async (email: string, token: string, first
 };
 
 /**
+ * E-mail envoyé lorsqu’un compte est créé sans mot de passe : même page que la réinitialisation.
+ */
+export const sendWelcomeSetPasswordEmail = async (
+  email: string,
+  token: string,
+  firstName: string
+): Promise<void> => {
+  const resetUrl = getResetPasswordUrl(token);
+  const transporter = await getTransporter();
+  const subject = 'Votre compte — définissez votre mot de passe';
+  const text = `Bonjour ${firstName},\n\nUn compte a été créé pour cette adresse e-mail. Pour choisir votre mot de passe et accéder à l’espace, ouvrez le lien ci-dessous :\n${resetUrl}\n\nCe lien expire dans 48 heures. Si vous n’êtes pas concerné(e), ignorez ce message.\n`;
+  const html = `<p>Bonjour ${firstName},</p><p>Un compte a été créé pour cette adresse e-mail. Pour <strong>choisir votre mot de passe</strong> et accéder à l’espace, cliquez sur le lien ci-dessous :</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Ce lien expire dans <strong>48 heures</strong>. Si vous n’êtes pas concerné(e), ignorez ce message.</p>`;
+
+  if (transporter) {
+    await transporter.sendMail({
+      from: getEmailFrom(),
+      to: email,
+      subject,
+      text,
+      html,
+    });
+    return;
+  }
+
+  console.log('\n=== E-MAIL CRÉATION DE COMPTE — DÉFINIR MOT DE PASSE (SMTP non configuré) ===');
+  console.log(`Destinataire: ${email}`);
+  console.log(`Nom: ${firstName}`);
+  console.log(`Lien: ${resetUrl}`);
+  console.log(`Token: ${token}`);
+  console.log('================================================\n');
+};
+
+/**
  * Envoie un email de message
  */
 export const sendMessageEmail = async (
@@ -230,6 +268,7 @@ export type AttendanceEmailPayload = {
   senderName: string;
   /** Détail optionnel (ex. durée du retard) */
   detailLine?: string;
+  punchPhase?: 'CHECK_IN' | 'CHECK_OUT';
 };
 
 /**
@@ -240,11 +279,22 @@ export const sendAttendanceNotificationEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
     const transporter = await getTransporter();
-    const subject = `Présence scolaire — ${payload.studentFullName}`;
+    const punchWord =
+      payload.punchPhase === 'CHECK_OUT'
+        ? 'sortie'
+        : payload.punchPhase === 'CHECK_IN'
+          ? 'entrée'
+          : null;
+    const subject = punchWord
+      ? `Pointage ${punchWord} — ${payload.studentFullName}`
+      : `Présence scolaire — ${payload.studentFullName}`;
     const extra = payload.detailLine ? `\n\n${payload.detailLine}` : '';
     const extraHtml = payload.detailLine ? `<p>${payload.detailLine}</p>` : '';
-    const text = `Bonjour ${payload.parentFirstName},\n\nNous vous informons que ${payload.studentFullName} a été enregistré(e) comme « ${payload.statusLabel} » pour le cours « ${payload.courseLine} » le ${payload.dateStr} (${payload.timeStr}).${extra}\n\nCordialement,\n${payload.senderName}`;
-    const html = `<p>Bonjour ${payload.parentFirstName},</p><p>Nous vous informons que <strong>${payload.studentFullName}</strong> a été enregistré(e) comme <strong>${payload.statusLabel}</strong> pour le cours <strong>${payload.courseLine}</strong> le ${payload.dateStr} (${payload.timeStr}).</p>${extraHtml}<p>Cordialement,<br/>${payload.senderName}</p>`;
+    const actionLine = punchWord
+      ? `${payload.studentFullName} a effectué son pointage de ${punchWord} pour le cours « ${payload.courseLine} » le ${payload.dateStr} à ${payload.timeStr} (${payload.statusLabel}).`
+      : `${payload.studentFullName} a été enregistré(e) comme « ${payload.statusLabel} » pour le cours « ${payload.courseLine} » le ${payload.dateStr} (${payload.timeStr}).`;
+    const text = `Bonjour ${payload.parentFirstName},\n\nNous vous informons que ${actionLine}${extra}\n\nCordialement,\n${payload.senderName}`;
+    const html = `<p>Bonjour ${payload.parentFirstName},</p><p>Nous vous informons que ${actionLine}</p>${extraHtml}<p>Cordialement,<br/>${payload.senderName}</p>`;
 
     if (transporter) {
       const info = await transporter.sendMail({

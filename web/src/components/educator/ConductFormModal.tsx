@@ -25,7 +25,7 @@ const ConductFormModal = ({ isOpen, onClose, conductId }: ConductFormModalProps)
 
   const { data: students } = useQuery({
     queryKey: ['educator-students'],
-    queryFn: educatorApi.getStudents,
+    queryFn: () => educatorApi.getStudents(),
   });
 
   const { data: existingConduct } = useQuery({

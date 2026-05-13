@@ -17,10 +17,12 @@ import {
   FiAward,
   FiBook,
   FiDownload,
-  FiSearch
+  FiSearch,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import { getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -34,10 +36,23 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
     queryFn: () => studentApi.getGrades(),
   });
 
-  const { data: reportCards } = useQuery({
+  const { data: reportPayload } = useQuery({
     queryKey: ['student-report-cards'],
     queryFn: () => studentApi.getReportCards(),
   });
+
+  const tuitionBlock = data?.tuitionBlock as
+    | { active?: boolean; hiddenAcademicYears?: string[] }
+    | undefined;
+
+  const legacyReportList = Array.isArray(reportPayload);
+  const reportCardsList = legacyReportList
+    ? (reportPayload as any[])
+    : ((reportPayload as { reportCards?: any[] } | undefined)?.reportCards ?? []);
+  const reportCardsTuitionBlock = legacyReportList
+    ? tuitionBlock
+    : (reportPayload as { tuitionBlock?: { active?: boolean; hiddenAcademicYears?: string[] } } | undefined)
+        ?.tuitionBlock ?? tuitionBlock;
 
   const toggleCourse = (courseId: string) => {
     const newExpanded = new Set(expandedCourses);
@@ -164,7 +179,7 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
       `${grade.score}/${grade.maxScore}`,
       ((grade.score / grade.maxScore) * 20).toFixed(2),
       grade.coefficient.toString(),
-      grade.evaluationType || 'N/A',
+      getEvaluationTypeLabel(grade.evaluationType),
       `${grade.teacher?.user?.firstName || ''} ${grade.teacher?.user?.lastName || ''}`.trim() || 'N/A',
     ]);
 
@@ -211,6 +226,34 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
 
   return (
     <div className="space-y-6">
+      {(tuitionBlock?.active || reportCardsTuitionBlock?.active) &&
+        ((tuitionBlock?.hiddenAcademicYears?.length ?? 0) > 0 ||
+          (reportCardsTuitionBlock?.hiddenAcademicYears?.length ?? 0) > 0) && (
+        <Card className="border-l-4 border-amber-500 bg-amber-50/90 ring-1 ring-amber-200/80">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <FiAlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold text-amber-900 mb-1">Accès aux notes et bulletins limité</p>
+              <p className="text-amber-900/90 leading-relaxed">
+                Des frais d&apos;inscription ou de scolarité restent impayés pour la ou les années scolaires :{' '}
+                <span className="font-medium">
+                  {[
+                    ...(tuitionBlock?.hiddenAcademicYears ?? []),
+                    ...(reportCardsTuitionBlock?.hiddenAcademicYears ?? []),
+                  ]
+                    .filter((y, i, arr) => arr.indexOf(y) === i)
+                    .join(', ')}
+                </span>.
+                Les notes et bulletins de ces années ne sont plus affichés après la clôture de l&apos;année.
+                Régularisez la situation auprès du secrétariat ou via la section Paiements.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Indicateur de recherche */}
       {(searchQuery || searchDateRange !== 'all') && (
         <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
@@ -231,7 +274,7 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
       )}
 
       {/* Section Bulletins */}
-      {Array.isArray(reportCards) && reportCards.length > 0 && (
+      {reportCardsList.length > 0 && (
         <Card 
           className="relative overflow-hidden group perspective-3d transform-gpu transition-all duration-300 hover:shadow-2xl"
           style={{
@@ -262,7 +305,7 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(reportCards as any[]).map((reportCard: any) => (
+              {reportCardsList.map((reportCard: any) => (
                 <Card
                   key={reportCard.id}
                   className="relative overflow-hidden group/card perspective-3d transform-gpu transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer"
@@ -436,7 +479,7 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
                                       <span>{format(new Date(grade.date), 'dd MMMM yyyy', { locale: fr })}</span>
                                     </div>
                                     <Badge variant="info" size="sm">
-                                      {grade.evaluationType || 'Évaluation'}
+                                      {getEvaluationTypeLabel(grade.evaluationType)}
                                     </Badge>
                                     <Badge variant="secondary" size="sm">
                                       Coeff. {grade.coefficient}
@@ -473,8 +516,14 @@ const StudentGrades = ({ searchQuery = '', searchCategory = 'all', searchDateRan
         <Card>
           <div className="text-center py-12 text-gray-500">
             <FiBook className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg mb-2">Aucune note disponible</p>
-            <p className="text-sm">Vos notes apparaîtront ici une fois saisies par vos enseignants</p>
+            <p className="text-lg mb-2">
+              {tuitionBlock?.active ? 'Notes non disponibles' : 'Aucune note disponible'}
+            </p>
+            <p className="text-sm">
+              {tuitionBlock?.active
+                ? 'Certaines notes peuvent être masquées tant que la scolarité ou l\'inscription n\'est pas entièrement réglée pour les années concernées.'
+                : 'Vos notes apparaîtront ici une fois saisies par vos enseignants'}
+            </p>
           </div>
         </Card>
       )}

@@ -78,10 +78,14 @@ const ParentOverview = () => {
   const totalCoefficient = allGrades.reduce((sum: number, g: any) => sum + g.coefficient, 0);
   const overallAverage = totalCoefficient > 0 ? totalScore / totalCoefficient : 0;
 
-  const totalAbsences = absences?.length || 0;
-  const unexcusedAbsences = absences?.filter((a: any) => !a.excused).length || 0;
+    const totalAbsences = absences?.length || 0;
+    const unexcusedAbsences = absences?.filter((a: any) => !a.excused).length || 0;
 
-  const stats = [
+    const tuitionBlock = grades?.tuitionBlock as
+      | { active?: boolean; hiddenAcademicYears?: string[] }
+      | undefined;
+
+    const stats = [
     {
       title: 'Moyenne Générale',
       value: overallAverage > 0 ? overallAverage.toFixed(2) : '-',
@@ -139,6 +143,23 @@ const ParentOverview = () => {
       </div>
 
       <PortalSchoolFeed role="parent" compact />
+
+      {selectedChildData && tuitionBlock?.active && (tuitionBlock.hiddenAcademicYears?.length ?? 0) > 0 && (
+        <Card className="border-l-4 border-amber-500 bg-amber-50/90 ring-1 ring-amber-200/80">
+          <div className="flex items-start gap-3">
+            <FiAlertCircle className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold text-amber-900 mb-1">Résultats partiellement masqués</p>
+              <p className="text-amber-900/90 leading-relaxed">
+                L&apos;accès aux notes et bulletins des années{' '}
+                <span className="font-medium">{tuitionBlock.hiddenAcademicYears?.join(', ')}</span> est limité tant
+                que les frais d&apos;inscription ou de scolarité ne sont pas réglés. Ouvrez l&apos;onglet{' '}
+                <strong>Notes</strong>, <strong>Bulletins</strong> ou <strong>Paiements / Frais</strong> pour le détail.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Sélection d'enfant */}
       {children && children.length > 1 && (

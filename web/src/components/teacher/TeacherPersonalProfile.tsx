@@ -8,6 +8,7 @@ import Avatar from '../ui/Avatar';
 import ImageUpload from '../ui/ImageUpload';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
+import { getTeacherEngagementKindLabel } from '@/lib/teacherEngagementKind';
 import {
   FiUser,
   FiMail,
@@ -220,6 +221,15 @@ const TeacherPersonalProfile = () => {
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Date d&apos;embauche</p>
               <p className="font-medium text-gray-900">{hire}</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <FiBriefcase className="w-5 h-5 text-indigo-500 shrink-0" />
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Statut</p>
+              <p className="font-medium text-gray-900">
+                {getTeacherEngagementKindLabel(profile.engagementKind)}
+              </p>
             </div>
           </div>
           <div className="flex gap-3">

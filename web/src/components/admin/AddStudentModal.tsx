@@ -87,10 +87,15 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
   // Mutation pour créer l'élève
   const createStudentMutation = useMutation({
     mutationFn: adminApi.createStudent,
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      toast.success('Élève créé avec succès !');
+      const sent = (data as { passwordSetupEmailSent?: boolean })?.passwordSetupEmailSent;
+      toast.success(
+        sent
+          ? 'Élève créé. Un lien pour choisir le mot de passe a été envoyé à son e-mail (valide 48 h).'
+          : 'Élève créé avec succès !'
+      );
       handleClose();
     },
     onError: (error: any) => {
@@ -134,13 +139,17 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Email invalide';
       }
-      if (!formData.password) {
-        newErrors.password = 'Le mot de passe est requis';
-      } else if (formData.password.length < 6) {
-        newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
-      }
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+      const pw = formData.password.trim();
+      const cpw = formData.confirmPassword.trim();
+      if (pw.length > 0) {
+        if (pw.length < 6) {
+          newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+        }
+        if (pw !== cpw) {
+          newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+        }
+      } else if (cpw.length > 0) {
+        newErrors.confirmPassword = 'Videz la confirmation ou saisissez un mot de passe';
       }
       if (!formData.dateOfBirth) newErrors.dateOfBirth = 'La date de naissance est requise';
       if (!formData.gender) newErrors.gender = 'Le genre est requis';
@@ -171,9 +180,10 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
       return;
     }
 
+    const pw = formData.password.trim();
     const submitData = {
       email: formData.email,
-      password: formData.password,
+      ...(pw.length >= 6 ? { password: pw } : {}),
       firstName: formData.firstName,
       lastName: formData.lastName,
       phone: formData.phone || undefined,
@@ -369,7 +379,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Mot de passe <span className="text-red-500">*</span>
+                    Mot de passe <span className="text-stone-500 font-normal">(optionnel)</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
@@ -383,9 +393,13 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
                       className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                         errors.password ? 'border-red-500' : 'border-stone-200'
                       }`}
-                      placeholder="Minimum 6 caractères"
+                      placeholder="Laisser vide = lien par e-mail"
+                      autoComplete="new-password"
                     />
                   </div>
+                  <p className="mt-0.5 text-[11px] text-stone-500 leading-snug">
+                    Si vide, l’élève reçoit un e-mail pour définir son mot de passe (48 h). Sinon, min. 6 caractères.
+                  </p>
                   {errors.password && (
                     <p className="mt-1 text-xs text-red-500 flex items-center">
                       <FiAlertCircle className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -396,7 +410,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Confirmer le mot de passe <span className="text-red-500">*</span>
+                    Confirmer le mot de passe
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
@@ -410,7 +424,8 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose }) =>
                       className={`w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/40 transition-all ${
                         errors.confirmPassword ? 'border-red-500' : 'border-stone-200'
                       }`}
-                      placeholder="Confirmer le mot de passe"
+                      placeholder="Même mot de passe si renseigné"
+                      autoComplete="new-password"
                     />
                   </div>
                   {errors.confirmPassword && (

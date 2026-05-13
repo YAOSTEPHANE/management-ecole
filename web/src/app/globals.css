@@ -27,16 +27,20 @@
   --home-hero-from: #0c0a09;
   --home-hero-via: #1c1917;
   --home-hero-to: #0c0a09;
-  --home-primary: #a16207;
-  --home-primary-dark: #854d0e;
-  --lux-gold: #c9a227;
-  --lux-gold-mid: #e8d48b;
+  --home-primary: #0018A8;
+  --home-primary-dark: #001070;
+  --lux-gold: #EBB02D;
+  --lux-gold-mid: #f5c95a;
   --lux-ink: #0c0a09;
-  --premium-ring: rgba(201, 162, 39, 0.35);
+  --cptb-blue: #0018A8;
+  --cptb-gold: #EBB02D;
+  --cptb-red: #E31B23;
+  --cptb-green: #2d6a4f;
+  --premium-ring: rgba(0, 24, 168, 0.35);
   --premium-nav-border: rgba(231, 229, 228, 0.9);
-  --hero-glow-gold: rgba(201, 162, 39, 0.2);
-  --hero-glow-stone: rgba(120, 113, 108, 0.18);
-  --hero-glow-emerald: rgba(16, 185, 129, 0.1);
+  --hero-glow-gold: rgba(235, 176, 45, 0.22);
+  --hero-glow-stone: rgba(0, 24, 168, 0.12);
+  --hero-glow-emerald: rgba(45, 106, 79, 0.12);
 }
 
 @layer base {
@@ -61,8 +65,8 @@
   }
 
   ::selection {
-    background-color: rgba(201, 162, 39, 0.28);
-    color: #0c0a09;
+    background-color: rgba(235, 176, 45, 0.35);
+    color: #001070;
   }
 }
 
@@ -628,7 +632,7 @@
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg;
+    @apply bg-gradient-to-r from-cptb-blue to-brand-700 text-white px-6 py-3 rounded-lg font-semibold hover:from-brand-700 hover:to-cptb-blue-dark transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg;
   }
   
   .btn-secondary {

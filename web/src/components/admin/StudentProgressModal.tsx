@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 import { adminApi } from '../../services/api';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
@@ -318,7 +319,7 @@ const StudentProgressModal: React.FC<StudentProgressModalProps> = ({
                           </Badge>
                         </td>
                         <td className="py-2 px-3 text-sm text-gray-700">{grade.coefficient}</td>
-                        <td className="py-2 px-3 text-sm text-gray-700">{grade.evaluationType}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700">{getEvaluationTypeLabel(grade.evaluationType)}</td>
                       </tr>
                     );
                   })}

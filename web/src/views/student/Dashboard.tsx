@@ -15,6 +15,8 @@ import IdentityDocumentsPanel from '../../components/identity/IdentityDocumentsP
 import SchoolCommunication from '../../components/portal/SchoolCommunication';
 import StudentExtracurricularPanel from '../../components/student/StudentExtracurricularPanel';
 import StudentOrientationPanel from '../../components/student/StudentOrientationPanel';
+import DigitalLibraryBrowser from '../../components/digital-library/DigitalLibraryBrowser';
+import ElearningHub from '../../components/elearning/ElearningHub';
 import {
   FiLayout,
   FiUser,
@@ -34,6 +36,8 @@ import {
   FiCommand,
   FiMap,
   FiNavigation,
+  FiCloud,
+  FiMonitor,
 } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import { format } from 'date-fns';
@@ -54,6 +58,8 @@ const VALID_TAB_IDS = [
   'orientation',
   'payments',
   'messages',
+  'digital-library',
+  'elearning',
 ] as const;
 
 type TabId = (typeof VALID_TAB_IDS)[number];
@@ -107,6 +113,8 @@ const StudentDashboard = () => {
       },
       { id: 'payments', label: 'Paiements', icon: FiDollarSign, color: 'from-emerald-500 to-green-600', description: 'Frais et règlements en ligne' },
       { id: 'messages', label: 'Messages école', icon: FiMessageCircle, color: 'from-blue-500 to-indigo-600', description: 'Échanges avec l’administration' },
+      { id: 'digital-library', label: 'Bibliothèque numérique', icon: FiCloud, color: 'from-sky-500 to-indigo-600', description: 'E-books, PDF et ressources pédagogiques en ligne' },
+      { id: 'elearning', label: 'E-learning', icon: FiMonitor, color: 'from-violet-500 to-purple-600', description: 'Cours en ligne, quiz et classes virtuelles' },
     ],
     []
   );
@@ -432,6 +440,8 @@ const StudentDashboard = () => {
                   {activeTab === 'orientation' && <StudentOrientationPanel />}
                   {activeTab === 'payments' && <StudentPayments />}
                   {activeTab === 'messages' && <SchoolCommunication role="student" />}
+                  {activeTab === 'digital-library' && <DigitalLibraryBrowser />}
+                  {activeTab === 'elearning' && <ElearningHub mode="student" />}
                 </div>
               </div>
             </main>

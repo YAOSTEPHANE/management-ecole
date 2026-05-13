@@ -5,12 +5,17 @@ import Layout from '../../components/Layout';
 import EducatorOverview from '../../components/educator/EducatorOverview';
 import StudentsList from '../../components/educator/StudentsList';
 import ConductManager from '../../components/educator/ConductManager';
-import { FiLayout, FiUsers, FiShield, FiSearch, FiTrendingUp, FiCommand } from 'react-icons/fi';
+import EducatorTeachersList from '../../components/educator/EducatorTeachersList';
+import EducatorParentsList from '../../components/educator/EducatorParentsList';
+import EducatorInternalMessaging from '../../components/educator/EducatorInternalMessaging';
+import EducatorScheduleTab from '../../components/educator/EducatorScheduleTab';
+import AcademicValidationPanel from '../../components/academic/AcademicValidationPanel';
+import { FiLayout, FiUsers, FiShield, FiSearch, FiTrendingUp, FiCommand, FiCheckCircle, FiBookOpen, FiHeart, FiMessageSquare, FiCalendar } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { inactiveModuleIconClass } from '../../lib/navModuleIconClass';
 
-const VALID_TAB_IDS = ['overview', 'students', 'conduct'] as const;
+const VALID_TAB_IDS = ['overview', 'students', 'teachers', 'parents', 'messaging', 'schedule', 'conduct', 'validations'] as const;
 type TabId = (typeof VALID_TAB_IDS)[number];
 
 type TabDef = {
@@ -31,8 +36,13 @@ const EducatorDashboard = () => {
   const tabs: TabDef[] = useMemo(
     () => [
       { id: 'overview', label: 'Vue d’ensemble', icon: FiLayout, color: 'from-violet-500 to-indigo-600', description: 'Indicateurs de conduite et priorités du jour' },
-      { id: 'students', label: 'Élèves', icon: FiUsers, color: 'from-indigo-500 to-purple-600', description: 'Liste et profils des élèves suivis' },
+      { id: 'students', label: 'Élèves', icon: FiUsers, color: 'from-indigo-500 to-purple-600', description: 'Liste des élèves par classe' },
+      { id: 'teachers', label: 'Enseignants', icon: FiBookOpen, color: 'from-blue-500 to-indigo-600', description: 'Liste des enseignants de l’établissement' },
+      { id: 'parents', label: 'Parents', icon: FiHeart, color: 'from-rose-500 to-pink-600', description: 'Familles et contacts par classe' },
+      { id: 'messaging', label: 'Messagerie', icon: FiMessageSquare, color: 'from-emerald-500 to-teal-600', description: 'Communication avec enseignants, parents et élèves' },
+      { id: 'schedule', label: 'Emplois du temps', icon: FiCalendar, color: 'from-amber-500 to-orange-600', description: 'Plannings par classe et par enseignant' },
       { id: 'conduct', label: 'Conduite', icon: FiShield, color: 'from-purple-500 to-fuchsia-600', description: 'Évaluations et historique comportemental' },
+      { id: 'validations', label: 'Validations', icon: FiCheckCircle, color: 'from-blue-600 to-indigo-600', description: 'Valider les notes et moyennes (2e étape)' },
     ],
     []
   );
@@ -168,7 +178,7 @@ const EducatorDashboard = () => {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Rechercher un élève ou une fiche…"
+                    placeholder="Rechercher un élève, enseignant ou parent…"
                     className="w-full pl-10 pr-3 py-2 sm:py-2.5 bg-white/95 border border-stone-200/90 rounded-xl text-sm text-stone-900 placeholder:text-stone-400 shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-amber-500/35 focus:border-amber-400/50 hover:border-stone-300"
                     aria-label="Recherche dans l’espace éducateur"
                   />
@@ -204,7 +214,14 @@ const EducatorDashboard = () => {
               <div className="animate-slide-up">
                 {activeTab === 'overview' && <EducatorOverview searchQuery={searchQuery} />}
                 {activeTab === 'students' && <StudentsList searchQuery={searchQuery} />}
+                {activeTab === 'teachers' && <EducatorTeachersList searchQuery={searchQuery} />}
+                {activeTab === 'parents' && <EducatorParentsList searchQuery={searchQuery} />}
+                {activeTab === 'messaging' && <EducatorInternalMessaging />}
+                {activeTab === 'schedule' && <EducatorScheduleTab />}
                 {activeTab === 'conduct' && <ConductManager searchQuery={searchQuery} />}
+                {activeTab === 'validations' && (
+                  <AcademicValidationPanel title="Validations (éducateur)" />
+                )}
               </div>
             </div>
           </main>

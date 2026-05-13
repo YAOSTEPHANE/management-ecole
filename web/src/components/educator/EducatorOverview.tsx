@@ -45,7 +45,7 @@ const EducatorOverview = ({ searchQuery = '' }: EducatorOverviewProps) => {
 
   const { data: students, isLoading: studentsLoading } = useQuery({
     queryKey: ['educator-students'],
-    queryFn: educatorApi.getStudents,
+    queryFn: () => educatorApi.getStudents(),
   });
 
   // Calculer les statistiques détaillées

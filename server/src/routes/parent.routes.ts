@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { autoReceiptUrl } from '../utils/tuition-financial-automation.util';
+import { syncTuitionFeePaidStatusForFeeId } from '../utils/tuition-fee-paid-sync.util';
 import {
   decryptParentTeacherAppointmentRow,
   decryptStudentRecord,
@@ -21,6 +22,10 @@ import {
   buildPortalOfferingWhere,
   registerStudentForExtracurricular,
 } from '../utils/extracurricular.util';
+import {
+  getAcademicYearsWithTuitionBlockForParent,
+  parentTuitionBlockFromYears,
+} from '../utils/parent-academic-result-access.util';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 
 const router = express.Router();
@@ -618,6 +623,13 @@ router.get('/dashboard/kpis', async (req: AuthRequest, res) => {
     const since = new Date();
     since.setDate(since.getDate() - 120);
 
+    const blockedByStudent = new Map<string, Set<string>>();
+    await Promise.all(
+      studentIds.map(async (id) => {
+        blockedByStudent.set(id, await getAcademicYearsWithTuitionBlockForParent(prisma, id));
+      }),
+    );
+
     const [tuitionUnpaid, pendingAppointments, unreadNotifications, grades] = await Promise.all([
       prisma.tuitionFee.aggregate({
         where: { studentId: { in: studentIds }, isPaid: false },
@@ -637,6 +649,7 @@ router.get('/dashboard/kpis', async (req: AuthRequest, res) => {
           score: true,
           maxScore: true,
           coefficient: true,
+          course: { select: { class: { select: { academicYear: true } } } },
         },
       }),
     ]);
@@ -653,6 +666,8 @@ router.get('/dashboard/kpis', async (req: AuthRequest, res) => {
     for (const g of grades) {
       const row = perChild.get(g.studentId);
       if (!row) continue;
+      const ay = (g.course?.class?.academicYear ?? '').trim();
+      if (ay && blockedByStudent.get(g.studentId)?.has(ay)) continue;
       const max = g.maxScore > 0 ? g.maxScore : 20;
       const n20 = (g.score / max) * 20;
       row.sum += n20 * g.coefficient;
@@ -704,7 +719,10 @@ router.get('/children/:studentId/grades', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Accès refusé' });
     }
 
-    const grades = await prisma.grade.findMany({
+    const blockedAcademicYears = await getAcademicYearsWithTuitionBlockForParent(prisma, studentId);
+    const tuitionBlock = parentTuitionBlockFromYears(blockedAcademicYears);
+
+    const gradesRaw = await prisma.grade.findMany({
       where: {
         studentId,
       },
@@ -730,6 +748,12 @@ router.get('/children/:studentId/grades', async (req: AuthRequest, res) => {
       },
     });
 
+    const grades = gradesRaw.filter((grade) => {
+      const ay = (grade.course?.class?.academicYear ?? '').trim();
+      if (!ay) return true;
+      return !blockedAcademicYears.has(ay);
+    });
+
     // Calculer les moyennes par cours
     const courseAverages: Record<string, { total: number; count: number; average: number }> = {};
 
@@ -750,6 +774,7 @@ router.get('/children/:studentId/grades', async (req: AuthRequest, res) => {
     res.json({
       grades,
       courseAverages,
+      tuitionBlock,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1193,24 +1218,8 @@ router.post('/children/:studentId/payments/:id/confirm', async (req: AuthRequest
       },
     });
 
-    // Calculer le montant total payé pour ce frais
-    const completedPayments = await prisma.payment.findMany({
-      where: {
-        tuitionFeeId: payment.tuitionFeeId,
-        status: 'COMPLETED',
-      },
-    });
-    const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-    const isFullyPaid = totalPaid >= payment.tuitionFee.amount;
-
-    // Mettre à jour le frais de scolarité
-    await prisma.tuitionFee.update({
-      where: { id: payment.tuitionFeeId },
-      data: {
-        isPaid: isFullyPaid,
-        paidAt: isFullyPaid ? new Date() : null,
-      },
-    });
+    // Mettre à jour le solde du frais (isPaid / paidAt)
+    await syncTuitionFeePaidStatusForFeeId(prisma, payment.tuitionFeeId);
 
     res.json({
       payment: updatedPayment,
@@ -1312,7 +1321,10 @@ router.get('/children/:studentId/report-cards', async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Accès refusé' });
     }
 
-    const reportCards = await prisma.reportCard.findMany({
+    const blockedAcademicYears = await getAcademicYearsWithTuitionBlockForParent(prisma, studentId);
+    const tuitionBlock = parentTuitionBlockFromYears(blockedAcademicYears);
+
+    const reportCardsRaw = await prisma.reportCard.findMany({
       where: {
         studentId,
         published: true,
@@ -1323,7 +1335,13 @@ router.get('/children/:studentId/report-cards', async (req: AuthRequest, res) =>
       ],
     });
 
-    res.json(reportCards);
+    const reportCards = reportCardsRaw.filter((rc) => {
+      const ay = (rc.academicYear ?? '').trim();
+      if (!ay) return true;
+      return !blockedAcademicYears.has(ay);
+    });
+
+    res.json({ reportCards, tuitionBlock });
   } catch (error: any) {
     console.error('Erreur lors de la récupération des bulletins:', error);
     res.status(500).json({ 

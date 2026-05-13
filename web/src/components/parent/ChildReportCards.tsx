@@ -12,7 +12,8 @@ import {
   FiAward,
   FiTrendingUp,
   FiSearch,
-  FiFilter
+  FiFilter,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -29,10 +30,19 @@ const ChildReportCards = ({ studentId }: ChildReportCardsProps) => {
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
   const [filterYear, setFilterYear] = useState<string>('all');
 
-  const { data: reportCards, isLoading } = useQuery({
+  const { data: reportPayload, isLoading } = useQuery({
     queryKey: ['parent-child-report-cards', studentId],
     queryFn: () => parentApi.getChildReportCards(studentId),
   });
+
+  const legacyList = Array.isArray(reportPayload);
+  const reportCards = legacyList
+    ? (reportPayload as any[])
+    : ((reportPayload as { reportCards?: any[] } | undefined)?.reportCards ?? []);
+  const tuitionBlock = legacyList
+    ? undefined
+    : (reportPayload as { tuitionBlock?: { active?: boolean; hiddenAcademicYears?: string[] } } | undefined)
+        ?.tuitionBlock;
 
   const filteredReportCards = reportCards?.filter((card: any) => {
     if (filterPeriod !== 'all' && card.period !== filterPeriod) return false;
@@ -105,6 +115,25 @@ const ChildReportCards = ({ studentId }: ChildReportCardsProps) => {
 
   return (
     <div className="space-y-6">
+      {tuitionBlock?.active && (tuitionBlock.hiddenAcademicYears?.length ?? 0) > 0 && (
+        <Card className="border-l-4 border-amber-500 bg-amber-50/90 ring-1 ring-amber-200/80">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <FiAlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold text-amber-900 mb-1">Accès aux bulletins limité</p>
+              <p className="text-amber-900/90 leading-relaxed">
+                Des frais d&apos;inscription ou de scolarité restent impayés pour :{' '}
+                <span className="font-medium">{tuitionBlock.hiddenAcademicYears?.join(', ')}</span>.
+                Les bulletins de ces années ne sont plus visibles après la clôture de l&apos;année scolaire.
+                Régularisez la situation depuis la section <strong>Paiements / Frais</strong>.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Filtres */}
       {reportCards && reportCards.length > 0 && (
         <Card>
@@ -146,13 +175,17 @@ const ChildReportCards = ({ studentId }: ChildReportCardsProps) => {
           <div className="text-center py-12 text-gray-500">
             <FiFileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p className="text-lg mb-2">
-              {reportCards && reportCards.length === 0 
-                ? 'Aucun bulletin disponible'
+              {reportCards && reportCards.length === 0
+                ? tuitionBlock?.active
+                  ? 'Bulletins non disponibles'
+                  : 'Aucun bulletin disponible'
                 : 'Aucun bulletin trouvé avec ces filtres'}
             </p>
             <p className="text-sm">
               {reportCards && reportCards.length === 0
-                ? 'Les bulletins apparaîtront ici une fois générés par l\'administration'
+                ? tuitionBlock?.active
+                  ? 'Les bulletins des années pour lesquelles la scolarité ou l\'inscription n\'est pas réglée ne sont pas affichés. Consultez l\'encadré ci-dessus et la section Paiements / Frais.'
+                  : 'Les bulletins apparaîtront ici une fois générés par l\'administration'
                 : 'Essayez avec d\'autres critères de filtrage'}
             </p>
           </div>

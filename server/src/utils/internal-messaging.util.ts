@@ -27,7 +27,7 @@ function portalPathForRole(role: Role): string {
     case 'TEACHER':
       return '/teacher?tab=messaging';
     case 'EDUCATOR':
-      return '/educator';
+      return '/educator?tab=messaging';
     case 'ADMIN':
       return '/admin?tab=communication';
     default:
