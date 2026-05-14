@@ -27,7 +27,7 @@ import { formatFCFA } from '../../../utils/currency';
 import StaffModuleAccessField from './StaffModuleAccessField';
 import StaffModulesRecapPanel from './StaffModulesRecapPanel';
 import { resolveStaffSupportKind } from '@/views/staff/staffSpaceConfig';
-import { getEligibleModulesForSupportKind, type StaffModuleId } from '@/lib/staffModules';
+import { getAllStaffVisibleModules, type StaffModuleId } from '@/lib/staffModules';
 import { useAppBranding } from '@/contexts/AppBrandingContext';
 import { downloadJobDescriptionPdf, type JobDescriptionPdfPayload } from '@/lib/jobDescriptionPdf';
 import AdminUserPasswordSection from '../AdminUserPasswordSection';
@@ -874,7 +874,9 @@ function StaffFormModal({
   const [jobDescriptionId, setJobDesc] = useState('');
   const [managerId, setManager] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [visibleStaffModules, setVisibleStaffModules] = useState<StaffModuleId[]>(['overview']);
+  const [visibleStaffModules, setVisibleStaffModules] = useState<StaffModuleId[]>(
+    getAllStaffVisibleModules(),
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -899,11 +901,7 @@ function StaffFormModal({
       setJobDesc(s.jobDescriptionId ?? '');
       setManager(s.managerId ?? '');
       setIsActive(s.user?.isActive !== false);
-      const kind = resolveStaffSupportKind(s.supportKind || 'OTHER');
-      const stored = Array.isArray(s.visibleStaffModules) ? (s.visibleStaffModules as StaffModuleId[]) : [];
-      setVisibleStaffModules(
-        stored.length ? stored : getEligibleModulesForSupportKind(kind),
-      );
+      setVisibleStaffModules(getAllStaffVisibleModules());
     }
     if (!staffId && isOpen) {
       setEmail('');
@@ -925,15 +923,9 @@ function StaffFormModal({
       setJobDesc('');
       setManager('');
       setIsActive(true);
-      setVisibleStaffModules(getEligibleModulesForSupportKind('LIBRARIAN'));
+      setVisibleStaffModules(getAllStaffVisibleModules());
     }
   }, [isOpen, staffId, existing]);
-
-  useEffect(() => {
-    if (!isOpen || staffCategory !== 'SUPPORT') return;
-    if (staffId && existing) return;
-    setVisibleStaffModules(getEligibleModulesForSupportKind(resolveStaffSupportKind(supportKind)));
-  }, [supportKind, staffCategory, isOpen, staffId, existing]);
 
   const saveMut = useMutation({
     mutationFn: async () => {

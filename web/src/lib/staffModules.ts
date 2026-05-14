@@ -376,6 +376,11 @@ export function getAllConfigurableStaffModules(): StaffModuleId[] {
   return STAFF_MODULE_IDS.filter((id) => id !== 'overview');
 }
 
+/** Vue d'ensemble + tous les modules configurables (accès menu complet). */
+export function getAllStaffVisibleModules(): StaffModuleId[] {
+  return ['overview', ...getAllConfigurableStaffModules()];
+}
+
 export function resolveVisibleStaffModules(
   kind: SupportStaffKindKey,
   stored: string[] | null | undefined,

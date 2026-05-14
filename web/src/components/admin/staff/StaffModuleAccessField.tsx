@@ -5,6 +5,7 @@ import {
   STAFF_MODULE_DESCRIPTIONS,
   STAFF_MODULE_LABELS,
   getAllConfigurableStaffModules,
+  getAllStaffVisibleModules,
   getEligibleModulesForSupportKind,
   type StaffModuleId,
 } from '@/lib/staffModules';
@@ -47,7 +48,7 @@ export default function StaffModuleAccessField({ supportKind, value, onChange }:
           </button>
           <button
             type="button"
-            onClick={() => onChange(['overview', ...allModules])}
+            onClick={() => onChange(getAllStaffVisibleModules())}
             className="text-[10px] font-semibold px-2 py-1 rounded-md border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
           >
             Tout cocher
