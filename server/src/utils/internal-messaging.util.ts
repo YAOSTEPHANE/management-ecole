@@ -29,7 +29,10 @@ function portalPathForRole(role: Role): string {
     case 'EDUCATOR':
       return '/educator?tab=messaging';
     case 'ADMIN':
+    case 'SUPER_ADMIN':
       return '/admin?tab=communication';
+    case 'STAFF':
+      return '/staff?tab=health_log';
     default:
       return '/';
   }

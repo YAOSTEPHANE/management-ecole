@@ -7,6 +7,11 @@ import {
   assertStaffHasModule,
   type StaffModuleId,
 } from '../utils/staff-visible-modules.util';
+import {
+  listPendingCashPayments,
+  rejectCashPayment,
+  validateCashPayment,
+} from '../utils/cash-payment-validation.util';
 
 const router = express.Router();
 
@@ -363,6 +368,53 @@ router.get('/treasury/recent-payments', requireStaffModule('treasury'), async (_
     res.json(rows);
   } catch (error: unknown) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/treasury/pending-cash', requireStaffModule('treasury'), async (_req, res) => {
+  try {
+    const rows = await listPendingCashPayments();
+    res.json(rows);
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/treasury/pending-cash/:id/validate', requireStaffModule('treasury'), async (req: AuthRequest, res) => {
+  try {
+    const staff = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    });
+    if (!staff) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    const name = [staff.firstName, staff.lastName].filter(Boolean).join(' ').trim() || 'Économe';
+    const payment = await validateCashPayment(prisma, req.params.id, {
+      id: staff.id,
+      role: staff.role,
+      name,
+    });
+    res.json({ payment, message: 'Paiement espèces validé et pris en compte' });
+  } catch (error: unknown) {
+    const err = error as Error & { status?: number };
+    if (err.status && err.status !== 500) return res.status(err.status).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/treasury/pending-cash/:id/reject', requireStaffModule('treasury'), async (req: AuthRequest, res) => {
+  try {
+    const staff = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { firstName: true, lastName: true },
+    });
+    const name = [staff?.firstName, staff?.lastName].filter(Boolean).join(' ').trim() || 'Économe';
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+    const payment = await rejectCashPayment(prisma, req.params.id, { name }, reason);
+    res.json({ payment, message: 'Déclaration espèces refusée' });
+  } catch (error: unknown) {
+    const err = error as Error & { status?: number };
+    if (err.status && err.status !== 500) return res.status(err.status).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
   }
 });
 

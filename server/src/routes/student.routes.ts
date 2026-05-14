@@ -1501,6 +1501,9 @@ router.post('/payments', async (req: AuthRequest, res) => {
     let paymentNotes = '';
     if (paymentMethod === 'MOBILE_MONEY') {
       paymentNotes = `Mobile Money - Téléphone: ${phoneNumber}${operator ? `, Opérateur: ${operator}` : ''}${transactionCode ? `, Code: ${transactionCode}` : ''}`;
+    } else if (paymentMethod === 'CASH') {
+      paymentNotes =
+        "Espèces — déclaration en ligne en attente de validation par l'économe après dépôt à l'administration";
     }
 
     // Créer le paiement
@@ -1583,6 +1586,13 @@ router.post('/payments/:id/confirm', async (req: AuthRequest, res) => {
 
     if (payment.status !== 'PENDING') {
       return res.status(400).json({ error: 'Ce paiement ne peut plus être modifié' });
+    }
+
+    if (payment.paymentMethod === 'CASH') {
+      return res.status(403).json({
+        error:
+          "Les paiements en espèces doivent être validés par l'économe après dépôt du montant à l'administration.",
+      });
     }
 
     const updatedPayment = await prisma.payment.update({

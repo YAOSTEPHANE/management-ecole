@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
+import { notifyAdminsOfNewAdmission } from '../utils/admission-notify.util';
 
 const router = express.Router();
 
@@ -107,6 +108,21 @@ router.post(
       res.status(201).json({
         message: 'Demande enregistrée. Conservez votre numéro de dossier pour le suivi.',
         admission,
+      });
+
+      void notifyAdminsOfNewAdmission({
+        reference: admission.reference,
+        firstName: String(firstName).trim(),
+        lastName: String(lastName).trim(),
+        email: emailNorm,
+        phone: phone ? String(phone).trim() : null,
+        desiredLevel: String(desiredLevel).trim(),
+        academicYear: String(academicYear).trim(),
+        parentName: parentName ? String(parentName).trim() : null,
+        parentPhone: parentPhone ? String(parentPhone).trim() : null,
+        parentEmail: parentEmail ? String(parentEmail).trim().toLowerCase() : null,
+      }).catch((notifyError: unknown) => {
+        console.error('notifyAdminsOfNewAdmission:', notifyError);
       });
     } catch (error: any) {
       console.error('admission.public POST:', error);

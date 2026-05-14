@@ -1,10 +1,12 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Recalcule le total des paiements COMPLETED pour une ligne de frais et met à jour `isPaid` / `paidAt`.
  */
 export async function syncTuitionFeePaidStatusForFeeId(
-  db: PrismaClient,
+  db: DbClient,
   tuitionFeeId: string,
 ): Promise<void> {
   const tuitionFee = await db.tuitionFee.findUnique({ where: { id: tuitionFeeId } });

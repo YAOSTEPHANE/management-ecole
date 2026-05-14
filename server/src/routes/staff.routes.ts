@@ -10,6 +10,9 @@ import {
   type StaffModuleId,
 } from '../utils/staff-visible-modules.util';
 import staffRolesRoutes from './staff-roles.routes';
+import staffHealthMessagingRoutes from './staff-health-messaging.routes';
+import { searchLibraryBorrowers } from '../utils/library-borrower-search.util';
+import { createLibraryLoansBatch } from '../utils/library-create-loans.util';
 
 const router = express.Router();
 
@@ -371,6 +374,16 @@ router.get('/library/books', requireStaffModule('library'), async (req: AuthRequ
   }
 });
 
+router.get('/library/borrowers/search', requireStaffModule('library'), async (req: AuthRequest, res) => {
+  try {
+    const q = String(req.query.q || '');
+    const borrowers = await searchLibraryBorrowers(q);
+    res.json(borrowers);
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
 router.get('/library/loans', requireStaffModule('library'), async (req: AuthRequest, res) => {
   try {
     const status = req.query.status === 'ACTIVE' || req.query.status === 'RETURNED' ? req.query.status : undefined;
@@ -392,6 +405,36 @@ router.get('/library/loans', requireStaffModule('library'), async (req: AuthRequ
     );
   } catch (error: unknown) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/library/loans/batch', requireStaffModule('library'), async (req: AuthRequest, res) => {
+  try {
+    const { bookIds, borrowerId, dueDate, notes } = req.body ?? {};
+    if (!Array.isArray(bookIds) || bookIds.length === 0 || !borrowerId || !dueDate) {
+      return res.status(400).json({ error: 'bookIds (tableau), borrowerId et dueDate sont requis' });
+    }
+    const staffUserId = req.user!.id;
+    const loans = await createLibraryLoansBatch({
+      bookIds: bookIds.map(String),
+      borrowerId: String(borrowerId),
+      dueDate: new Date(dueDate),
+      notes: typeof notes === 'string' ? notes : null,
+      createdById: staffUserId,
+    });
+    const ids = loans.map((l) => l.id);
+    const full = await prisma.libraryLoan.findMany({
+      where: { id: { in: ids } },
+      include: {
+        book: true,
+        borrower: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+      },
+    });
+    res.status(201).json({ loans: full, count: full.length });
+  } catch (error: unknown) {
+    const err = error as Error & { status?: number };
+    if (err.status && err.status !== 500) return res.status(err.status).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
   }
 });
 
@@ -455,6 +498,8 @@ router.patch('/library/loans/:id/return', requireStaffModule('library'), async (
     res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
+
+router.use('/health-messaging', staffHealthMessagingRoutes);
 
 router.use('/', staffRolesRoutes);
 

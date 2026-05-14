@@ -28,6 +28,11 @@ const staffListInclude = {
       title: true,
       code: true,
       summary: true,
+      responsibilities: true,
+      requirements: true,
+      suggestedCategory: true,
+      suggestedCategoryOther: true,
+      isActive: true,
     },
   },
   manager: {
@@ -78,6 +83,7 @@ router.post(
     body('summary').optional().trim(),
     body('requirements').optional().trim(),
     body('suggestedCategory').optional().isIn(['ADMINISTRATION', 'SUPPORT', 'SECURITY']),
+    body('suggestedCategoryOther').optional().trim().isLength({ max: 120 }),
     body('isActive').optional().isBoolean(),
   ],
   async (req, res) => {
@@ -86,7 +92,27 @@ router.post(
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
-      const { title, code, summary, responsibilities, requirements, suggestedCategory, isActive } = req.body;
+      const {
+        title,
+        code,
+        summary,
+        responsibilities,
+        requirements,
+        suggestedCategory,
+        suggestedCategoryOther,
+        isActive,
+      } = req.body;
+      const otherLabel =
+        suggestedCategoryOther != null && String(suggestedCategoryOther).trim() !== ''
+          ? String(suggestedCategoryOther).trim()
+          : null;
+      if (!suggestedCategory && otherLabel) {
+        // Autre sans libellé standard : OK
+      } else if (suggestedCategory && otherLabel) {
+        return res.status(400).json({
+          error: 'Ne renseignez pas « autre catégorie » en même temps qu’une catégorie standard.',
+        });
+      }
       const created = await prisma.jobDescription.create({
         data: {
           title: String(title).trim(),
@@ -95,6 +121,7 @@ router.post(
           responsibilities: String(responsibilities).trim(),
           requirements: requirements ? String(requirements).trim() : null,
           suggestedCategory: suggestedCategory || null,
+          suggestedCategoryOther: suggestedCategory ? null : otherLabel,
           isActive: isActive !== false,
         },
       });
@@ -117,6 +144,7 @@ router.put(
     body('suggestedCategory')
       .optional({ nullable: true })
       .isIn(['ADMINISTRATION', 'SUPPORT', 'SECURITY']),
+    body('suggestedCategoryOther').optional({ nullable: true }).trim().isLength({ max: 120 }),
     body('isActive').optional().isBoolean(),
   ],
   async (req, res) => {
@@ -129,7 +157,36 @@ router.put(
       if (!existing) {
         return res.status(404).json({ error: 'Fiche de poste introuvable' });
       }
-      const { title, code, summary, responsibilities, requirements, suggestedCategory, isActive } = req.body;
+      const {
+        title,
+        code,
+        summary,
+        responsibilities,
+        requirements,
+        suggestedCategory,
+        suggestedCategoryOther,
+        isActive,
+      } = req.body;
+
+      const nextCategory =
+        suggestedCategory !== undefined
+          ? suggestedCategory === null
+            ? null
+            : suggestedCategory
+          : existing.suggestedCategory;
+      const nextOther =
+        suggestedCategoryOther !== undefined
+          ? suggestedCategoryOther === null || String(suggestedCategoryOther).trim() === ''
+            ? null
+            : String(suggestedCategoryOther).trim()
+          : existing.suggestedCategoryOther;
+
+      if (nextCategory && nextOther) {
+        return res.status(400).json({
+          error: 'Ne renseignez pas « autre catégorie » en même temps qu’une catégorie standard.',
+        });
+      }
+
       const updated = await prisma.jobDescription.update({
         where: { id: req.params.id },
         data: {
@@ -140,7 +197,16 @@ router.put(
           ...(requirements !== undefined && { requirements: requirements ? String(requirements).trim() : null }),
           ...(suggestedCategory !== undefined && {
             suggestedCategory: suggestedCategory === null ? null : suggestedCategory,
+            ...(suggestedCategory
+              ? { suggestedCategoryOther: null }
+              : suggestedCategoryOther === undefined
+                ? {}
+                : { suggestedCategoryOther: nextOther }),
           }),
+          ...(suggestedCategory === undefined &&
+            suggestedCategoryOther !== undefined && {
+              suggestedCategoryOther: nextOther,
+            }),
           ...(isActive !== undefined && { isActive: Boolean(isActive) }),
         },
       });

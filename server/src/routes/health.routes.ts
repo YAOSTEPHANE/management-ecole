@@ -52,6 +52,78 @@ router.get('/students/search', async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/dossiers', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const status = String(req.query.status || 'all');
+    const students = await prisma.student.findMany({
+      where: {
+        isActive: true,
+        ...(q.length >= 2
+          ? {
+              OR: [
+                { studentId: { contains: q } },
+                { user: { firstName: { contains: q } } },
+                { user: { lastName: { contains: q } } },
+              ],
+            }
+          : {}),
+      },
+      take: 150,
+      orderBy: { user: { lastName: 'asc' } },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        class: { select: { name: true, level: true } },
+        healthDossier: { select: { updatedAt: true, medicalHistory: true, familyDoctorName: true } },
+        _count: { select: { vaccinations: true, allergyRecords: true, treatments: true, infirmaryVisits: true } },
+      },
+    });
+
+    const rows = students
+      .map((s) => {
+        const hasDossierRecord = Boolean(s.healthDossier);
+        const hasMedicalData = Boolean(
+          s.healthDossier?.medicalHistory?.trim() ||
+            s.healthDossier?.familyDoctorName?.trim() ||
+            s._count.vaccinations > 0 ||
+            s._count.allergyRecords > 0 ||
+            s._count.treatments > 0,
+        );
+        const completeness: 'none' | 'partial' | 'complete' = !hasDossierRecord && !hasMedicalData
+          ? 'none'
+          : hasDossierRecord && hasMedicalData
+            ? 'complete'
+            : 'partial';
+        return {
+          id: s.id,
+          studentId: s.studentId,
+          firstName: s.user.firstName,
+          lastName: s.user.lastName,
+          className: s.class?.name ?? null,
+          classLevel: s.class?.level ?? null,
+          hasDossier: hasDossierRecord || hasMedicalData,
+          completeness,
+          updatedAt: s.healthDossier?.updatedAt ?? null,
+          counts: {
+            vaccinations: s._count.vaccinations,
+            allergies: s._count.allergyRecords,
+            treatments: s._count.treatments,
+            visits: s._count.infirmaryVisits,
+          },
+        };
+      })
+      .filter((row) => {
+        if (status === 'with') return row.hasDossier;
+        if (status === 'without') return !row.hasDossier;
+        return true;
+      });
+
+    res.json(rows);
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
 router.get('/students/:studentId/dossier', async (req, res) => {
   try {
     const student = await prisma.student.findFirst({
@@ -83,6 +155,7 @@ router.put('/students/:studentId/dossier', async (req: AuthRequest, res) => {
       familyDoctorPhone,
       preferredHospital,
       insuranceInfo,
+      bloodGroup,
       additionalNotes,
       medicalInfo,
       allergies,
@@ -113,6 +186,7 @@ router.put('/students/:studentId/dossier', async (req: AuthRequest, res) => {
           familyDoctorPhone: familyDoctorPhone?.trim() || null,
           preferredHospital: preferredHospital?.trim() || null,
           insuranceInfo: insuranceInfo?.trim() || null,
+          bloodGroup: bloodGroup?.trim() || null,
           additionalNotes: additionalNotes?.trim() || null,
           lastUpdatedByUserId: req.user!.id,
         },
@@ -122,6 +196,7 @@ router.put('/students/:studentId/dossier', async (req: AuthRequest, res) => {
           ...(familyDoctorPhone !== undefined && { familyDoctorPhone: familyDoctorPhone?.trim() || null }),
           ...(preferredHospital !== undefined && { preferredHospital: preferredHospital?.trim() || null }),
           ...(insuranceInfo !== undefined && { insuranceInfo: insuranceInfo?.trim() || null }),
+          ...(bloodGroup !== undefined && { bloodGroup: bloodGroup?.trim() || null }),
           ...(additionalNotes !== undefined && { additionalNotes: additionalNotes?.trim() || null }),
           lastUpdatedByUserId: req.user!.id,
         },
@@ -401,6 +476,188 @@ router.patch('/emergencies/:id/resolve', async (req, res) => {
     res.json(row);
   } catch {
     res.status(404).json({ error: 'Introuvable' });
+  }
+});
+
+router.get('/reports', async (req, res) => {
+  try {
+    const now = new Date();
+    const fromRaw = req.query.from ? new Date(String(req.query.from)) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const toRaw = req.query.to ? new Date(String(req.query.to)) : now;
+    const from = new Date(fromRaw);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(toRaw);
+    to.setHours(23, 59, 59, 999);
+    const visitWhere = { visitedAt: { gte: from, lte: to } };
+
+    const [
+      visitsPeriod,
+      visitsTotal,
+      activeStudents,
+      dossiersCount,
+      allergyRecords,
+      activeTreatments,
+      vaccinationsPeriod,
+      vaccinationsTotal,
+      openEmergencies,
+      emergenciesPeriod,
+      activeCampaigns,
+      parentNotifiedPeriod,
+    ] = await Promise.all([
+      prisma.infirmaryVisit.count({ where: visitWhere }),
+      prisma.infirmaryVisit.count(),
+      prisma.student.count({ where: { isActive: true } }),
+      prisma.studentHealthDossier.count(),
+      prisma.studentAllergyRecord.count(),
+      prisma.studentTreatment.count({ where: { isActive: true } }),
+      prisma.studentVaccination.count({ where: { administeredAt: visitWhere.visitedAt } }),
+      prisma.studentVaccination.count(),
+      prisma.healthEmergencyLog.count({ where: { resolvedAt: null } }),
+      prisma.healthEmergencyLog.count({ where: { reportedAt: visitWhere.visitedAt } }),
+      prisma.healthCampaign.count({ where: { isActive: true } }),
+      prisma.infirmaryVisit.count({ where: { ...visitWhere, parentNotified: true } }),
+    ]);
+
+    const [byOutcome, visitsForMotives, dossiersBlood, studentsWithDossierMeta, recentVisits, allergyRows, treatmentRows, emergencyRows] =
+      await Promise.all([
+        prisma.infirmaryVisit.groupBy({
+          by: ['outcome'],
+          _count: { _all: true },
+          where: visitWhere,
+        }),
+        prisma.infirmaryVisit.findMany({
+          where: visitWhere,
+          select: { motive: true },
+        }),
+        prisma.studentHealthDossier.findMany({
+          select: { bloodGroup: true, medicalHistory: true, familyDoctorName: true },
+        }),
+        prisma.student.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            medicalInfo: true,
+            allergies: true,
+            healthDossier: { select: { id: true, medicalHistory: true, bloodGroup: true } },
+            _count: { select: { vaccinations: true, allergyRecords: true, treatments: true } },
+          },
+        }),
+        prisma.infirmaryVisit.findMany({
+          where: visitWhere,
+          orderBy: { visitedAt: 'desc' },
+          take: 300,
+          include: {
+            student: { include: studentInclude },
+          },
+        }),
+        prisma.studentAllergyRecord.findMany({
+          orderBy: { allergen: 'asc' },
+          include: {
+            student: { include: studentInclude },
+          },
+        }),
+        prisma.studentTreatment.findMany({
+          where: { isActive: true },
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            student: { include: studentInclude },
+          },
+        }),
+        prisma.healthEmergencyLog.findMany({
+          where: { reportedAt: visitWhere.visitedAt },
+          orderBy: { reportedAt: 'desc' },
+          include: {
+            student: { include: studentInclude },
+          },
+        }),
+      ]);
+
+    const motiveCounts: Record<string, number> = {};
+    for (const v of visitsForMotives) {
+      const key = v.motive.trim().slice(0, 80) || 'Non précisé';
+      motiveCounts[key] = (motiveCounts[key] ?? 0) + 1;
+    }
+    const topMotives = Object.entries(motiveCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([motive, count]) => ({ motive, count }));
+
+    const bloodGroupDistribution: Record<string, number> = {};
+    for (const d of dossiersBlood) {
+      const g = d.bloodGroup?.trim() || 'Non renseigné';
+      bloodGroupDistribution[g] = (bloodGroupDistribution[g] ?? 0) + 1;
+    }
+
+    let dossiersNone = 0;
+    let dossiersPartial = 0;
+    let dossiersComplete = 0;
+    for (const s of studentsWithDossierMeta) {
+      const hasRecord = Boolean(s.healthDossier);
+      const hasData = Boolean(
+        s.healthDossier?.medicalHistory?.trim() ||
+          s.healthDossier?.bloodGroup?.trim() ||
+          s.medicalInfo?.trim() ||
+          s.allergies?.trim() ||
+          s._count.vaccinations > 0 ||
+          s._count.allergyRecords > 0 ||
+          s._count.treatments > 0,
+      );
+      if (!hasRecord && !hasData) dossiersNone++;
+      else if (hasRecord && hasData) dossiersComplete++;
+      else dossiersPartial++;
+    }
+
+    const visitsByMonth: { month: string; count: number }[] = [];
+    const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+    const endMonth = new Date(to.getFullYear(), to.getMonth(), 1);
+    while (cursor <= endMonth) {
+      const monthStart = new Date(cursor);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
+      const count = await prisma.infirmaryVisit.count({
+        where: {
+          visitedAt: {
+            gte: monthStart < from ? from : monthStart,
+            lte: monthEnd > to ? to : monthEnd,
+          },
+        },
+      });
+      visitsByMonth.push({
+        month: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
+        count,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    res.json({
+      period: { from: from.toISOString(), to: to.toISOString() },
+      summary: {
+        visitsPeriod,
+        visitsTotal,
+        activeStudents,
+        dossiersCount,
+        allergyRecords,
+        activeTreatments,
+        vaccinationsPeriod,
+        vaccinationsTotal,
+        openEmergencies,
+        emergenciesPeriod,
+        activeCampaigns,
+        parentNotifiedPeriod,
+        dossiersNone,
+        dossiersPartial,
+        dossiersComplete,
+      },
+      visitsByOutcome: byOutcome,
+      visitsByMonth,
+      topMotives,
+      bloodGroupDistribution,
+      recentVisits,
+      allergies: allergyRows,
+      activeTreatments: treatmentRows,
+      emergencies: emergencyRows,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
 

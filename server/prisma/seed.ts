@@ -1610,6 +1610,7 @@ async function main() {
       familyDoctorName: 'Dr Martin',
       familyDoctorPhone: '+33 1 23 45 67 89',
       insuranceInfo: 'CMU — n° 123456',
+      bloodGroup: 'O+',
     },
   });
   await prisma.studentAllergyRecord.createMany({

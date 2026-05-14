@@ -334,6 +334,7 @@ model User {
   orientationFollowUpsCreated     StudentOrientationFollowUp[] @relation("OrientationFollowUpCreatedBy")
   orientationPlacementsCreated    StudentOrientationPlacement[]  @relation("OrientationPlacementCreatedBy")
   twoFactorSettings               UserTwoFactorSettings?
+  adminWorkspaceMemberships         AdminWorkspaceMember[]
 
   @@map("users")
 }
@@ -1117,6 +1118,8 @@ model JobDescription {
   responsibilities String
   requirements     String?
   suggestedCategory StaffCategory?
+  /// Libellé libre lorsque la catégorie suggérée est « Autre »
+  suggestedCategoryOther String?
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -1236,6 +1239,7 @@ model StudentHealthDossier {
   familyDoctorPhone   String?
   preferredHospital   String?
   insuranceInfo       String?
+  bloodGroup          String?
   additionalNotes     String?
   lastUpdatedByUserId String?  @db.ObjectId
   createdAt           DateTime @default(now())
@@ -2395,6 +2399,38 @@ model StudentTransfer {
 
   @@index([studentId])
   @@map("student_transfers")
+}
+
+/// Espace d'administration : périmètre de modules / fonctionnalités assignables aux administrateurs.
+model AdminWorkspace {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  slug           String   @unique
+  description    String?
+  enabledModules String[]
+  isActive       Boolean  @default(true)
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  members AdminWorkspaceMember[]
+
+  @@index([isActive])
+  @@map("admin_workspaces")
+}
+
+model AdminWorkspaceMember {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  workspace AdminWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("admin_workspace_members")
 }
 
 /// Identité visuelle de l’application (document unique id = "default").

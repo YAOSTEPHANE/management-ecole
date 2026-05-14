@@ -2,7 +2,6 @@ import express from 'express';
 import type { Prisma, MessageCategory, MessageChannel } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
-import { hashPassword } from '../utils/password.util';
 import {
   inviteNewUserToSetPassword,
   resolveAdminProvidedOrInvitePassword,
@@ -33,6 +32,15 @@ import extracurricularAdminRoutes from './admin-extracurricular.routes';
 import orientationAdminRoutes from './admin-orientation.routes';
 import adminReportsRoutes from './admin-reports.routes';
 import adminAppBrandingRoutes from './admin-app-branding.routes';
+import adminWorkspacesRoutes from './admin-workspaces.routes';
+import { maybeNotifyMaterialStockAlert } from '../utils/material-stock-notify.util';
+import { searchLibraryBorrowers } from '../utils/library-borrower-search.util';
+import { createLibraryLoansBatch } from '../utils/library-create-loans.util';
+import {
+  listPendingCashPayments,
+  rejectCashPayment,
+  validateCashPayment,
+} from '../utils/cash-payment-validation.util';
 import {
   assignTuitionFeeInvoiceNumbers,
   autoReceiptUrl,
@@ -71,6 +79,7 @@ router.use(extracurricularAdminRoutes);
 router.use(orientationAdminRoutes);
 router.use(adminReportsRoutes);
 router.use(adminAppBrandingRoutes);
+router.use(adminWorkspacesRoutes);
 
 // ========== GESTION DES ÉLÈVES ==========
 
@@ -330,8 +339,13 @@ router.post(
 // Obtenir un élève par ID
 router.get('/students/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    if (!/^[a-f\d]{24}$/i.test(id)) {
+      return res.status(400).json({ error: 'Identifiant élève invalide' });
+    }
+
     const student = await prisma.student.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: {
         user: {
           select: {
@@ -343,34 +357,29 @@ router.get('/students/:id', async (req, res) => {
             avatar: true,
           },
         },
-        class: true,
+        class: {
+          select: {
+            id: true,
+            name: true,
+            level: true,
+            academicYear: true,
+          },
+        },
         parents: {
           include: {
             parent: {
               include: {
-                user: true,
-              },
-            },
-          },
-        },
-        grades: {
-          include: {
-            course: true,
-            teacher: {
-              include: {
                 user: {
                   select: {
+                    id: true,
                     firstName: true,
                     lastName: true,
+                    email: true,
+                    phone: true,
                   },
                 },
               },
             },
-          },
-        },
-        absences: {
-          include: {
-            course: true,
           },
         },
         schoolHistory: {
@@ -380,6 +389,12 @@ router.get('/students/:id', async (req, res) => {
           orderBy: { createdAt: 'desc' },
           take: 80,
         },
+        _count: {
+          select: {
+            grades: true,
+            absences: true,
+          },
+        },
       },
     });
 
@@ -388,8 +403,11 @@ router.get('/students/:id', async (req, res) => {
     }
 
     res.json(student);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error('GET /admin/students/:id:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+    });
   }
 });
 
@@ -6488,6 +6506,36 @@ router.put('/security/users/:id/password', async (req, res) => {
   }
 });
 
+// Envoyer un lien e-mail pour définir / réinitialiser le mot de passe (admin)
+router.post('/security/users/:id/password-invite', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, email: true, firstName: true },
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+
+    await inviteNewUserToSetPassword(user.id, user.email, user.firstName);
+
+    await prisma.securityEvent.create({
+      data: {
+        userId: req.user!.id,
+        type: 'password_reset_invite',
+        description: `Invitation de réinitialisation envoyée à ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        severity: 'info',
+      },
+    });
+
+    res.json({ message: 'Lien de définition du mot de passe envoyé par e-mail (48 h).' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Désactiver/Activer un compte utilisateur
 router.put('/security/users/:id/status', async (req, res) => {
   try {
@@ -8120,7 +8168,9 @@ router.get('/payments/grouped', async (req, res) => {
       }
       
       groupedByStudent[studentId].payments.push(payment);
-      groupedByStudent[studentId].totalPaid += payment.amount;
+      if (payment.status === 'COMPLETED') {
+        groupedByStudent[studentId].totalPaid += payment.amount;
+      }
       
       // Regrouper par parent pour cet élève
       const payerId = payment.payerId;
@@ -8138,7 +8188,9 @@ router.get('/payments/grouped', async (req, res) => {
       }
       
       groupedByStudent[studentId].byParent[payerId].payments.push(payment);
-      groupedByStudent[studentId].byParent[payerId].totalPaid += payment.amount;
+      if (payment.status === 'COMPLETED') {
+        groupedByStudent[studentId].byParent[payerId].totalPaid += payment.amount;
+      }
     });
 
     // Convertir en tableau et calculer les totaux par parent
@@ -8214,6 +8266,53 @@ router.get('/payments', async (req, res) => {
       error: error.message || 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+router.get('/payments/pending-cash', async (_req, res) => {
+  try {
+    const rows = await listPendingCashPayments();
+    res.json(rows);
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/payments/:id/validate-cash', async (req, res) => {
+  try {
+    const admin = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    });
+    if (!admin) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    const name = [admin.firstName, admin.lastName].filter(Boolean).join(' ').trim() || 'Administration';
+    const payment = await validateCashPayment(prisma, req.params.id, {
+      id: admin.id,
+      role: admin.role,
+      name,
+    });
+    res.json({ payment, message: 'Paiement espèces validé et pris en compte' });
+  } catch (e: unknown) {
+    const err = e as Error & { status?: number };
+    if (err.status && err.status !== 500) return res.status(err.status).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/payments/:id/reject-cash', async (req, res) => {
+  try {
+    const admin = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { firstName: true, lastName: true },
+    });
+    const name = [admin?.firstName, admin?.lastName].filter(Boolean).join(' ').trim() || 'Administration';
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+    const payment = await rejectCashPayment(prisma, req.params.id, { name }, reason);
+    res.json({ payment, message: 'Déclaration espèces refusée' });
+  } catch (e: unknown) {
+    const err = e as Error & { status?: number };
+    if (err.status && err.status !== 500) return res.status(err.status).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
   }
 });
 
@@ -8830,6 +8929,52 @@ router.delete('/library/books/:id', async (req, res) => {
   } catch (error: any) {
     console.error('DELETE /library/books/:id:', error);
     res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.get('/library/borrowers/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '');
+    const borrowers = await searchLibraryBorrowers(q);
+    res.json(borrowers);
+  } catch (error: unknown) {
+    console.error('GET /library/borrowers/search:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/library/loans/batch', async (req, res) => {
+  try {
+    const { bookIds, borrowerId, dueDate, notes } = req.body ?? {};
+    if (!Array.isArray(bookIds) || bookIds.length === 0 || !borrowerId || !dueDate) {
+      return res.status(400).json({ error: 'bookIds (tableau), borrowerId et dueDate sont requis' });
+    }
+    const adminId = (req as { user?: { id?: string } }).user?.id;
+    const loans = await createLibraryLoansBatch({
+      bookIds: bookIds.map(String),
+      borrowerId: String(borrowerId),
+      dueDate: new Date(dueDate),
+      notes: typeof notes === 'string' ? notes : null,
+      createdById: adminId ?? null,
+    });
+    const ids = loans.map((l) => l.id);
+    const full = await prisma.libraryLoan.findMany({
+      where: { id: { in: ids } },
+      include: {
+        book: true,
+        borrower: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        },
+      },
+    });
+    res.status(201).json({ loans: full, count: full.length });
+  } catch (error: unknown) {
+    const err = error as Error & { status?: number };
+    if (err.status && err.status !== 500) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error('POST /library/loans/batch:', error);
+    res.status(500).json({ error: err.message || 'Erreur serveur' });
   }
 });
 
@@ -9759,6 +9904,18 @@ router.post('/material/stock-items', async (req, res) => {
         isActive: isActive !== false,
       },
     });
+    if (row.isActive) {
+      maybeNotifyMaterialStockAlert(
+        {
+          id: row.id,
+          name: row.name,
+          unit: row.unit,
+          safetyQty: row.safetyQty,
+          currentQty: Math.max(Number(row.safetyQty) || 0, 1) + 1,
+        },
+        Number(row.currentQty),
+      ).catch((err) => console.error('maybeNotifyMaterialStockAlert(create):', err));
+    }
     res.status(201).json(row);
   } catch (error: any) {
     console.error('POST /material/stock-items:', error);
@@ -9788,6 +9945,19 @@ router.patch('/material/stock-items/:id', async (req, res) => {
         ...(isActive !== undefined && { isActive: Boolean(isActive) }),
       },
     });
+    if (row.isActive && (currentQty !== undefined || safetyQty !== undefined)) {
+      maybeNotifyMaterialStockAlert(
+        {
+          id: existing.id,
+          name: existing.name,
+          unit: existing.unit,
+          safetyQty: Number(existing.safetyQty),
+          currentQty: Number(existing.currentQty),
+        },
+        Number(row.currentQty),
+        safetyQty !== undefined ? Math.max(0, Number(safetyQty) || 0) : undefined,
+      ).catch((err) => console.error('maybeNotifyMaterialStockAlert(patch):', err));
+    }
     res.json(row);
   } catch (error: any) {
     console.error('PATCH /material/stock-items/:id:', error);
@@ -9856,6 +10026,18 @@ router.post('/material/stock-items/:id/movements', async (req, res) => {
         },
       }),
     ]);
+    if (item.isActive) {
+      maybeNotifyMaterialStockAlert(
+        {
+          id: item.id,
+          name: item.name,
+          unit: item.unit,
+          safetyQty: Number(item.safetyQty),
+          currentQty: Number(item.currentQty),
+        },
+        nextQty,
+      ).catch((err) => console.error('maybeNotifyMaterialStockAlert(movement):', err));
+    }
     res.status(201).json(movement);
   } catch (error: any) {
     console.error('POST /material/stock-items/:id/movements:', error);
