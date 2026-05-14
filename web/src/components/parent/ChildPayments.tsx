@@ -93,6 +93,62 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
     },
   });
 
+  const getStatusBadge = (fee: any) => {
+    if (fee.isPaid) {
+      return <Badge variant="success" size="md">Payé</Badge>;
+    }
+    const isOverdue = new Date(fee.dueDate) < new Date();
+    if (isOverdue) {
+      return <Badge variant="danger" size="md">En retard</Badge>;
+    }
+    return <Badge variant="warning" size="md">En attente</Badge>;
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method) {
+      case 'CARD':
+        return <FiCreditCard className="w-5 h-5" />;
+      case 'MOBILE_MONEY':
+        return <FiSmartphone className="w-5 h-5" />;
+      case 'BANK_TRANSFER':
+        return <FiFileText className="w-5 h-5" />;
+      case 'CASH':
+        return <FiDollarSign className="w-5 h-5" />;
+      default:
+        return <FiDollarSign className="w-5 h-5" />;
+    }
+  };
+
+  const getPaymentMethodLabel = (method: string) => {
+    switch (method) {
+      case 'CARD':
+        return 'Carte bancaire';
+      case 'MOBILE_MONEY':
+        return 'Mobile Money';
+      case 'BANK_TRANSFER':
+        return 'Virement bancaire';
+      case 'CASH':
+        return 'Espèces';
+      default:
+        return method;
+    }
+  };
+
+  const getPaymentMethodDescription = (method: string) => {
+    switch (method) {
+      case 'CARD':
+        return 'Paiement sécurisé par carte bancaire';
+      case 'MOBILE_MONEY':
+        return 'Paiement via Mobile Money (Orange Money, MTN Mobile Money, etc.)';
+      case 'BANK_TRANSFER':
+        return 'Virement bancaire direct';
+      case 'CASH':
+        return 'Déclaration espèces — validation par l\'économe après dépôt';
+      default:
+        return '';
+    }
+  };
+
   // Filtrage des frais
   const filteredFees = useMemo(() => {
     if (!tuitionFees) return [];
@@ -357,62 +413,6 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
       operator: paymentDetails.operator,
       transactionCode: paymentDetails.transactionCode,
     });
-  };
-
-  const getStatusBadge = (fee: any) => {
-    if (fee.isPaid) {
-      return <Badge variant="success" size="md">Payé</Badge>;
-    }
-    const isOverdue = new Date(fee.dueDate) < new Date();
-    if (isOverdue) {
-      return <Badge variant="danger" size="md">En retard</Badge>;
-    }
-    return <Badge variant="warning" size="md">En attente</Badge>;
-  };
-
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case 'CARD':
-        return <FiCreditCard className="w-5 h-5" />;
-      case 'MOBILE_MONEY':
-        return <FiSmartphone className="w-5 h-5" />;
-      case 'BANK_TRANSFER':
-        return <FiFileText className="w-5 h-5" />;
-      case 'CASH':
-        return <FiDollarSign className="w-5 h-5" />;
-      default:
-        return <FiDollarSign className="w-5 h-5" />;
-    }
-  };
-
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'CARD':
-        return 'Carte bancaire';
-      case 'MOBILE_MONEY':
-        return 'Mobile Money';
-      case 'BANK_TRANSFER':
-        return 'Virement bancaire';
-      case 'CASH':
-        return 'Espèces';
-      default:
-        return method;
-    }
-  };
-
-  const getPaymentMethodDescription = (method: string) => {
-    switch (method) {
-      case 'CARD':
-        return 'Paiement sécurisé par carte bancaire';
-      case 'MOBILE_MONEY':
-        return 'Paiement via Mobile Money (Orange Money, MTN Mobile Money, etc.)';
-      case 'BANK_TRANSFER':
-        return 'Virement bancaire direct';
-      case 'CASH':
-        return 'Déclaration espèces — validation par l\'économe après dépôt';
-      default:
-        return '';
-    }
   };
 
   if (isLoading) {
