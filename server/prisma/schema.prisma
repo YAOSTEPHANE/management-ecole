@@ -987,6 +987,7 @@ model Student {
   healthEmergencies           HealthEmergencyLog[]
   elearningQuizAttempts       ElearningQuizAttempt[]
   elearningLessonProgress     ElearningLessonProgress[]
+  subjectOptions              StudentSubjectOption[]
 
   @@index([nfcId])
   @@index([biometricId])
@@ -1446,6 +1447,8 @@ model Class {
   extracurricularOfferings ExtracurricularOffering[]
   elearningCourses ElearningCourse[]
   virtualClassSessions VirtualClassSession[]
+  trackId     String?      @db.ObjectId
+  track       SchoolTrack? @relation(fields: [trackId], references: [id], onDelete: SetNull)
 
   @@map("classes")
 }
@@ -1471,6 +1474,72 @@ model Course {
   virtualClassSessions VirtualClassSession[]
 
   @@map("courses")
+}
+
+/// Filière / voie (S, L, STMG, etc.)
+model SchoolTrack {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  code         String   @unique
+  description  String?
+  academicYear String?
+  levels       String[]
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classes          Class[]
+  availableOptions SchoolTrackAvailableOption[]
+
+  @@map("school_tracks")
+}
+
+/// Option ou matière optionnelle (catalogue global)
+model SubjectOption {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  code               String   @unique
+  description        String?
+  weeklyHours        Float?
+  gradingCoefficient Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  trackLinks   SchoolTrackAvailableOption[]
+  studentLinks StudentSubjectOption[]
+
+  @@map("subject_options")
+}
+
+/// Options proposées pour une filière
+model SchoolTrackAvailableOption {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  trackId   String   @db.ObjectId
+  optionId  String   @db.ObjectId
+  sortOrder Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  track  SchoolTrack   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  option SubjectOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([trackId, optionId])
+  @@map("school_track_available_options")
+}
+
+/// Options choisies par un élève pour une année scolaire
+model StudentSubjectOption {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String   @db.ObjectId
+  optionId     String   @db.ObjectId
+  academicYear String
+  createdAt    DateTime @default(now())
+
+  student Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  option  SubjectOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, optionId, academicYear])
+  @@map("student_subject_options")
 }
 
 model Grade {

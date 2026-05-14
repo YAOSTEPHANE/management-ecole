@@ -53,6 +53,10 @@ async function main() {
   await prisma.announcement.deleteMany();
   await prisma.admission.deleteMany();
   await prisma.academicChangeRequest.deleteMany();
+  await prisma.studentSubjectOption.deleteMany();
+  await prisma.schoolTrackAvailableOption.deleteMany();
+  await prisma.subjectOption.deleteMany();
+  await prisma.schoolTrack.deleteMany();
   await prisma.class.deleteMany();
   await prisma.teacher.deleteMany();
   await prisma.educator.deleteMany();

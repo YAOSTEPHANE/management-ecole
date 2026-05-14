@@ -29,6 +29,7 @@ import accountingRoutes from './admin-accounting.routes';
 import disciplineAdminRoutes from './admin-discipline.routes';
 import adminDigitalLibraryRoutes from './admin-digital-library.routes';
 import extracurricularAdminRoutes from './admin-extracurricular.routes';
+import tracksAdminRoutes from './admin-tracks.routes';
 import orientationAdminRoutes from './admin-orientation.routes';
 import adminReportsRoutes from './admin-reports.routes';
 import adminAppBrandingRoutes from './admin-app-branding.routes';
@@ -77,6 +78,7 @@ router.use(accountingRoutes);
 router.use(disciplineAdminRoutes);
 router.use(adminDigitalLibraryRoutes);
 router.use(extracurricularAdminRoutes);
+router.use(tracksAdminRoutes);
 router.use(orientationAdminRoutes);
 router.use(adminReportsRoutes);
 router.use(adminAppBrandingRoutes);
@@ -364,7 +366,12 @@ router.get('/students/:id', async (req, res) => {
             name: true,
             level: true,
             academicYear: true,
+            trackId: true,
+            track: { select: { id: true, name: true, code: true } },
           },
+        },
+        subjectOptions: {
+          include: { option: { select: { id: true, name: true, code: true } } },
         },
         parents: {
           include: {
@@ -711,6 +718,7 @@ router.put('/students/:id', async (req, res) => {
       isActive,
       nfcId,
       enrollmentStatus,
+      subjectOptionIds,
     } = body;
 
     const emptyToNull = (v: unknown): string | null | undefined => {
@@ -796,8 +804,54 @@ router.put('/students/:id', async (req, res) => {
         class: true,
         schoolHistory: { orderBy: { createdAt: 'desc' } },
         transfers: { orderBy: { createdAt: 'desc' }, take: 80 },
+        subjectOptions: {
+          include: { option: { select: { id: true, name: true, code: true } } },
+        },
       },
     });
+
+    if (Array.isArray(subjectOptionIds)) {
+      const academicYear =
+        updatedStudent.class?.academicYear ??
+        (typeof body.academicYear === 'string' && body.academicYear.trim()
+          ? body.academicYear.trim()
+          : new Date().getFullYear().toString());
+      const ids = subjectOptionIds.map(String).filter(Boolean);
+      await prisma.studentSubjectOption.deleteMany({
+        where: { studentId: req.params.id, academicYear },
+      });
+      if (ids.length > 0) {
+        await prisma.studentSubjectOption.createMany({
+          data: ids.map((optionId) => ({
+            studentId: req.params.id,
+            optionId,
+            academicYear,
+          })),
+        });
+      }
+      const withOptions = await prisma.student.findUnique({
+        where: { id: req.params.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              avatar: true,
+            },
+          },
+          class: true,
+          schoolHistory: { orderBy: { createdAt: 'desc' } },
+          transfers: { orderBy: { createdAt: 'desc' }, take: 80 },
+          subjectOptions: {
+            include: { option: { select: { id: true, name: true, code: true } } },
+          },
+        },
+      });
+      return res.json(withOptions ?? updatedStudent);
+    }
 
     res.json(updatedStudent);
   } catch (error: any) {
@@ -887,6 +941,9 @@ router.get('/classes', async (req, res) => {
   try {
     const classes = await prisma.class.findMany({
       include: {
+        track: {
+          select: { id: true, name: true, code: true, academicYear: true },
+        },
         teacher: {
           include: {
             user: {
@@ -936,7 +993,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, level, room, capacity, academicYear, teacherId } = req.body;
+      const { name, level, room, capacity, academicYear, teacherId, trackId } = req.body;
 
       const newClass = await prisma.class.create({
         data: {
@@ -946,8 +1003,12 @@ router.post(
           capacity: capacity || 30,
           academicYear,
           teacherId,
+          trackId: typeof trackId === 'string' && trackId.trim() ? trackId.trim() : undefined,
         },
         include: {
+          track: {
+            select: { id: true, name: true, code: true, academicYear: true },
+          },
           teacher: {
             include: {
               user: {
@@ -967,6 +1028,45 @@ router.post(
     }
   }
 );
+
+router.patch('/classes/:id', async (req, res) => {
+  try {
+    const existing = await prisma.class.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Classe introuvable' });
+    }
+    const b = req.body as Record<string, unknown>;
+    const data: Prisma.ClassUncheckedUpdateInput = {};
+    if (typeof b.name === 'string' && b.name.trim()) data.name = b.name.trim();
+    if (typeof b.level === 'string' && b.level.trim()) data.level = b.level.trim();
+    if (b.room !== undefined) data.room = typeof b.room === 'string' ? b.room.trim() || null : null;
+    if (b.capacity !== undefined) data.capacity = Number(b.capacity) || 30;
+    if (typeof b.academicYear === 'string' && b.academicYear.trim()) {
+      data.academicYear = b.academicYear.trim();
+    }
+    if (b.teacherId !== undefined) {
+      data.teacherId = typeof b.teacherId === 'string' && b.teacherId.trim() ? b.teacherId.trim() : null;
+    }
+    if (b.trackId !== undefined) {
+      data.trackId = typeof b.trackId === 'string' && b.trackId.trim() ? b.trackId.trim() : null;
+    }
+    const updated = await prisma.class.update({
+      where: { id: req.params.id },
+      data,
+      include: {
+        track: { select: { id: true, name: true, code: true, academicYear: true } },
+        teacher: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    });
+    res.json(updated);
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
 
 // ========== GESTION DES ENSEIGNANTS ==========
 
