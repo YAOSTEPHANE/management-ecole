@@ -1,5 +1,6 @@
 'use client';
 
+import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { useAppBranding } from '@/contexts/AppBrandingContext';
 import {
@@ -19,15 +20,62 @@ import {
   FiHelpCircle,
   FiFileText,
   FiSettings,
-  FiGithub,
-  FiTwitter,
-  FiLinkedin,
   FiFacebook,
+  FiInstagram,
+  FiLinkedin,
   FiYoutube,
 } from 'react-icons/fi';
+import { FaTiktok } from 'react-icons/fa';
 
 const DEFAULT_TAGLINE =
   'Centralisez administration, pédagogie et lien avec les familles — une base unique, sécurisée et pensée pour le terrain.';
+
+type SocialNetwork = {
+  name: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  buttonClass: string;
+  iconClass?: string;
+};
+
+const SOCIAL_NETWORKS: SocialNetwork[] = [
+  {
+    name: 'Facebook',
+    href: 'https://web.facebook.com/profile.php?id=61560392676453',
+    icon: FiFacebook,
+    buttonClass:
+      'bg-[#1877F2] hover:bg-[#1464d8] text-white shadow-[0_4px_14px_rgba(24,119,242,0.35)] hover:shadow-[0_6px_20px_rgba(24,119,242,0.45)]',
+  },
+  {
+    name: 'Instagram',
+    href: 'https://www.instagram.com/tranlefet/',
+    icon: FiInstagram,
+    buttonClass:
+      'bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737] text-white shadow-[0_4px_14px_rgba(225,48,108,0.35)] hover:shadow-[0_6px_20px_rgba(225,48,108,0.45)] hover:brightness-110',
+  },
+  {
+    name: 'LinkedIn',
+    href: 'https://www.linkedin.com/',
+    icon: FiLinkedin,
+    buttonClass:
+      'bg-[#0A66C2] hover:bg-[#095196] text-white shadow-[0_4px_14px_rgba(10,102,194,0.35)] hover:shadow-[0_6px_20px_rgba(10,102,194,0.45)]',
+  },
+  {
+    name: 'TikTok',
+    href: 'https://www.tiktok.com/@tranlefet',
+    icon: FaTiktok,
+    buttonClass:
+      'bg-[#010101] hover:bg-black text-white ring-1 ring-white/10 shadow-[0_4px_14px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_20px_rgba(254,44,85,0.25)]',
+    iconClass: 'drop-shadow-[0_0_6px_rgba(37,244,238,0.45)]',
+  },
+  {
+    name: 'YouTube',
+    href: 'https://www.youtube.com/',
+    icon: FiYoutube,
+    buttonClass:
+      'bg-[#FF0000] hover:bg-[#e60000] text-white shadow-[0_4px_14px_rgba(255,0,0,0.35)] hover:shadow-[0_6px_20px_rgba(255,0,0,0.45)]',
+  },
+];
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -72,43 +120,24 @@ const Footer = () => {
                 {displayTitle}
               </span>
             </div>
-            <p className="text-sm text-stone-500 mb-4 leading-relaxed">{tagline}</p>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href="#"
-                className="w-10 h-10 bg-stone-800/90 hover:bg-amber-800/90 rounded-xl flex items-center justify-center transition-colors text-stone-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                aria-label="Facebook"
-              >
-                <FiFacebook className="w-5 h-5" aria-hidden />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 bg-stone-800/90 hover:bg-amber-800/90 rounded-xl flex items-center justify-center transition-colors text-stone-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                aria-label="Twitter"
-              >
-                <FiTwitter className="w-5 h-5" aria-hidden />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 bg-stone-800/90 hover:bg-amber-800/90 rounded-xl flex items-center justify-center transition-colors text-stone-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                aria-label="LinkedIn"
-              >
-                <FiLinkedin className="w-5 h-5" aria-hidden />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 bg-stone-800/90 hover:bg-amber-800/90 rounded-xl flex items-center justify-center transition-colors text-stone-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                aria-label="YouTube"
-              >
-                <FiYoutube className="w-5 h-5" aria-hidden />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 bg-stone-800/90 hover:bg-stone-700 rounded-xl flex items-center justify-center transition-colors text-stone-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                aria-label="GitHub"
-              >
-                <FiGithub className="w-5 h-5" aria-hidden />
-              </a>
+            <p className="text-sm text-stone-500 mb-3 leading-relaxed">{tagline}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">
+              Suivez-nous
+            </p>
+            <div className="flex flex-wrap gap-2.5">
+              {SOCIAL_NETWORKS.map(({ name, href, icon: Icon, buttonClass, iconClass }) => (
+                <a
+                  key={name}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`group w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 hover:-translate-y-0.5 ${buttonClass}`}
+                  aria-label={name}
+                  title={name}
+                >
+                  <Icon className={`w-5 h-5 ${iconClass ?? ''}`} aria-hidden />
+                </a>
+              ))}
             </div>
           </div>
 

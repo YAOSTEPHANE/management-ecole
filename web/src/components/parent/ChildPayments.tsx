@@ -57,12 +57,21 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
   const createPaymentMutation = useMutation({
     mutationFn: ({ tuitionFeeId, paymentMethod, amount, phoneNumber, operator, transactionCode }: { tuitionFeeId: string; paymentMethod: string; amount: number; phoneNumber?: string; operator?: string; transactionCode?: string }) =>
       parentApi.createPayment(studentId, tuitionFeeId, paymentMethod, amount, phoneNumber, operator, transactionCode),
-    onSuccess: (data) => {
-      toast.success('Paiement initié avec succès');
+    onSuccess: (data: { payment?: { paymentMethod?: string; id?: string } }) => {
+      const isCash = data.payment?.paymentMethod === 'CASH';
       setShowPaymentModal(false);
+      if (isCash) {
+        toast.success(
+          "Déclaration enregistrée. Elle sera prise en compte après validation par l'économe.",
+        );
+        queryClient.invalidateQueries({ queryKey: ['parent-child-tuition-fees'] });
+        queryClient.invalidateQueries({ queryKey: ['parent-child-payments'] });
+        return;
+      }
+      toast.success('Paiement initié avec succès');
       setTimeout(() => {
         confirmPaymentMutation.mutate({
-          paymentId: data.payment.id,
+          paymentId: data.payment!.id!,
         });
       }, 2000);
     },
@@ -400,7 +409,7 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
       case 'BANK_TRANSFER':
         return 'Virement bancaire direct';
       case 'CASH':
-        return 'Paiement en espèces à l\'administration';
+        return 'Déclaration espèces — validation par l\'économe après dépôt';
       default:
         return '';
     }
@@ -876,7 +885,7 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
                         { value: 'ORANGE_MONEY', label: 'Orange Money', icon: '🟠', borderClass: 'border-orange-500', bgClass: 'bg-orange-50', textClass: 'text-orange-700' },
                         { value: 'MTN_MOBILE_MONEY', label: 'MTN Mobile Money', icon: '🟡', borderClass: 'border-yellow-500', bgClass: 'bg-yellow-50', textClass: 'text-yellow-700' },
                         { value: 'MOOV_MONEY', label: 'Moov Money', icon: '🔵', borderClass: 'border-blue-500', bgClass: 'bg-blue-50', textClass: 'text-blue-700' },
-                        { value: 'AUTRE', label: 'Autre', icon: '⚪', borderClass: 'border-gray-500', bgClass: 'bg-gray-50', textClass: 'text-gray-700' },
+                        { value: 'WAVE', label: 'Wave', icon: '🌊', borderClass: 'border-sky-500', bgClass: 'bg-sky-50', textClass: 'text-sky-700' },
                       ].map((op) => (
                         <button
                           key={op.value}
@@ -978,11 +987,15 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
                           <li>Entrez le code de transaction reçu ci-dessus</li>
                         </ol>
                       )}
-                      {paymentDetails.operator === 'AUTRE' && (
-                        <p className="text-xs text-gray-700">
-                          Suivez les instructions de votre opérateur Mobile Money pour effectuer le paiement.
-                          Entrez ensuite le code de transaction reçu.
-                        </p>
+                      {paymentDetails.operator === 'WAVE' && (
+                        <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
+                          <li>Ouvrez l&apos;application Wave sur votre téléphone</li>
+                          <li>Sélectionnez &quot;Payer&quot; ou &quot;Envoyer&quot;</li>
+                          <li>Entrez le numéro de compte de l&apos;école</li>
+                          <li>Entrez le montant: <strong>{formatFCFA(parseFloat(paymentAmount) || 0)}</strong></li>
+                          <li>Confirmez avec votre code PIN</li>
+                          <li>Entrez le code de transaction reçu ci-dessus</li>
+                        </ol>
                       )}
                     </div>
                   )}
@@ -1021,8 +1034,9 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
               {paymentMethod === 'CASH' && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    <strong>Note :</strong> Pour le paiement en espèces, veuillez vous rendre à l'administration de l'établissement avec le montant exact. 
-                    Votre paiement sera enregistré manuellement par le personnel administratif.
+                    <strong>Espèces :</strong> présentez-vous à l&apos;administration avec le montant exact.
+                    Votre déclaration restera <strong>en attente</strong> jusqu&apos;à validation par
+                    l&apos;économe après encaissement.
                   </p>
                 </div>
               )}
@@ -1043,7 +1057,11 @@ const ChildPayments = ({ studentId }: ChildPaymentsProps) => {
                 onClick={handleConfirmPayment}
                 disabled={createPaymentMutation.isPending}
               >
-                {createPaymentMutation.isPending ? 'Traitement...' : 'Confirmer le paiement'}
+                {createPaymentMutation.isPending
+                  ? 'Traitement...'
+                  : paymentMethod === 'CASH'
+                    ? 'Soumettre la déclaration'
+                    : 'Confirmer le paiement'}
               </Button>
             </div>
           </div>

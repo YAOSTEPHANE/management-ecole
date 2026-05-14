@@ -816,6 +816,10 @@ export const adminApi = {
     const response = await api.get('/admin/library/loans', { params });
     return response.data;
   },
+  searchLibraryBorrowers: async (q: string) => {
+    const response = await api.get('/admin/library/borrowers/search', { params: { q } });
+    return response.data;
+  },
   createLibraryLoan: async (data: {
     bookId: string;
     borrowerId: string;
@@ -823,6 +827,15 @@ export const adminApi = {
     notes?: string | null;
   }) => {
     const response = await api.post('/admin/library/loans', data);
+    return response.data;
+  },
+  createLibraryLoansBatch: async (data: {
+    bookIds: string[];
+    borrowerId: string;
+    dueDate: string;
+    notes?: string | null;
+  }) => {
+    const response = await api.post('/admin/library/loans/batch', data);
     return response.data;
   },
   returnLibraryLoan: async (loanId: string) => {

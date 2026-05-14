@@ -356,7 +356,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                 <div className="text-center">
                   <FiClipboard className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                   <p className="text-2xl font-bold text-gray-900">
-                    {student.grades?.length || 0}
+                    {(student as { _count?: { grades?: number } })._count?.grades ??
+                      (student as { grades?: unknown[] }).grades?.length ??
+                      0}
                   </p>
                   <p className="text-sm text-gray-600">Notes</p>
                 </div>
@@ -365,7 +367,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                 <div className="text-center">
                   <FiCalendar className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                   <p className="text-2xl font-bold text-gray-900">
-                    {student.absences?.length || 0}
+                    {(student as { _count?: { absences?: number } })._count?.absences ??
+                      (student as { absences?: unknown[] }).absences?.length ??
+                      0}
                   </p>
                   <p className="text-sm text-gray-600">Absences</p>
                 </div>

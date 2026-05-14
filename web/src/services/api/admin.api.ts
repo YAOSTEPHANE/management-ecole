@@ -627,6 +627,10 @@ export const adminApi = {
     const response = await api.get('/admin/library/loans', { params });
     return response.data;
   },
+  searchLibraryBorrowers: async (q: string) => {
+    const response = await api.get('/admin/library/borrowers/search', { params: { q } });
+    return response.data;
+  },
   createLibraryLoan: async (data: {
     bookId: string;
     borrowerId: string;
@@ -634,6 +638,15 @@ export const adminApi = {
     notes?: string | null;
   }) => {
     const response = await api.post('/admin/library/loans', data);
+    return response.data;
+  },
+  createLibraryLoansBatch: async (data: {
+    bookIds: string[];
+    borrowerId: string;
+    dueDate: string;
+    notes?: string | null;
+  }) => {
+    const response = await api.post('/admin/library/loans/batch', data);
     return response.data;
   },
   returnLibraryLoan: async (loanId: string) => {
@@ -1237,6 +1250,18 @@ export const adminApi = {
   },
   getPayments: async () => {
     const response = await api.get('/admin/payments');
+    return response.data;
+  },
+  listPendingCashPayments: async () => {
+    const response = await api.get('/admin/payments/pending-cash');
+    return response.data;
+  },
+  validateCashPayment: async (paymentId: string) => {
+    const response = await api.post(`/admin/payments/${paymentId}/validate-cash`);
+    return response.data;
+  },
+  rejectCashPayment: async (paymentId: string, reason?: string) => {
+    const response = await api.post(`/admin/payments/${paymentId}/reject-cash`, { reason });
     return response.data;
   },
   assignTuitionFeeInvoices: async (data?: {

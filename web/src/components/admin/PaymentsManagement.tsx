@@ -42,11 +42,15 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
     queryFn: () => adminApi.getPaymentsGrouped(),
   });
 
-  // Filtrer les paiements
+  const isCompletedPayment = (p: { status?: string }) => p.status === 'COMPLETED';
+
+  // Filtrer les paiements — uniquement les encaissements confirmés (COMPLETED)
   const filteredPayments = useMemo(() => {
     if (!paymentsGrouped) return [];
 
-    return paymentsGrouped.filter((group: any) => {
+    return paymentsGrouped
+      .filter((group: any) => group.payments.some(isCompletedPayment))
+      .filter((group: any) => {
       // Recherche par nom d'élève
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -58,9 +62,6 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
           return false;
         }
       }
-
-      // Filtre par statut (si on veut filtrer par statut de paiement)
-      // Pour l'instant, on garde tous les paiements
 
       return true;
     });
@@ -99,7 +100,9 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
     }> = [];
     paymentsGrouped.forEach((group: any) => {
       group.byParent.forEach((parentGroup: any) => {
-        parentGroup.payments.forEach((p: any) => {
+        parentGroup.payments
+          .filter(isCompletedPayment)
+          .forEach((p: any) => {
           list.push({
             id: p.id,
             studentName: group.student.name,
@@ -134,10 +137,13 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
     const parentSet = new Set<string>();
 
     paymentsGrouped.forEach((group: any) => {
-      totalPayments += group.payments.length;
-      totalAmount += group.totalPaid;
+      const completed = group.payments.filter(isCompletedPayment);
+      totalPayments += completed.length;
+      totalAmount += group.totalPaid || 0;
       group.byParent.forEach((parentGroup: any) => {
-        parentSet.add(parentGroup.parent.id);
+        if (parentGroup.payments.some(isCompletedPayment)) {
+          parentSet.add(parentGroup.parent.id);
+        }
       });
     });
 
@@ -173,7 +179,8 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-gray-900 sm:text-xl">Gestion des Paiements</h2>
             <p className="mt-0.5 text-xs leading-snug text-gray-600 sm:text-sm">
-              Paiements regroupés par élève et par parent
+              Encaissements confirmés uniquement (les espèces déclarées en ligne restent en attente de validation
+              économe).
             </p>
           </div>
         )}
@@ -193,7 +200,9 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
               const rows = groupByStudent
                 ? filteredPayments.flatMap((g: any) =>
                     g.byParent.flatMap((pg: any) =>
-                      pg.payments.map((p: any) => ({
+                      pg.payments
+                        .filter(isCompletedPayment)
+                        .map((p: any) => ({
                         Élève: g.student.name,
                         Classe: g.student.class,
                         Parent: pg.parent.name,
@@ -360,7 +369,8 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
                         <p className="text-sm font-bold text-green-600">{formatFCFA(group.totalPaid)}</p>
                       </div>
                       <Badge variant="info" className="text-xs">
-                        {group.payments.length} paiement{group.payments.length > 1 ? 's' : ''}
+                        {group.payments.filter(isCompletedPayment).length} encaissement
+                        {group.payments.filter(isCompletedPayment).length > 1 ? 's' : ''}
                       </Badge>
                     </div>
                   </button>
@@ -369,12 +379,18 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
                     <div className="border-t border-gray-200">
                       {/* Grouped by parent */}
                       <div className="space-y-3 p-3">
-                        {group.byParent.length === 0 ? (
+                        {group.byParent.filter((parentGroup: any) =>
+                          parentGroup.payments.some(isCompletedPayment),
+                        ).length === 0 ? (
                           <p className="py-3 text-center text-xs text-gray-500">
-                            Aucun paiement enregistré
+                            Aucun encaissement confirmé
                           </p>
                         ) : (
-                          group.byParent.map((parentGroup: any) => (
+                          group.byParent
+                            .filter((parentGroup: any) =>
+                              parentGroup.payments.some(isCompletedPayment),
+                            )
+                            .map((parentGroup: any) => (
                             <div
                               key={parentGroup.parent.id}
                               className="rounded-lg border border-gray-200 bg-gray-50 p-3"
@@ -401,7 +417,9 @@ const PaymentsManagement: React.FC<PaymentsManagementProps> = ({
 
                               {/* Liste des paiements de ce parent */}
                               <div className="mt-2 space-y-1.5">
-                                {parentGroup.payments.map((payment: any) => (
+                                {parentGroup.payments
+                                  .filter(isCompletedPayment)
+                                  .map((payment: any) => (
                                   <div
                                     key={payment.id}
                                     className="flex items-center justify-between rounded border border-gray-200 bg-white p-2"

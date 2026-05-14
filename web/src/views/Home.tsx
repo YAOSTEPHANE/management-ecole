@@ -63,7 +63,7 @@ const PILLARS = [
     title: 'Formation de qualité',
     text: TRANLEFET_SCHOOL.mission,
     icon: FiBook,
-    accent: 'from-emerald-500 to-teal-600',
+    accent: 'from-tran-mauve-600 to-tran-mauve-800',
     span: 'md:col-span-2',
     image: '/home/pillar-pedagogy.jpg',
     imageAlt: 'Salle de classe au Collège Privé Tranlefet de Bouaké',
@@ -72,7 +72,7 @@ const PILLARS = [
     title: 'Innovation pédagogique',
     text: 'Une approche moderne pour préparer les leaders compétents et responsables de demain.',
     icon: FiZap,
-    accent: 'from-amber-500 to-orange-600',
+    accent: 'from-tran-mustard-500 to-tran-mustard-700',
     span: 'md:col-span-1',
     image: '/home/pillar-portals.jpg',
     imageAlt: 'Élèves et enseignants en activité pédagogique',
@@ -81,7 +81,7 @@ const PILLARS = [
     title: 'Vie scolaire',
     text: 'Discipline, accompagnement et écoute pour garantir un climat de travail serein.',
     icon: FiShield,
-    accent: 'from-rose-500 to-pink-600',
+    accent: 'from-tran-mauve-500 to-tran-mauve-700',
     span: 'md:col-span-1',
     image: '/home/pillar-security.jpg',
     imageAlt: 'Encadrement et discipline au quotidien',
@@ -90,7 +90,7 @@ const PILLARS = [
     title: 'Administration & familles',
     text: 'Inscriptions, suivi scolaire et lien renforcé avec les parents d’élèves.',
     icon: FiLayers,
-    accent: 'from-stone-700 to-amber-800',
+    accent: 'from-tran-mauve-800 to-tran-mustard-700',
     span: 'md:col-span-2',
     image: '/home/pillar-administration.jpg',
     imageAlt: 'Équipe éducative et administrative du collège',
@@ -101,8 +101,8 @@ const ROLES = [
   {
     label: 'Direction',
     desc: 'Pilotage de l’établissement, vie scolaire et orientation vers la réussite.',
-    gradient: 'from-violet-600 to-indigo-700',
-    ring: 'ring-violet-500/25',
+    gradient: 'from-tran-mauve-600 to-tran-mauve-800',
+    ring: 'ring-tran-mauve-500/25',
     icon: FiBarChart2,
     image: '/home/role-admin.jpg',
     imageAlt: 'Direction du Collège Privé Tranlefet',
@@ -110,8 +110,8 @@ const ROLES = [
   {
     label: 'Enseignant',
     desc: 'Transmission des savoirs, évaluations et accompagnement personnalisé.',
-    gradient: 'from-emerald-600 to-teal-700',
-    ring: 'ring-emerald-500/25',
+    gradient: 'from-tran-mauve-500 to-tran-mauve-700',
+    ring: 'ring-tran-mauve-400/25',
     icon: FiBook,
     image: '/home/role-teacher.jpg',
     imageAlt: 'Corps enseignant du CPTB',
@@ -119,8 +119,8 @@ const ROLES = [
   {
     label: 'Élève',
     desc: 'Progression, motivation et révélation du plein potentiel de chaque élève.',
-    gradient: 'from-sky-600 to-blue-700',
-    ring: 'ring-sky-500/25',
+    gradient: 'from-tran-mustard-500 to-tran-mustard-700',
+    ring: 'ring-tran-mustard-500/25',
     icon: FiAward,
     image: '/home/role-student.jpg',
     imageAlt: 'Élèves du Collège Privé Tranlefet de Bouaké',
@@ -128,8 +128,8 @@ const ROLES = [
   {
     label: 'Parent',
     desc: 'Partenaire essentiel : suivi, dialogue et engagement pour la réussite scolaire.',
-    gradient: 'from-amber-600 to-orange-700',
-    ring: 'ring-amber-500/25',
+    gradient: 'from-tran-mauve-700 to-tran-mustard-600',
+    ring: 'ring-tran-mustard-500/20',
     icon: FiHeart,
     image: '/home/role-parent.jpg',
     imageAlt: 'Familles et parents d’élèves',
@@ -173,18 +173,18 @@ export default function Home() {
   }, [headerTitle]);
 
   return (
-    <div className="home-page min-h-screen premium-body premium-body-v2 font-sans text-stone-900 antialiased">
-      <header className="home-header sticky top-0 z-50 glass-nav glass-nav-v2 shadow-[0_8px_30px_-12px_rgba(12,10,9,0.08)]">
+    <div className="home-page min-h-screen premium-body premium-body-v2 font-sans text-tran-mauve-950 antialiased">
+      <header className="home-header sticky top-0 z-50 glass-nav glass-nav-v2 shadow-[0_8px_30px_-12px_rgba(30,31,56,0.1)]">
         <div className="mx-auto flex h-14 min-h-14 max-w-6xl items-center justify-between px-3 sm:h-16 sm:px-6">
           <Link
             href="/"
-            className="group flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2"
+            className="group flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-500/45 focus-visible:ring-offset-2"
           >
             <div
-              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-amber-900/20 ring-2 ring-amber-400/40 ${
+              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-tran-mustard-900/20 ring-2 ring-tran-mustard-400/40 ${
                 navigationLogoAbsolute
                   ? 'bg-white'
-                  : 'bg-gradient-to-br from-stone-900 via-stone-800 to-stone-950 text-amber-100'
+                  : 'bg-gradient-to-br from-tran-mauve-900 via-tran-mauve-800 to-tran-mauve-950 text-tran-mustard-100'
               }`}
             >
               {navigationLogoAbsolute ? (
@@ -201,7 +201,7 @@ export default function Home() {
               <span className="block font-display text-lg font-semibold tracking-tight text-stone-900">
                 {headerTitle}
               </span>
-              <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-800/80 sm:block">
+              <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-tran-mustard-800/80 sm:block">
                 {headerTagline}
               </span>
             </div>
@@ -212,7 +212,7 @@ export default function Home() {
               <Link
                 key={href}
                 href={href}
-                className="rounded-xl px-3.5 py-2 text-sm font-medium text-stone-600 transition-all hover:bg-white hover:text-stone-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
+                className="rounded-xl px-3.5 py-2 text-sm font-medium text-stone-600 transition-all hover:bg-white hover:text-stone-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-500/40"
               >
                 {label}
               </Link>
@@ -230,7 +230,7 @@ export default function Home() {
                   <Button variant="secondary">Connexion</Button>
                 </Link>
                 <Link href="/inscription">
-                  <Button className="shadow-lg shadow-amber-900/15 ring-1 ring-amber-500/20">
+                  <Button className="shadow-lg shadow-tran-mustard-900/15 ring-1 ring-tran-mustard-500/20">
                     Candidature en ligne
                     <FiArrowRight className="ml-1.5 inline h-4 w-4" />
                   </Button>
@@ -241,7 +241,7 @@ export default function Home() {
 
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-stone-600 transition-colors hover:bg-stone-100/90 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-stone-600 transition-colors hover:bg-stone-100/90 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-500/45"
             aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             onClick={() => setMenuOpen((o) => !o)}
           >
@@ -287,46 +287,46 @@ export default function Home() {
 
       <main>
         {/* Hero */}
-        <section className="home-hero-shell relative overflow-hidden bg-gradient-to-b from-stone-950 via-stone-900 to-zinc-950">
+        <section className="home-hero-shell relative overflow-hidden bg-gradient-to-b from-tran-mauve-950 via-tran-mauve-900 to-[#151628]">
           <div className="page-hero-v2__glow pointer-events-none absolute inset-0" aria-hidden />
           <div className="page-hero-v2__noise pointer-events-none absolute inset-0" aria-hidden />
           <div className="home-hero-fine-grid" aria-hidden />
           <div
-            className="home-hero-orb home-hero-orb--drift-a absolute -left-24 top-0 h-[min(28rem,50vw)] w-[min(28rem,50vw)] bg-amber-500/25"
+            className="home-hero-orb home-hero-orb--drift-a absolute -left-24 top-0 h-[min(28rem,50vw)] w-[min(28rem,50vw)] bg-tran-mustard-500/25"
             aria-hidden
           />
           <div
-            className="home-hero-orb home-hero-orb--drift-b absolute -right-32 bottom-0 h-[min(24rem,45vw)] w-[min(24rem,45vw)] bg-emerald-500/15"
+            className="home-hero-orb home-hero-orb--drift-b absolute -right-32 bottom-0 h-[min(24rem,45vw)] w-[min(24rem,45vw)] bg-tran-mauve-500/15"
             aria-hidden
           />
           <div className="relative z-10 mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16 lg:pb-28 lg:pt-20">
             <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-12">
               <div className="home-section-fade lg:col-span-6">
                 <div className="mb-8 flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/35 bg-gradient-to-r from-amber-500/15 to-amber-600/5 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-amber-100 shadow-lg shadow-amber-950/30 backdrop-blur-md">
-                    <FiCalendar className="h-3.5 w-3.5 shrink-0 text-amber-200" aria-hidden />
+                  <span className="inline-flex items-center gap-2 rounded-full border border-tran-mustard-400/35 bg-gradient-to-r from-tran-mustard-500/15 to-tran-mustard-600/5 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-tran-mustard-100 shadow-lg shadow-tran-mustard-950/30 backdrop-blur-md">
+                    <FiCalendar className="h-3.5 w-3.5 shrink-0 text-tran-mustard-200" aria-hidden />
                     <span className="flex flex-col items-start gap-0.5 normal-case tracking-normal">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100/95">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-tran-mustard-100/95">
                         Année scolaire
                       </span>
-                      <span className="text-xs font-semibold tabular-nums text-amber-50">{year}</span>
+                      <span className="text-xs font-semibold tabular-nums text-tran-mustard-50">{year}</span>
                     </span>
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-tran-mauve-400/35 bg-tran-mauve-500/10 px-3 py-1.5 text-xs font-semibold text-tran-mauve-100 backdrop-blur-sm">
                     <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tran-mauve-400 opacity-75 motion-reduce:animate-none" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-tran-mauve-400" />
                     </span>
                     {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
                   </span>
                 </div>
 
                 <h1 className="home-hero-h1 home-hero-title-line font-display text-[2.1rem] font-black leading-[1.08] tracking-tight text-white sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem] lg:leading-[1.04]">
-                  <span className="block text-amber-200/95 text-lg sm:text-xl font-bold uppercase tracking-[0.12em] mb-3">
+                  <span className="block text-tran-mustard-200/95 text-lg sm:text-xl font-bold uppercase tracking-[0.12em] mb-3">
                     {TRANLEFET_SCHOOL.shortName}
                   </span>
                   Collège Privé{' '}
-                  <span className="bg-gradient-to-r from-amber-200 via-amber-50 to-amber-200/90 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-tran-mustard-200 via-tran-mustard-50 to-tran-mustard-200/90 bg-clip-text text-transparent">
                     Tranlefet
                   </span>{' '}
                   de Bouaké
@@ -341,7 +341,7 @@ export default function Home() {
                       key={text}
                       className="home-trust-pill inline-flex cursor-default items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-stone-200 shadow-lg shadow-black/20 backdrop-blur-md"
                     >
-                      <Icon className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                      <Icon className="h-4 w-4 shrink-0 text-tran-mustard-300" aria-hidden />
                       {text}
                     </li>
                   ))}
@@ -354,14 +354,14 @@ export default function Home() {
                       <Button
                         size="lg"
                         variant="secondary"
-                        className="w-full border-0 bg-white px-8 font-bold text-stone-900 shadow-xl shadow-black/30 hover:bg-amber-50 sm:w-auto"
+                        className="w-full border-0 bg-white px-8 font-bold text-stone-900 shadow-xl shadow-black/30 hover:bg-tran-mustard-50 sm:w-auto"
                       >
                         Espace sécurisé (équipes)
                         <FiArrowRight className="ml-2 inline h-5 w-5" />
                       </Button>
                     </Link>
                     <Link href="/help">
-                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-semibold text-white backdrop-blur-md transition-all hover:border-amber-400/40 hover:bg-white/10 sm:w-auto">
+                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-semibold text-white backdrop-blur-md transition-all hover:border-tran-mustard-400/40 hover:bg-white/10 sm:w-auto">
                         <FiHelpCircle className="h-5 w-5" />
                         Aide & guides
                       </span>
@@ -370,23 +370,23 @@ export default function Home() {
                   <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-white/10 pt-6 text-sm">
                     <Link
                       href="/documentation"
-                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-tran-mustard-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-tran-mauve-950 rounded-lg"
                     >
-                      <FiFileText className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      <FiFileText className="h-4 w-4 shrink-0 text-tran-mustard-400/80" aria-hidden />
                       Guides & parcours
                     </Link>
                     <Link
                       href="/inscription"
-                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-tran-mustard-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-tran-mauve-950 rounded-lg"
                     >
-                      <FiCalendar className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      <FiCalendar className="h-4 w-4 shrink-0 text-tran-mustard-400/80" aria-hidden />
                       Inscription & admission
                     </Link>
                     <Link
                       href="/contact"
-                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 rounded-lg"
+                      className="inline-flex items-center gap-2 text-stone-500 transition-colors hover:text-tran-mustard-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tran-mustard-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-tran-mauve-950 rounded-lg"
                     >
-                      <FiMessageSquare className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
+                      <FiMessageSquare className="h-4 w-4 shrink-0 text-tran-mustard-400/80" aria-hidden />
                       Écrire à l’équipe
                     </Link>
                   </div>
@@ -398,7 +398,7 @@ export default function Home() {
                       <Button
                         size="lg"
                         variant="secondary"
-                        className="border-0 bg-white px-8 font-bold text-stone-900 shadow-xl hover:bg-amber-50"
+                        className="border-0 bg-white px-8 font-bold text-stone-900 shadow-xl hover:bg-tran-mustard-50"
                       >
                         Ouvrir mon espace
                         <FiArrowRight className="ml-2 inline h-5 w-5" />
@@ -424,16 +424,16 @@ export default function Home() {
               <div className="home-section-fade home-section-fade--late relative lg:col-span-6">
                 <div className="relative mx-auto max-w-lg lg:max-w-none">
                   <div
-                    className="absolute -inset-6 rounded-[2.25rem] bg-gradient-to-tr from-amber-400/20 via-transparent to-emerald-400/15 blur-3xl motion-reduce:opacity-40"
+                    className="absolute -inset-6 rounded-[2.25rem] bg-gradient-to-tr from-tran-mustard-400/20 via-transparent to-tran-mauve-400/15 blur-3xl motion-reduce:opacity-40"
                     aria-hidden
                   />
-                  <div className="home-hero-frame-in home-hero-frame-in--elevated relative overflow-hidden rounded-[1.75rem] border border-white/25 bg-gradient-to-br from-white/18 to-white/[0.04] p-[2px] shadow-[0_32px_64px_-20px_rgba(0,0,0,0.65)] backdrop-blur-md ring-1 ring-amber-400/15">
+                  <div className="home-hero-frame-in home-hero-frame-in--elevated relative overflow-hidden rounded-[1.75rem] border border-white/25 bg-gradient-to-br from-white/18 to-white/[0.04] p-[2px] shadow-[0_32px_64px_-20px_rgba(0,0,0,0.65)] backdrop-blur-md ring-1 ring-tran-mustard-400/15">
                     <div className="relative overflow-hidden rounded-[1.6rem] bg-stone-950 ring-1 ring-white/10">
                       <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between">
                         <div className="flex gap-2">
                           <span className="h-3 w-3 rounded-full bg-red-400/90 shadow-sm" />
-                          <span className="h-3 w-3 rounded-full bg-amber-400/90 shadow-sm" />
-                          <span className="h-3 w-3 rounded-full bg-emerald-400/90 shadow-sm" />
+                          <span className="h-3 w-3 rounded-full bg-tran-mustard-400/90 shadow-sm" />
+                          <span className="h-3 w-3 rounded-full bg-tran-mauve-400/90 shadow-sm" />
                         </div>
                         <span className="rounded-lg border border-white/10 bg-stone-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
                           CPTB · Bouaké
@@ -456,7 +456,7 @@ export default function Home() {
                           <div className="flex flex-col gap-2 rounded-2xl border border-white/15 bg-stone-950/75 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-white/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                             {HERO_FLOATING.map(({ t, ok }) => (
                               <div key={t} className="flex items-center gap-2 text-sm font-medium text-white">
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-400/30">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-tran-mauve-500/25 text-tran-mauve-300 ring-1 ring-tran-mauve-400/30">
                                   {ok ? <FiCheck className="h-4 w-4" aria-hidden /> : null}
                                 </span>
                                 {t}
@@ -485,7 +485,7 @@ export default function Home() {
                   key={`${item}-${i}`}
                   className="flex shrink-0 items-center gap-10 whitespace-nowrap"
                 >
-                  <span className="text-amber-400/90 drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]" aria-hidden>
+                  <span className="text-tran-mustard-400/90 drop-shadow-[0_0_8px_rgba(201,162,39,0.35)]" aria-hidden>
                     ◆
                   </span>
                   <span className="home-marquee-text">{item}</span>
@@ -512,7 +512,7 @@ export default function Home() {
           <div className="home-bento-outer relative mx-auto max-w-6xl rounded-[2rem] border border-stone-200/90 bg-white/65 p-1.5 shadow-[0_32px_64px_-28px_rgba(12,10,9,0.22)] backdrop-blur-2xl sm:p-2">
             <div className="home-bento-inner relative rounded-[1.65rem] bg-gradient-to-b from-white via-white to-stone-50/95 px-5 py-12 ring-1 ring-stone-900/[0.04] sm:px-8 sm:py-14 lg:px-12 lg:py-16">
               <div className="mb-12 flex flex-col gap-4 text-center lg:mb-14">
-                <span className="mx-auto inline-flex w-fit items-center rounded-full border border-amber-200/90 bg-gradient-to-r from-amber-50 to-amber-100/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-950 shadow-sm ring-1 ring-amber-900/10">
+                <span className="mx-auto inline-flex w-fit items-center rounded-full border border-tran-mustard-200/90 bg-gradient-to-r from-tran-mustard-50 to-tran-mustard-100/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-tran-mustard-950 shadow-sm ring-1 ring-tran-mustard-900/10">
                   Notre projet éducatif
                 </span>
                 <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl lg:tracking-tight">
@@ -527,7 +527,7 @@ export default function Home() {
                 {PILLARS.map(({ title, text, icon: Icon, accent, span, image, imageAlt }, idx) => (
                   <HomeReveal key={title} delayMs={idx * 70} className={span}>
                   <article
-                    className="home-pillar-sheen group relative h-full overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-[0_20px_50px_-28px_rgba(12,10,9,0.12)] transition-all duration-500 hover:-translate-y-1.5 hover:border-amber-300/60 hover:shadow-[0_28px_56px_-22px_rgba(180,83,9,0.15)]"
+                    className="home-pillar-sheen group relative h-full overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-[0_20px_50px_-28px_rgba(30,31,56,0.12)] transition-all duration-500 hover:-translate-y-1.5 hover:border-tran-mustard-300/60 hover:shadow-[0_28px_56px_-22px_rgba(90,91,154,0.18)]"
                   >
                     <div
                       className={`relative w-full overflow-hidden ${span.includes('col-span-2') ? 'h-48 sm:h-56' : 'h-44 sm:h-48'}`}
@@ -565,7 +565,7 @@ export default function Home() {
         {/* Établissement */}
         <section id="etablissement" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
           <HomeReveal>
-          <div className="home-campus-split group overflow-hidden rounded-[2rem] border border-stone-200/90 bg-white shadow-[0_28px_56px_-24px_rgba(12,10,9,0.18)] ring-1 ring-amber-500/15 transition-all duration-500 hover:ring-amber-500/25 lg:grid lg:grid-cols-2">
+          <div className="home-campus-split group overflow-hidden rounded-[2rem] border border-stone-200/90 bg-white shadow-[0_28px_56px_-24px_rgba(12,10,9,0.18)] ring-1 ring-tran-mustard-500/15 transition-all duration-500 hover:ring-tran-mustard-500/25 lg:grid lg:grid-cols-2">
             <div className="relative min-h-[260px] lg:min-h-[400px]">
               <Image
                 src="/home/split-campus.jpg"
@@ -586,7 +586,7 @@ export default function Home() {
               </div>
             </div>
             <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-14">
-              <span className="inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-950">
+              <span className="inline-flex w-fit items-center rounded-full border border-tran-mustard-200/80 bg-tran-mustard-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-tran-mustard-950">
                 {TRANLEFET_SCHOOL.shortName}
               </span>
               <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
@@ -603,7 +603,7 @@ export default function Home() {
                   'Partenariat actif avec les familles',
                 ].map((line) => (
                   <li key={line} className="flex items-center gap-3 text-sm font-medium">
-                    <FiCheck className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                    <FiCheck className="h-5 w-5 shrink-0 text-tran-mauve-600" aria-hidden />
                     {line}
                   </li>
                 ))}
@@ -611,13 +611,13 @@ export default function Home() {
               <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <a
                   href={TRANLEFET_SCHOOL.phoneTel}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/25 transition-all hover:bg-stone-800"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-tran-mauve-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-tran-mauve-900/25 transition-all hover:bg-tran-mauve-800"
                 >
                   <FiPhone className="h-4 w-4" aria-hidden />
                   {TRANLEFET_SCHOOL.phoneDisplay}
                 </a>
                 <Link href="/inscription">
-                  <span className="inline-flex items-center gap-2 rounded-2xl border border-stone-300 bg-white px-7 py-4 text-sm font-bold text-stone-900 shadow-sm transition-all hover:border-amber-400 hover:bg-amber-50">
+                  <span className="inline-flex items-center gap-2 rounded-2xl border border-stone-300 bg-white px-7 py-4 text-sm font-bold text-stone-900 shadow-sm transition-all hover:border-tran-mustard-400 hover:bg-tran-mustard-50">
                     Candidature en ligne
                     <FiArrowRight className="h-4 w-4" aria-hidden />
                   </span>
@@ -676,7 +676,7 @@ export default function Home() {
         <section id="actualites" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
           <HomeReveal>
             <div className="text-center mb-12">
-              <span className="inline-flex w-fit items-center rounded-full border border-amber-200/80 bg-amber-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-950">
+              <span className="inline-flex w-fit items-center rounded-full border border-tran-mustard-200/80 bg-tran-mustard-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-tran-mustard-950">
                 Vie de l&apos;établissement
               </span>
               <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
@@ -687,8 +687,8 @@ export default function Home() {
             <div className="grid gap-5 md:grid-cols-2">
               {TRANLEFET_NEWS.map((item, idx) => (
                 <HomeReveal key={item.title} delayMs={idx * 60}>
-                  <article className="h-full rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg shadow-stone-900/[0.04] transition-all hover:-translate-y-1 hover:border-amber-200 hover:shadow-xl">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-800">{item.date}</p>
+                  <article className="h-full rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg shadow-stone-900/[0.04] transition-all hover:-translate-y-1 hover:border-tran-mustard-200 hover:shadow-xl">
+                    <p className="text-xs font-bold uppercase tracking-wider text-tran-mustard-800">{item.date}</p>
                     <h3 className="mt-2 font-display text-xl font-semibold text-stone-900">{item.title}</h3>
                     <p className="mt-3 text-sm leading-relaxed text-stone-600">{item.excerpt}</p>
                   </article>
@@ -699,7 +699,7 @@ export default function Home() {
         </section>
 
         {/* Infos pratiques */}
-        <section className="border-y border-stone-200/80 bg-gradient-to-b from-amber-50/40 via-white to-stone-50/80 py-16 sm:py-20">
+        <section className="border-y border-stone-200/80 bg-gradient-to-b from-tran-mustard-50/40 via-white to-stone-50/80 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <HomeReveal>
               <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
@@ -710,13 +710,13 @@ export default function Home() {
                   <div className="home-section-accent mx-0 mt-3" aria-hidden />
                   <div className="mt-6 space-y-4">
                     <p className="flex items-start gap-3 text-stone-700">
-                      <FiMapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+                      <FiMapPin className="mt-0.5 h-5 w-5 shrink-0 text-tran-mustard-700" aria-hidden />
                       <span>
                         <a
                           href={schoolMapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-stone-900 hover:text-amber-800 underline-offset-2 hover:underline"
+                          className="font-semibold text-stone-900 hover:text-tran-mustard-800 underline-offset-2 hover:underline"
                           aria-label={`Voir ${TRANLEFET_SCHOOL.fullName} sur Google Maps`}
                         >
                           {TRANLEFET_SCHOOL.fullName}
@@ -726,20 +726,20 @@ export default function Home() {
                       </span>
                     </p>
                     <p className="flex items-center gap-3 text-stone-700">
-                      <FiPhone className="h-5 w-5 shrink-0 text-amber-700" aria-hidden />
-                      <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-stone-900 hover:text-amber-800">
+                      <FiPhone className="h-5 w-5 shrink-0 text-tran-mustard-700" aria-hidden />
+                      <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-stone-900 hover:text-tran-mustard-800">
                         {TRANLEFET_SCHOOL.phoneDisplay}
                       </a>
                     </p>
                   </div>
-                  <Link href="/contact" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-amber-900 hover:text-amber-700">
+                  <Link href="/contact" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-tran-mustard-900 hover:text-tran-mustard-700">
                     <FiMessageSquare className="h-4 w-4" />
                     Nous écrire
                   </Link>
                 </div>
                 <div className="rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg ring-1 ring-stone-900/[0.03] sm:p-8">
                   <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-stone-900">
-                    <FiClock className="h-5 w-5 text-amber-700" aria-hidden />
+                    <FiClock className="h-5 w-5 text-tran-mustard-700" aria-hidden />
                     Heures d&apos;ouverture
                   </h3>
                   <table className="mt-5 w-full text-sm">
@@ -759,7 +759,7 @@ export default function Home() {
         </section>
 
         {/* Points forts */}
-        <section className="border-y border-stone-200/80 bg-gradient-to-b from-stone-50/90 via-white to-amber-50/20 py-20 sm:py-24">
+        <section className="border-y border-stone-200/80 bg-gradient-to-b from-stone-50/90 via-white to-tran-mustard-50/20 py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <HomeReveal>
             <div className="text-center">
@@ -775,13 +775,13 @@ export default function Home() {
               {HIGHLIGHTS.map(({ title, text, icon: Icon }, i) => (
                 <HomeReveal key={title} delayMs={i * 80}>
                 <div
-                  className="group relative rounded-3xl bg-gradient-to-br from-amber-400/30 via-stone-200/40 to-amber-200/20 p-[1px] shadow-lg shadow-amber-900/5 transition-transform duration-300 hover:-translate-y-1"
+                  className="group relative rounded-3xl bg-gradient-to-br from-tran-mustard-400/30 via-stone-200/40 to-tran-mustard-200/20 p-[1px] shadow-lg shadow-tran-mustard-900/5 transition-transform duration-300 hover:-translate-y-1"
                 >
                   <div className="h-full rounded-[1.4rem] bg-white/95 p-8 shadow-inner ring-1 ring-stone-900/[0.03] backdrop-blur-sm">
-                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-800/70">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-tran-mustard-800/70">
                       {String(i + 1).padStart(2, '0')}
                     </div>
-                    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 text-amber-900 shadow-md ring-1 ring-amber-200/80 transition-transform group-hover:scale-105">
+                    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-tran-mustard-100 to-tran-mustard-50 text-tran-mustard-900 shadow-md ring-1 ring-tran-mustard-200/80 transition-transform group-hover:scale-105">
                       <Icon className="h-7 w-7" aria-hidden />
                     </div>
                     <h3 className="font-display text-xl font-semibold text-stone-900">{title}</h3>
@@ -798,14 +798,14 @@ export default function Home() {
         {/* Citation */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <HomeReveal>
-          <div className="home-quote-panel relative overflow-hidden rounded-[2rem] border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-stone-50 px-6 py-14 text-center shadow-[0_28px_56px_-22px_rgba(180,83,9,0.2)] ring-1 ring-amber-200/60 sm:px-14 sm:py-16">
+          <div className="home-quote-panel relative overflow-hidden rounded-[2rem] border border-tran-mustard-200/50 bg-gradient-to-br from-tran-mustard-50/95 via-white to-tran-mauve-50/40 px-6 py-14 text-center shadow-[0_28px_56px_-22px_rgba(90,91,154,0.16)] ring-1 ring-tran-mauve-200/50 sm:px-14 sm:py-16">
             <span
-              className="pointer-events-none absolute -left-4 top-6 z-[1] font-display text-[8rem] font-bold leading-none text-amber-200/45 sm:left-8"
+              className="pointer-events-none absolute -left-4 top-6 z-[1] font-display text-[8rem] font-bold leading-none text-tran-mustard-200/45 sm:left-8"
               aria-hidden
             >
               «
             </span>
-            <FiMessageSquare className="relative z-10 mx-auto h-11 w-11 text-amber-800 drop-shadow-sm" aria-hidden />
+            <FiMessageSquare className="relative z-10 mx-auto h-11 w-11 text-tran-mustard-800 drop-shadow-sm" aria-hidden />
             <blockquote className="relative z-10 mx-auto mt-8 max-w-3xl font-display text-2xl font-medium leading-snug text-stone-900 sm:text-3xl sm:leading-snug">
               {TRANLEFET_SCHOOL.motto}
             </blockquote>
@@ -814,7 +814,7 @@ export default function Home() {
             </p>
             <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-2">
               {[...Array(5)].map((_, i) => (
-                <FiStar key={i} className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                <FiStar key={i} className="h-5 w-5 fill-tran-mustard-400 text-tran-mustard-400" aria-hidden />
               ))}
               <span className="ml-2 text-sm font-medium text-stone-600">Nos élèves, notre fierté</span>
             </div>
@@ -825,18 +825,18 @@ export default function Home() {
         {/* CTA final */}
         <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
           <HomeReveal>
-          <div className="home-cta-shell relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-stone-950 via-stone-900 to-amber-950 px-6 py-16 text-center sm:px-12 sm:py-20 lg:py-24">
+          <div className="home-cta-shell relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-tran-mauve-950 via-tran-mauve-900 to-tran-mustard-950 px-6 py-16 text-center sm:px-12 sm:py-20 lg:py-24">
             <div className="home-cta-aurora pointer-events-none absolute inset-0 z-[1]" aria-hidden />
             <div className="relative z-10 mx-auto max-w-2xl">
-              <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-white/15 to-white/[0.04] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md ring-1 ring-amber-400/20">
-                <FiClock className="h-8 w-8 text-amber-200" aria-hidden />
+              <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-white/15 to-white/[0.04] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md ring-1 ring-tran-mustard-400/20">
+                <FiClock className="h-8 w-8 text-tran-mustard-200" aria-hidden />
               </div>
               <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">
                 Rejoignez le Collège Privé Tranlefet de Bouaké
               </h2>
               <p className="mt-5 text-lg text-stone-400">
                 Inscription en ligne, espace sécurisé pour les familles et l’équipe pédagogique. Pour toute question :{' '}
-                <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-amber-200 hover:text-white">
+                <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-tran-mustard-200 hover:text-white">
                   {TRANLEFET_SCHOOL.phoneDisplay}
                 </a>
                 .
@@ -848,7 +848,7 @@ export default function Home() {
                       <Button
                         size="lg"
                         variant="secondary"
-                        className="min-w-[220px] border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-amber-50"
+                        className="min-w-[220px] border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-tran-mustard-50"
                       >
                         Se connecter
                       </Button>
@@ -864,7 +864,7 @@ export default function Home() {
                     <Button
                       size="lg"
                       variant="secondary"
-                      className="border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-amber-50"
+                      className="border-0 bg-white font-bold text-stone-900 shadow-xl hover:bg-tran-mustard-50"
                     >
                       Retour à mon espace
                     </Button>
@@ -874,14 +874,14 @@ export default function Home() {
               <p className="mt-12 text-sm text-stone-500">
                 <Link
                   href="/faq"
-                  className="font-medium text-amber-200/90 underline decoration-amber-400/40 underline-offset-4 hover:text-white"
+                  className="font-medium text-tran-mustard-200/90 underline decoration-tran-mustard-400/40 underline-offset-4 hover:text-white"
                 >
                   Questions fréquentes
                 </Link>
                 <span className="mx-2 text-stone-600">·</span>
                 <Link
                   href="/contact"
-                  className="font-medium text-amber-200/90 underline decoration-amber-400/40 underline-offset-4 hover:text-white"
+                  className="font-medium text-tran-mustard-200/90 underline decoration-tran-mustard-400/40 underline-offset-4 hover:text-white"
                 >
                   Contact
                 </Link>

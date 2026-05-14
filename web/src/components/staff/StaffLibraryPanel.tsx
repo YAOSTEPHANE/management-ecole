@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import LibraryBorrowerSearch, { type LibraryBorrowerRow } from '../library/LibraryBorrowerSearch';
+import LibraryBookMultiPicker from '../library/LibraryBookMultiPicker';
 import { staffApi } from '@/services/api/staff.api';
 import { FiBook, FiRotateCcw } from 'react-icons/fi';
 
@@ -13,7 +15,8 @@ export default function StaffLibraryPanel() {
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [borrowerId, setBorrowerId] = useState('');
-  const [bookId, setBookId] = useState('');
+  const [selectedBorrower, setSelectedBorrower] = useState<LibraryBorrowerRow | null>(null);
+  const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 14);
@@ -30,12 +33,29 @@ export default function StaffLibraryPanel() {
     queryFn: () => staffApi.listLibraryLoans('ACTIVE'),
   });
 
+  const bookOptions = useMemo(
+    () =>
+      (books as { id: string; title: string; author?: string; copiesAvailable: number }[]).filter(
+        (b) => b.copiesAvailable > 0,
+      ),
+    [books],
+  );
+
   const loanMut = useMutation({
-    mutationFn: () => staffApi.createLibraryLoan({ bookId, borrowerId, dueDate }),
-    onSuccess: () => {
-      toast.success('Emprunt enregistré');
+    mutationFn: () =>
+      staffApi.createLibraryLoansBatch({
+        bookIds: selectedBookIds,
+        borrowerId,
+        dueDate,
+      }),
+    onSuccess: (data: { count?: number }) => {
+      const n = data?.count ?? selectedBookIds.length;
+      toast.success(n > 1 ? `${n} emprunts enregistrés` : 'Emprunt enregistré');
       qc.invalidateQueries({ queryKey: ['staff-library-loans'] });
       qc.invalidateQueries({ queryKey: ['staff-library-books'] });
+      setSelectedBookIds([]);
+      setBorrowerId('');
+      setSelectedBorrower(null);
     },
     onError: (e: { response?: { data?: { error?: string } } }) => {
       toast.error(e.response?.data?.error ?? 'Erreur emprunt');
@@ -67,30 +87,44 @@ export default function StaffLibraryPanel() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div className="grid sm:grid-cols-3 gap-2">
-          <select className="border rounded-lg px-2 py-2 text-sm" value={bookId} onChange={(e) => setBookId(e.target.value)}>
-            <option value="">Ouvrage…</option>
-            {(books as { id: string; title: string; copiesAvailable: number }[]).map((b) => (
-              <option key={b.id} value={b.id} disabled={b.copiesAvailable < 1}>
-                {b.title} ({b.copiesAvailable} dispo.)
-              </option>
-            ))}
-          </select>
+        <LibraryBookMultiPicker
+          books={bookOptions}
+          selectedBookIds={selectedBookIds}
+          onChange={setSelectedBookIds}
+          disabled={loanMut.isPending}
+        />
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Date de retour</label>
           <input
-            className="border rounded-lg px-2 py-2 text-sm"
-            placeholder="ID utilisateur emprunteur"
-            value={borrowerId}
-            onChange={(e) => setBorrowerId(e.target.value)}
+            type="date"
+            className="w-full border rounded-lg px-2 py-2 text-sm"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            aria-label="Date de retour"
           />
-          <input type="date" className="border rounded-lg px-2 py-2 text-sm" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Emprunteur</label>
+          <LibraryBorrowerSearch
+            value={borrowerId}
+            selected={selectedBorrower}
+            onChange={(id, borrower) => {
+              setBorrowerId(id);
+              setSelectedBorrower(borrower ?? null);
+            }}
+            searchFn={staffApi.searchLibraryBorrowers}
+            disabled={loanMut.isPending}
+          />
         </div>
         <Button
           type="button"
           size="sm"
-          disabled={!bookId || !borrowerId || loanMut.isPending}
+          disabled={selectedBookIds.length === 0 || !borrowerId || loanMut.isPending}
           onClick={() => loanMut.mutate()}
         >
-          Créer l&apos;emprunt
+          {selectedBookIds.length > 1
+            ? `Créer les ${selectedBookIds.length} emprunts`
+            : "Créer l'emprunt"}
         </Button>
         {booksLoading && <p className="text-xs text-stone-500">Chargement du catalogue…</p>}
       </Card>

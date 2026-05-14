@@ -5,6 +5,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import TuitionFeesManagement from './TuitionFeesManagement';
 import PaymentsManagement from './PaymentsManagement';
+import PendingCashPaymentsPanel from '../payments/PendingCashPaymentsPanel';
 import PaymentRemindersPanel from './PaymentRemindersPanel';
 import PaymentReceiptsPanel from './PaymentReceiptsPanel';
 import StudentFinancialHistoryPanel from './StudentFinancialHistoryPanel';
@@ -270,7 +271,12 @@ const FeesManagementModule: React.FC = () => {
       )}
 
       {tab === 'billing' && <TuitionFeesManagement embedded compact />}
-      {tab === 'payments' && <PaymentsManagement embedded compact />}
+      {tab === 'payments' && (
+        <div className="space-y-4">
+          <PendingCashPaymentsPanel mode="admin" compact />
+          <PaymentsManagement embedded compact />
+        </div>
+      )}
       {tab === 'reminders' && <PaymentRemindersPanel compact />}
       {tab === 'receipts' && <PaymentReceiptsPanel compact />}
       {tab === 'history' && <StudentFinancialHistoryPanel compact />}

@@ -20,8 +20,8 @@ interface FilterDropdownProps {
   compact?: boolean;
 }
 
-const Z_BACKDROP = 100;
-const Z_PANEL = 110;
+const Z_BACKDROP = 10040;
+const Z_PANEL = 10050;
 
 const FilterDropdown: React.FC<FilterDropdownProps> = ({
   options,
@@ -167,7 +167,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
             isOpen ? 'text-violet-800' : 'text-stone-600'
           }`}
         >
-          {selectedOption?.label || 'Tous'}
+          {selectedOption?.label || (current ? current : 'Choisir…')}
         </span>
         <FiChevronDown
           className={`transition-transform shrink-0 ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} ${

@@ -1495,15 +1495,19 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Destinataire <span className="text-red-500">*</span>
             </label>
-            <FilterDropdown compact={compact}
+            <FilterDropdown
+              compact={compact}
+              label="Destinataire"
               selected={messageForm.receiverId}
               onChange={(value) => setMessageForm({ ...messageForm, receiverId: value })}
               options={[
                 { value: '', label: 'Sélectionner un destinataire' },
-                ...(users?.map((u: any) => ({
-                  value: u.id,
-                  label: `${u.firstName} ${u.lastName} (${u.role})`,
-                })) || []),
+                ...(Array.isArray(users)
+                  ? users.map((u: { id: string; firstName: string; lastName: string; role: string }) => ({
+                      value: u.id,
+                      label: `${u.firstName} ${u.lastName} (${u.role})`,
+                    }))
+                  : []),
               ]}
             />
           </div>
@@ -1532,7 +1536,9 @@ const CommunicationManagement: React.FC<CommunicationManagementProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Catégorie <span className="text-red-500">*</span>
             </label>
-            <FilterDropdown compact={compact}
+            <FilterDropdown
+              compact={compact}
+              label="Catégorie"
               selected={messageForm.category}
               onChange={(value) => setMessageForm({ ...messageForm, category: value })}
               options={[
