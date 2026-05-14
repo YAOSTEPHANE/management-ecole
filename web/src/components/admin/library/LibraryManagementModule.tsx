@@ -7,6 +7,7 @@ import LibraryLoansPanel from './LibraryLoansPanel';
 import LibraryReservationsPanel from './LibraryReservationsPanel';
 import LibraryPenaltiesPanel from './LibraryPenaltiesPanel';
 import LibraryInventoryPanel from './LibraryInventoryPanel';
+import LibraryReportsPanel from './LibraryReportsPanel';
 import DigitalLibraryPanel from './DigitalLibraryPanel';
 import {
   FiGrid,
@@ -16,6 +17,7 @@ import {
   FiAlertCircle,
   FiLayers,
   FiCloud,
+  FiPrinter,
 } from 'react-icons/fi';
 import { ADM } from '../adminModuleLayout';
 
@@ -26,7 +28,8 @@ type LibTab =
   | 'loans'
   | 'reservations'
   | 'penalties'
-  | 'inventory';
+  | 'inventory'
+  | 'reports';
 
 const LibraryManagementModule: React.FC = () => {
   const [tab, setTab] = useState<LibTab>('overview');
@@ -66,6 +69,7 @@ const LibraryManagementModule: React.FC = () => {
     { id: 'reservations', label: 'Réservations', icon: FiBookmark },
     { id: 'penalties', label: 'Pénalités', icon: FiAlertCircle },
     { id: 'inventory', label: 'Inventaire', icon: FiLayers },
+    { id: 'reports', label: 'Rapports', icon: FiPrinter },
   ];
 
   return (
@@ -126,6 +130,7 @@ const LibraryManagementModule: React.FC = () => {
       {tab === 'reservations' && <LibraryReservationsPanel />}
       {tab === 'penalties' && <LibraryPenaltiesPanel />}
       {tab === 'inventory' && <LibraryInventoryPanel />}
+      {tab === 'reports' && <LibraryReportsPanel />}
     </div>
   );
 };

@@ -22,6 +22,7 @@ import {
   TEACHER_ENGAGEMENT_KIND_OPTIONS,
   normalizeTeacherEngagementKind,
 } from '@/lib/teacherEngagementKind';
+import AdminUserPasswordSection from './AdminUserPasswordSection';
 
 interface EditTeacherModalProps {
   isOpen: boolean;
@@ -627,6 +628,15 @@ const EditTeacherModal: React.FC<EditTeacherModalProps> = ({ isOpen, onClose, te
               </div>
             </div>
           )}
+
+          {teacher?.user?.id ? (
+            <AdminUserPasswordSection
+              userId={teacher.user.id}
+              userEmail={formData.email}
+              userLabel={`${formData.firstName} ${formData.lastName}`.trim()}
+              compact
+            />
+          ) : null}
 
           {/* Navigation Buttons */}
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-200/80">

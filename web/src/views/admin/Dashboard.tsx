@@ -93,47 +93,16 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../../services/api';
+import AdminWorkspacesPanel from '../../components/admin/AdminWorkspacesPanel';
+import {
+  ADMIN_VALID_TAB_IDS,
+  filterTabsByVisibleModules,
+  isAdminModuleId,
+} from '../../lib/adminModules';
 
-const VALID_TAB_IDS = [
-  'dashboard',
-  'activities',
-  'notifications',
-  'students',
-  'academic',
-  'grading',
-  'classes',
-  'teachers',
-  'educators',
-  'staff-personnel',
-  'parent-guardians',
-  'management',
-  'roles',
-  'pedagogical',
-  'discipline',
-  'extracurricular',
-  'orientation',
-  'communication',
-  'library',
-  'health',
-  'elearning',
-  'material',
-  'reports',
-  'analytics',
-  'schedule',
-  'pointage',
-  'attendance',
-  'hr',
-  'administrative',
-  'admissions',
-  'fees',
-  'tuition-fees',
-  'payments',
-  'accounting',
-  'nfc-scanner',
-  'security',
-  'performance',
-  'settings',
-] as const;
+const VALID_TAB_IDS = ADMIN_VALID_TAB_IDS;
 
 type TabItem = {
   id: string;
@@ -225,6 +194,13 @@ const AdminDashboard = () => {
     },
     { id: 'management', label: 'Gestion complète', icon: FiBarChart, color: 'from-cyan-500 to-cyan-600', description: 'Notes, absences, devoirs et bulletins' },
     { id: 'roles', label: 'Multi-rôles', icon: FiUsers, color: 'from-pink-500 to-pink-600', description: 'Utilisateurs et rôles' },
+    {
+      id: 'workspaces',
+      label: 'Espaces & modules',
+      icon: FiLayers,
+      color: 'from-indigo-600 to-violet-700',
+      description: 'Créer des espaces et attribuer modules et fonctionnalités',
+    },
     { id: 'pedagogical', label: 'Suivi pédagogique', icon: FiAward, color: 'from-yellow-500 to-yellow-600', description: 'Suivi pédagogique et indicateurs' },
     {
       id: 'discipline',
@@ -276,9 +252,23 @@ const AdminDashboard = () => {
     { id: 'settings', label: 'Paramètres', icon: FiSettings, color: 'from-gray-500 to-gray-600', description: 'Paramètres de l’établissement' },
   ];
 
-  const mainTabs = tabs.filter((t) => t.id !== 'activities' && t.id !== 'notifications');
-  const bottomTabs = tabs.filter((t) => t.id === 'activities' || t.id === 'notifications');
-  const activeTabMeta = tabs.find((t) => t.id === activeTab) ?? tabs[0];
+  const { data: workspaceContext } = useQuery({
+    queryKey: ['admin-workspace-context'],
+    queryFn: () => adminApi.getAdminWorkspaceContext(),
+    staleTime: 60_000,
+  });
+
+  const visibleModules = (workspaceContext as { visibleModules?: string[] } | undefined)?.visibleModules;
+  const workspaceRestricted = (workspaceContext as { unrestricted?: boolean } | undefined)?.unrestricted === false;
+
+  const filteredTabs = useMemo(
+    () => filterTabsByVisibleModules(tabs, visibleModules),
+    [tabs, visibleModules],
+  );
+
+  const mainTabs = filteredTabs.filter((t) => t.id !== 'activities' && t.id !== 'notifications');
+  const bottomTabs = filteredTabs.filter((t) => t.id === 'activities' || t.id === 'notifications');
+  const activeTabMeta = filteredTabs.find((t) => t.id === activeTab) ?? filteredTabs[0] ?? tabs[0];
   const ActiveTabIcon = activeTabMeta.icon;
   const quickActions = useMemo(
     () => [
@@ -289,6 +279,16 @@ const AdminDashboard = () => {
     ],
     []
   );
+
+  useEffect(() => {
+    if (!visibleModules?.length) return;
+    if (!isAdminModuleId(activeTab) || !visibleModules.includes(activeTab)) {
+      setActiveTab('dashboard');
+      const params = new URLSearchParams(searchParams?.toString() ?? '');
+      params.set('tab', 'dashboard');
+      router.replace(`/admin?${params.toString()}`);
+    }
+  }, [activeTab, visibleModules, router, searchParams]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -429,6 +429,20 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
+              {workspaceRestricted && activeTab !== 'workspaces' ? (
+                <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
+                  Votre accès est limité aux modules des espaces qui vous sont assignés. Gérez les attributions dans{' '}
+                  <button
+                    type="button"
+                    className="font-semibold underline underline-offset-2"
+                    onClick={() => changeTab('workspaces')}
+                  >
+                    Espaces & modules
+                  </button>
+                  .
+                </div>
+              ) : null}
+
               {activeTab === 'activities' ? (
                 <AllActivities />
               ) : activeTab === 'notifications' ? (
@@ -461,6 +475,7 @@ const AdminDashboard = () => {
               {activeTab === 'parent-guardians' && <ParentGuardiansModule />}
               {activeTab === 'management' && <CompleteManagement />}
               {activeTab === 'roles' && <MultiRolesManagement />}
+              {activeTab === 'workspaces' && <AdminWorkspacesPanel />}
               {activeTab === 'pedagogical' && <PedagogicalTracking />}
               {activeTab === 'discipline' && <DisciplineAdminModule />}
               {activeTab === 'extracurricular' && <ExtracurricularAdminModule />}

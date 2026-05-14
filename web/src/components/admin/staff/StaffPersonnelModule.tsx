@@ -19,6 +19,7 @@ import {
   FiEdit2,
   FiEye,
   FiCheckSquare,
+  FiDownload,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
@@ -27,6 +28,9 @@ import StaffModuleAccessField from './StaffModuleAccessField';
 import StaffModulesRecapPanel from './StaffModulesRecapPanel';
 import { resolveStaffSupportKind } from '@/views/staff/staffSpaceConfig';
 import { getEligibleModulesForSupportKind, type StaffModuleId } from '@/lib/staffModules';
+import { useAppBranding } from '@/contexts/AppBrandingContext';
+import { downloadJobDescriptionPdf, type JobDescriptionPdfPayload } from '@/lib/jobDescriptionPdf';
+import AdminUserPasswordSection from '../AdminUserPasswordSection';
 
 type StaffTab = 'members' | 'modules' | 'org' | 'jobs';
 
@@ -54,6 +58,42 @@ const STATUS_LABEL: Record<string, string> = {
   LATE: 'Retard',
   EXCUSED: 'Excusé',
 };
+
+function formatJobCategory(job: {
+  suggestedCategory?: string | null;
+  suggestedCategoryOther?: string | null;
+}): string | null {
+  if (job.suggestedCategory) {
+    return CAT_LABEL[job.suggestedCategory] ?? job.suggestedCategory;
+  }
+  if (job.suggestedCategoryOther?.trim()) {
+    return job.suggestedCategoryOther.trim();
+  }
+  return null;
+}
+
+function toJobPdfPayload(
+  job: JobDescriptionPdfPayload,
+  schoolName?: string | null,
+): JobDescriptionPdfPayload {
+  return {
+    ...job,
+    schoolName: schoolName?.trim() || null,
+  };
+}
+
+function handleDownloadJobDescription(job: JobDescriptionPdfPayload, schoolName?: string | null) {
+  if (!job.responsibilities?.trim()) {
+    toast.error('Cette fiche ne contient pas de missions à exporter.');
+    return;
+  }
+  try {
+    downloadJobDescriptionPdf(toJobPdfPayload(job, schoolName));
+    toast.success('Fiche de poste téléchargée.');
+  } catch {
+    toast.error('Impossible de générer le PDF.');
+  }
+}
 
 function OrgBranch({ node }: { node: any }) {
   return (
@@ -84,6 +124,8 @@ function OrgBranch({ node }: { node: any }) {
 
 const StaffPersonnelModule: React.FC = () => {
   const qc = useQueryClient();
+  const { branding } = useAppBranding();
+  const schoolName = branding.schoolDisplayName?.trim() || branding.appTitle?.trim() || null;
   const [tab, setTab] = useState<StaffTab>('members');
   const [search, setSearch] = useState('');
   const [jobModal, setJobModal] = useState(false);
@@ -339,8 +381,20 @@ const StaffPersonnelModule: React.FC = () => {
                     )}
                   </div>
                   {j.code && <p className="text-[11px] font-mono text-stone-500">Code : {j.code}</p>}
+                  {formatJobCategory(j) && (
+                    <p className="text-[11px] text-amber-900/90 font-medium">Catégorie : {formatJobCategory(j)}</p>
+                  )}
                   {j.summary && <p className="text-xs text-stone-600 line-clamp-3">{j.summary}</p>}
-                  <div className="flex gap-2 mt-auto pt-2">
+                  <div className="flex flex-wrap gap-2 mt-auto pt-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDownloadJobDescription(j, schoolName)}
+                      title="Télécharger la fiche (PDF)"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                    </Button>
                     <Button
                       type="button"
                       variant="secondary"
@@ -378,6 +432,7 @@ const StaffPersonnelModule: React.FC = () => {
           setEditingJob(null);
         }}
         initial={editingJob}
+        schoolName={schoolName}
         onSaved={() => {
           qc.invalidateQueries({ queryKey: ['admin-staff-job-descriptions'] });
           setJobModal(false);
@@ -446,7 +501,7 @@ const StaffPersonnelModule: React.FC = () => {
               )}
             </div>
             {(detailStaff as any).jobDescription && (
-              <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 p-3">
+              <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 p-3 space-y-2">
                 <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-1">
                   Fiche de poste liée
                 </p>
@@ -454,6 +509,17 @@ const StaffPersonnelModule: React.FC = () => {
                 {(detailStaff as any).jobDescription.summary && (
                   <p className="text-xs text-stone-700 mt-1">{(detailStaff as any).jobDescription.summary}</p>
                 )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    handleDownloadJobDescription((detailStaff as any).jobDescription, schoolName)
+                  }
+                >
+                  <FiDownload className="w-4 h-4 mr-1 inline" />
+                  Télécharger la fiche
+                </Button>
               </div>
             )}
             <StaffAttendanceBlock
@@ -603,11 +669,13 @@ function StaffJobModal({
   onClose,
   initial,
   onSaved,
+  schoolName,
 }: {
   isOpen: boolean;
   onClose: () => void;
   initial: any | null;
   onSaved: () => void;
+  schoolName?: string | null;
 }) {
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
@@ -615,6 +683,7 @@ function StaffJobModal({
   const [responsibilities, setResp] = useState('');
   const [requirements, setReq] = useState('');
   const [cat, setCat] = useState<string>('');
+  const [catOther, setCatOther] = useState('');
   useEffect(() => {
     if (!isOpen) return;
     if (initial) {
@@ -623,7 +692,13 @@ function StaffJobModal({
       setSummary(initial.summary ?? '');
       setResp(initial.responsibilities ?? '');
       setReq(initial.requirements ?? '');
-      setCat(initial.suggestedCategory ?? '');
+      if (initial.suggestedCategoryOther?.trim()) {
+        setCat('OTHER');
+        setCatOther(initial.suggestedCategoryOther.trim());
+      } else {
+        setCat(initial.suggestedCategory ?? '');
+        setCatOther('');
+      }
     } else {
       setTitle('');
       setCode('');
@@ -631,6 +706,7 @@ function StaffJobModal({
       setResp('');
       setReq('');
       setCat('');
+      setCatOther('');
     }
   }, [initial, isOpen]);
 
@@ -642,7 +718,8 @@ function StaffJobModal({
         summary: summary.trim() || null,
         responsibilities: responsibilities.trim(),
         requirements: requirements.trim() || null,
-        suggestedCategory: cat ? cat : null,
+        suggestedCategory: cat && cat !== 'OTHER' ? cat : null,
+        suggestedCategoryOther: cat === 'OTHER' ? catOther.trim() || null : null,
       };
       if (initial?.id) {
         return adminApi.updateStaffJobDescription(initial.id, payload);
@@ -670,14 +747,34 @@ function StaffJobModal({
           </div>
           <div>
             <label className="text-xs font-medium text-stone-700">Catégorie suggérée</label>
-            <select className="w-full border rounded-lg px-2 py-1.5 mt-0.5" value={cat} onChange={(e) => setCat(e.target.value)}>
+            <select
+              className="w-full border rounded-lg px-2 py-1.5 mt-0.5"
+              value={cat}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCat(value);
+                if (value !== 'OTHER') setCatOther('');
+              }}
+            >
               <option value="">—</option>
               <option value="ADMINISTRATION">Administration</option>
               <option value="SUPPORT">Soutien</option>
               <option value="SECURITY">Sécurité</option>
+              <option value="OTHER">Autre</option>
             </select>
           </div>
         </div>
+        {cat === 'OTHER' && (
+          <div>
+            <label className="text-xs font-medium text-stone-700">Préciser la catégorie *</label>
+            <input
+              className="w-full border rounded-lg px-2 py-1.5 mt-0.5"
+              value={catOther}
+              onChange={(e) => setCatOther(e.target.value)}
+              placeholder="ex. Communication, logistique…"
+            />
+          </div>
+        )}
         <div>
           <label className="text-xs font-medium text-stone-700">Résumé</label>
           <textarea className="w-full border rounded-lg px-2 py-1.5 mt-0.5 text-xs" rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} />
@@ -690,13 +787,43 @@ function StaffJobModal({
           <label className="text-xs font-medium text-stone-700">Exigences / compétences</label>
           <textarea className="w-full border rounded-lg px-2 py-1.5 mt-0.5 text-xs" rows={2} value={requirements} onChange={(e) => setReq(e.target.value)} />
         </div>
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-between gap-2 pt-2">
+          {initial?.id ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                handleDownloadJobDescription(
+                  {
+                    title: title.trim() || initial.title,
+                    code: code.trim() || initial.code,
+                    summary: summary.trim() || initial.summary,
+                    responsibilities: responsibilities.trim() || initial.responsibilities,
+                    requirements: requirements.trim() || initial.requirements,
+                    suggestedCategory: cat && cat !== 'OTHER' ? cat : null,
+                    suggestedCategoryOther: cat === 'OTHER' ? catOther.trim() || null : null,
+                    isActive: initial.isActive,
+                  },
+                  schoolName,
+                )
+              }
+              disabled={!responsibilities.trim() && !initial.responsibilities?.trim()}
+            >
+              <FiDownload className="w-4 h-4 mr-1 inline" />
+              Télécharger PDF
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="button" size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !title.trim() || !responsibilities.trim()}>
+          <Button type="button" size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !title.trim() || !responsibilities.trim() || (cat === 'OTHER' && !catOther.trim())}>
             Enregistrer
           </Button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -1005,6 +1132,16 @@ function StaffFormModal({
           <label className="text-xs font-medium">ID biométrie</label>
           <input className="w-full border rounded-lg px-2 py-1.5 mt-0.5 font-mono text-xs" value={biometricId} onChange={(e) => setBioId(e.target.value)} />
         </div>
+        {staffId && existing?.user?.id ? (
+          <div className="sm:col-span-2">
+            <AdminUserPasswordSection
+              userId={(existing as any).user.id}
+              userEmail={email}
+              userLabel={`${firstName} ${lastName}`.trim()}
+              compact
+            />
+          </div>
+        ) : null}
         {staffId && (
           <div className="sm:col-span-2 flex items-center gap-2">
             <input id="staff-active" type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />

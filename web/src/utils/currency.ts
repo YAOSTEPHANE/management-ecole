@@ -20,6 +20,23 @@ export const formatFCFA = (amount: number | string): string => {
 };
 
 /**
+ * Variante compatible jsPDF (espaces ASCII, pas de séparateurs Unicode fr-FR).
+ */
+export const formatFCFAForPdf = (amount: number | string): string => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+
+  if (isNaN(numAmount)) {
+    return '0 FCFA';
+  }
+
+  const formatted = Math.round(numAmount)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  return `${formatted} FCFA`;
+};
+
+/**
  * Parse un montant FCFA (retire "FCFA" et les espaces)
  * @param value - Valeur à parser
  * @returns Nombre ou null si invalide

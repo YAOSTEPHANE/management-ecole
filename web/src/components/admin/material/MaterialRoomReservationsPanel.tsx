@@ -7,6 +7,18 @@ import Modal from '../../ui/Modal';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+const RESERVATION_STATUS_LABEL: Record<'PENDING' | 'CONFIRMED' | 'CANCELLED', string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  CANCELLED: 'Annulée',
+};
+
+const RESERVATION_STATUS_OPTIONS: { value: 'PENDING' | 'CONFIRMED' | 'CANCELLED'; label: string }[] = [
+  { value: 'CONFIRMED', label: RESERVATION_STATUS_LABEL.CONFIRMED },
+  { value: 'PENDING', label: RESERVATION_STATUS_LABEL.PENDING },
+  { value: 'CANCELLED', label: RESERVATION_STATUS_LABEL.CANCELLED },
+];
+
 function toLocalInput(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -42,8 +54,8 @@ const MaterialRoomReservationsPanel: React.FC = () => {
     notes: '',
   });
 
-  const { data: rooms } = useQuery({
-    queryKey: ['material-rooms-resv'],
+  const { data: rooms, isLoading: roomsLoading } = useQuery({
+    queryKey: ['material-rooms', 'active'],
     queryFn: () => adminApi.getMaterialRooms({ isActive: 'true' }),
   });
 
@@ -182,7 +194,10 @@ const MaterialRoomReservationsPanel: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-gray-700">{row.room?.name ?? '—'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900">{row.title}</td>
-                    <td className="py-3 px-4 text-gray-600">{row.status}</td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {RESERVATION_STATUS_LABEL[row.status as keyof typeof RESERVATION_STATUS_LABEL] ??
+                        row.status}
+                    </td>
                     <td className="py-3 px-4 text-gray-600">
                       {row.requesterUser
                         ? `${row.requesterUser.firstName} ${row.requesterUser.lastName}`
@@ -239,18 +254,27 @@ const MaterialRoomReservationsPanel: React.FC = () => {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Salle *</label>
-            <select
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              value={form.roomId}
-              onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))}
-            >
-              <option value="">—</option>
-              {roomList.map((r: any) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            {roomsLoading ? (
+              <p className="text-sm text-gray-500 py-2">Chargement des salles…</p>
+            ) : roomList.length === 0 ? (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                Aucune salle active. Créez-en une dans l&apos;onglet « Salles & lieux ».
+              </p>
+            ) : (
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={form.roomId}
+                onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))}
+              >
+                <option value="">— Choisir une salle —</option>
+                {roomList.map((r: any) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                    {r.code ? ` (${r.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Titre *</label>
@@ -289,9 +313,11 @@ const MaterialRoomReservationsPanel: React.FC = () => {
                 setForm((f) => ({ ...f, status: e.target.value as typeof f.status }))
               }
             >
-              <option value="CONFIRMED">CONFIRMED</option>
-              <option value="PENDING">PENDING</option>
-              <option value="CANCELLED">CANCELLED</option>
+              {RESERVATION_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>

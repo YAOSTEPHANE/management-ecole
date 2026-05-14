@@ -17,6 +17,8 @@ import {
   TRANLEFET_SCHOOL,
   TRANLEFET_STATS,
   TRANLEFET_VALUES,
+  getGoogleMapsSearchUrl,
+  getTranlefetSchoolMapsQuery,
 } from '../data/tranlefetSchool';
 import {
   FiArrowRight,
@@ -162,6 +164,9 @@ export default function Home() {
     (branding.appTitle && branding.appTitle.trim()) || TRANLEFET_SCHOOL.fullName;
   const headerTagline =
     (branding.appTagline && branding.appTagline.trim()) || TRANLEFET_SCHOOL.tagline;
+  const schoolMapsUrl = getGoogleMapsSearchUrl(
+    getTranlefetSchoolMapsQuery(branding.schoolAddress)
+  );
 
   useEffect(() => {
     document.title = `${headerTitle} · Accueil`;
@@ -707,7 +712,15 @@ export default function Home() {
                     <p className="flex items-start gap-3 text-stone-700">
                       <FiMapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
                       <span>
-                        <span className="font-semibold text-stone-900">{TRANLEFET_SCHOOL.fullName}</span>
+                        <a
+                          href={schoolMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-stone-900 hover:text-amber-800 underline-offset-2 hover:underline"
+                          aria-label={`Voir ${TRANLEFET_SCHOOL.fullName} sur Google Maps`}
+                        >
+                          {TRANLEFET_SCHOOL.fullName}
+                        </a>
                         <br />
                         {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
                       </span>

@@ -16,6 +16,7 @@ import {
   FiCheck,
   FiShield
 } from 'react-icons/fi';
+import AdminUserPasswordSection from './AdminUserPasswordSection';
 
 interface EditEducatorModalProps {
   isOpen: boolean;
@@ -471,6 +472,15 @@ const EditEducatorModal: React.FC<EditEducatorModalProps> = ({ isOpen, onClose, 
               </div>
             </div>
           )}
+
+          {educator?.user?.id ? (
+            <AdminUserPasswordSection
+              userId={educator.user.id}
+              userEmail={formData.email}
+              userLabel={`${formData.firstName} ${formData.lastName}`.trim()}
+              compact
+            />
+          ) : null}
 
           {/* Navigation Buttons */}
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-stone-200/80">

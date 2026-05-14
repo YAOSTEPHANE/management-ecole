@@ -13,7 +13,7 @@ import {
   FiArrowRight
 } from 'react-icons/fi';
 import { getRoleDashboardPath } from '@/lib/rolePaths';
-import Login3D from '../components/illustrations/Login3DLazy';
+import LoginBackground from '../components/illustrations/LoginBackgroundLazy';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -83,6 +83,7 @@ const Login = () => {
   const handleBackToEmail = () => {
     setStep('email');
     setPassword('');
+    setShowPassword(false);
     setTwoFactorCode('');
     setTwoFactorRequired(false);
   };
@@ -91,13 +92,13 @@ const Login = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen premium-body flex items-center justify-center relative overflow-hidden">
-        <Login3D />
+        <LoginBackground />
         <div className="text-center relative z-10 px-4">
           <div
             className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-amber-200/80 border-t-amber-700"
             aria-hidden
           />
-          <p className="mt-6 text-lg font-semibold text-stone-800">Vérification de votre session…</p>
+          <p className="mt-6 text-lg font-semibold text-white drop-shadow-sm">Vérification de votre session…</p>
         </div>
       </div>
     );
@@ -107,13 +108,13 @@ const Login = () => {
   if (user) {
     return (
       <div className="min-h-screen premium-body flex items-center justify-center relative overflow-hidden">
-        <Login3D />
+        <LoginBackground />
         <div className="text-center relative z-10 px-4">
           <div
             className="inline-block h-16 w-16 animate-spin rounded-full border-[3px] border-amber-200/80 border-t-amber-700"
             aria-hidden
           />
-          <p className="mt-6 text-lg font-semibold text-stone-800">Redirection en cours…</p>
+          <p className="mt-6 text-lg font-semibold text-white drop-shadow-sm">Redirection en cours…</p>
         </div>
       </div>
     );
@@ -122,7 +123,7 @@ const Login = () => {
   return (
     <div className="min-h-screen premium-body flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       {/* Illustration 3D en arrière-plan */}
-      <Login3D />
+      <LoginBackground />
       
       <div className="w-full max-w-md relative z-10">
         <div className="relative">
@@ -267,11 +268,17 @@ const Login = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-amber-800 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 z-10 flex items-center pr-3 pl-2 text-stone-500 hover:text-amber-900 hover:bg-stone-100/80 rounded-r-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
                       aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-pressed={showPassword}
+                      title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                     >
-                      {showPassword ? <FiEyeOff className="w-5 h-5" aria-hidden /> : <FiEye className="w-5 h-5" aria-hidden />}
+                      {showPassword ? (
+                        <FiEyeOff className="w-5 h-5 shrink-0" aria-hidden />
+                      ) : (
+                        <FiEye className="w-5 h-5 shrink-0" aria-hidden />
+                      )}
                     </button>
                   </div>
                 </div>

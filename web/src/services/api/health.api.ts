@@ -5,6 +5,10 @@ export const healthApi = {
     const r = await api.get('/health/students/search', { params: { q } });
     return r.data;
   },
+  listDossiers: async (params?: { q?: string; status?: 'all' | 'with' | 'without' }) => {
+    const r = await api.get('/health/dossiers', { params });
+    return r.data;
+  },
   getDossier: async (studentId: string) => {
     const r = await api.get(`/health/students/${studentId}/dossier`);
     return r.data;
@@ -61,6 +65,10 @@ export const healthApi = {
   },
   resolveEmergency: async (id: string, actionsTaken?: string) => {
     const r = await api.patch(`/health/emergencies/${id}/resolve`, { actionsTaken });
+    return r.data;
+  },
+  getReports: async (params?: { from?: string; to?: string }) => {
+    const r = await api.get('/health/reports', { params });
     return r.data;
   },
   getStatistics: async () => {

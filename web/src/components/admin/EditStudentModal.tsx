@@ -19,6 +19,7 @@ import {
   FiSave,
   FiLoader
 } from 'react-icons/fi';
+import AdminUserPasswordSection from './AdminUserPasswordSection';
 
 interface EditStudentModalProps {
   isOpen: boolean;
@@ -823,6 +824,15 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, st
               </div>
             </div>
           )}
+
+          {student?.user?.id ? (
+            <AdminUserPasswordSection
+              userId={student.user.id}
+              userEmail={formData.email}
+              userLabel={`${formData.firstName} ${formData.lastName}`.trim()}
+              compact
+            />
+          ) : null}
 
           {/* Navigation Buttons */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-200">

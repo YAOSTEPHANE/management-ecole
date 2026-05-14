@@ -1,9 +1,13 @@
-import { useState } from 'react';
+'use client';
+
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import UltraPremiumPageShell from '../components/public/UltraPremiumPageShell';
+import { useAppBranding } from '@/contexts/AppBrandingContext';
+import { resolveSchoolContactInfo } from '@/lib/schoolContact';
 import toast from 'react-hot-toast';
 import {
   FiMail,
@@ -13,9 +17,15 @@ import {
   FiMessageSquare,
   FiUser,
   FiFileText,
+  FiGlobe,
+  FiUserCheck,
 } from 'react-icons/fi';
 
 const Contact = () => {
+  const { branding } = useAppBranding();
+  const contact = useMemo(() => resolveSchoolContactInfo(branding), [branding]);
+  const addressLines = contact.address.split('\n').map((line) => line.trim()).filter(Boolean);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -63,27 +73,22 @@ const Contact = () => {
                 Coordonnées
               </h2>
               <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 ring-1 ring-amber-200/60">
-                    <FiMail className="h-6 w-6 text-amber-800" aria-hidden />
+                {contact.email ? (
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 ring-1 ring-amber-200/60">
+                      <FiMail className="h-6 w-6 text-amber-800" aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="mb-1 font-semibold text-stone-900">E-mail</h3>
+                      <a
+                        href={`mailto:${contact.email}`}
+                        className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
+                      >
+                        {contact.email}
+                      </a>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="mb-1 font-semibold text-stone-900">E-mail</h3>
-                    <a
-                      href="mailto:contact@schoolmanager.com"
-                      className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
-                    >
-                      contact@schoolmanager.com
-                    </a>
-                    <br />
-                    <a
-                      href="mailto:support@schoolmanager.com"
-                      className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
-                    >
-                      support@schoolmanager.com
-                    </a>
-                  </div>
-                </div>
+                ) : null}
 
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 ring-1 ring-emerald-200/60">
@@ -92,12 +97,12 @@ const Contact = () => {
                   <div>
                     <h3 className="mb-1 font-semibold text-stone-900">Téléphone</h3>
                     <a
-                      href="tel:+33123456789"
+                      href={contact.phoneTel}
                       className="tabular-nums text-stone-700 transition-colors hover:text-amber-900"
                     >
-                      +33 1 23 45 67 89
+                      {contact.phone}
                     </a>
-                    <p className="mt-1 text-sm text-stone-500">Lundi – vendredi : 9h – 18h</p>
+                    <p className="mt-1 text-sm text-stone-500">{contact.openingHoursSummary}</p>
                   </div>
                 </div>
 
@@ -108,12 +113,60 @@ const Contact = () => {
                   <div>
                     <h3 className="mb-1 font-semibold text-stone-900">Adresse</h3>
                     <p className="leading-relaxed text-stone-700">
-                      123 Rue de l&apos;Éducation
-                      <br />
-                      75001 Paris, France
+                      <a
+                        href={contact.mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-stone-900 underline-offset-2 hover:text-amber-800 hover:underline"
+                        aria-label={`Voir ${contact.name} sur Google Maps`}
+                      >
+                        {contact.name}
+                      </a>
+                      {addressLines.length > 0 ? (
+                        <>
+                          <br />
+                          {addressLines.map((line, index) => (
+                            <span key={`${line}-${index}`}>
+                              {line}
+                              {index < addressLines.length - 1 ? <br /> : null}
+                            </span>
+                          ))}
+                        </>
+                      ) : null}
                     </p>
                   </div>
                 </div>
+
+                {contact.website && contact.websiteHref ? (
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 ring-1 ring-sky-200/60">
+                      <FiGlobe className="h-6 w-6 text-sky-800" aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="mb-1 font-semibold text-stone-900">Site web</h3>
+                      <a
+                        href={contact.websiteHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-amber-900/90 underline-offset-2 hover:text-stone-900 hover:underline"
+                      >
+                        {contact.website}
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+
+                {contact.principal ? (
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-stone-100 ring-1 ring-stone-200/80">
+                      <FiUserCheck className="h-6 w-6 text-stone-700" aria-hidden />
+                    </div>
+                    <div>
+                      <h3 className="mb-1 font-semibold text-stone-900">Direction</h3>
+                      <p className="text-stone-700">{contact.principal}</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </Card>
 

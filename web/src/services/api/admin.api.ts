@@ -1113,6 +1113,10 @@ export const adminApi = {
     const response = await api.put(`/admin/security/users/${userId}/password`, { newPassword });
     return response.data;
   },
+  sendUserPasswordInvite: async (userId: string) => {
+    const response = await api.post(`/admin/security/users/${userId}/password-invite`);
+    return response.data;
+  },
   changeUserStatus: async (userId: string, isActive: boolean) => {
     const response = await api.put(`/admin/security/users/${userId}/status`, { isActive });
     return response.data;
@@ -1306,6 +1310,7 @@ export const adminApi = {
     summary?: string | null;
     requirements?: string | null;
     suggestedCategory?: 'ADMINISTRATION' | 'SUPPORT' | 'SECURITY' | null;
+    suggestedCategoryOther?: string | null;
     isActive?: boolean;
   }) => {
     const response = await api.post('/admin/staff/job-descriptions', data);
@@ -1320,6 +1325,7 @@ export const adminApi = {
       summary: string | null;
       requirements: string | null;
       suggestedCategory: 'ADMINISTRATION' | 'SUPPORT' | 'SECURITY' | null;
+      suggestedCategoryOther: string | null;
       isActive: boolean;
     }>
   ) => {
@@ -1715,6 +1721,26 @@ export const adminApi = {
       `/admin/app-branding/upload?slot=${encodeURIComponent(slot)}`,
       formData
     );
+    return response.data;
+  },
+  getAdminWorkspaceContext: async () => {
+    const response = await api.get('/admin/workspaces/my-context');
+    return response.data;
+  },
+  getAdminWorkspaces: async () => {
+    const response = await api.get('/admin/workspaces');
+    return response.data;
+  },
+  createAdminWorkspace: async (data: Record<string, unknown>) => {
+    const response = await api.post('/admin/workspaces', data);
+    return response.data;
+  },
+  updateAdminWorkspace: async (id: string, data: Record<string, unknown>) => {
+    const response = await api.put(`/admin/workspaces/${id}`, data);
+    return response.data;
+  },
+  deactivateAdminWorkspace: async (id: string) => {
+    const response = await api.delete(`/admin/workspaces/${id}`);
     return response.data;
   },
 };

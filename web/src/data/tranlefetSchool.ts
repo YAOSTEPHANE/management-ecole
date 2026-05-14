@@ -9,7 +9,7 @@ export const TRANLEFET_SCHOOL = {
   phoneTel: 'tel:+2250788948712',
   phoneDisplay: '07 88 94 87 12',
   motto: "Former l'homme aujourd'hui, c'est bâtir la société de demain.",
-  mottoShort: 'Former aujourd’hui, bâtir demain.',
+  mottoShort: "Former aujourd'hui, c'est bâtir la société de demain.",
   valuesLine: 'Science · Humanisme · Excellence',
   tagline: 'Excellence éducative et innovation',
   intro:
@@ -17,6 +17,16 @@ export const TRANLEFET_SCHOOL = {
   mission:
     'Offrir une éducation de qualité, dans un cadre structuré, moderne et orienté vers la réussite.',
 } as const;
+
+export function getGoogleMapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+export function getTranlefetSchoolMapsQuery(address?: string | null): string {
+  const custom = address?.trim();
+  if (custom) return custom;
+  return `${TRANLEFET_SCHOOL.fullName}, ${TRANLEFET_SCHOOL.city}, ${TRANLEFET_SCHOOL.country}`;
+}
 
 export const TRANLEFET_OPENING_HOURS = [
   { day: 'Lundi', hours: '08:00 – 17:00' },
@@ -81,7 +91,7 @@ export const TRANLEFET_NEWS = [
     date: '29 nov. 2025',
     title: 'Notre mission',
     excerpt:
-      'Former aujourd’hui, bâtir demain : un cadre structuré, moderne et orienté vers la réussite scolaire.',
+      "Former aujourd'hui, c'est bâtir la société de demain : un cadre structuré, moderne et orienté vers la réussite scolaire.",
   },
 ] as const;
 

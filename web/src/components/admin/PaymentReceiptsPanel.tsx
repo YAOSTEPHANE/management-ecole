@@ -12,6 +12,7 @@ import fr from 'date-fns/locale/fr';
 import { formatFCFA } from '../../utils/currency';
 import { downloadPaymentReceiptPdf } from '../../lib/paymentReceiptPdf';
 import { ADM } from './adminModuleLayout';
+import { useAppBranding } from '../../contexts/AppBrandingContext';
 
 interface PaymentReceiptsPanelProps {
   compact?: boolean;
@@ -19,7 +20,21 @@ interface PaymentReceiptsPanelProps {
 
 const PaymentReceiptsPanel: React.FC<PaymentReceiptsPanelProps> = ({ compact = false }) => {
   const [search, setSearch] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const tc = compact ? 'px-3 py-2' : 'px-4 py-3';
+  const { branding, navigationLogoAbsolute, loginLogoAbsolute } = useAppBranding();
+
+  const receiptBranding = useMemo(
+    () => ({
+      schoolName: branding.schoolDisplayName || branding.appTitle,
+      schoolPhone: branding.schoolPhone,
+      schoolEmail: branding.schoolEmail,
+      schoolAddress: branding.schoolAddress,
+      schoolPrincipal: branding.schoolPrincipal,
+      logoAbsoluteUrl: navigationLogoAbsolute || loginLogoAbsolute,
+    }),
+    [branding, navigationLogoAbsolute, loginLogoAbsolute],
+  );
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-payments-flat'],
@@ -42,12 +57,15 @@ const PaymentReceiptsPanel: React.FC<PaymentReceiptsPanelProps> = ({ compact = f
     });
   }, [completed, search]);
 
-  const handlePdf = (p: any) => {
+  const handlePdf = async (p: any) => {
     try {
-      downloadPaymentReceiptPdf(p);
+      setDownloadingId(p.id);
+      await downloadPaymentReceiptPdf(p, receiptBranding);
       toast.success('Reçu PDF téléchargé');
     } catch (e: any) {
       toast.error(e?.message || 'Erreur PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -113,7 +131,12 @@ const PaymentReceiptsPanel: React.FC<PaymentReceiptsPanelProps> = ({ compact = f
                       {p.tuitionFee?.period} · {p.tuitionFee?.academicYear}
                     </td>
                     <td className={`${tc} text-right`}>
-                      <Button size="sm" variant="secondary" onClick={() => handlePdf(p)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void handlePdf(p)}
+                        disabled={downloadingId === p.id}
+                      >
                         <FiDownload className="w-4 h-4 mr-1 inline" />
                         PDF
                       </Button>
