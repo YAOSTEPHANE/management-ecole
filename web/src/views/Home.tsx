@@ -8,6 +8,7 @@ import { useAppBranding } from '../contexts/AppBrandingContext';
 import Button from '../components/ui/Button';
 import Footer from '../components/Footer';
 import HomeReveal from '../components/public/HomeReveal';
+import HomeDirectorSection from '../components/public/HomeDirectorSection';
 import { getCurrentAcademicYear } from '../utils/academicYear';
 import { getRoleDashboardPath } from '../lib/rolePaths';
 import {
@@ -44,6 +45,7 @@ import {
 } from 'react-icons/fi';
 
 const NAV_LINKS = [
+  { href: '#mot-directrice', label: 'Mot de la Direction' },
   { href: '#etablissement', label: 'Établissement' },
   { href: '#actualites', label: 'Actualités' },
   { href: '/inscription', label: 'Inscription' },
@@ -505,6 +507,8 @@ export default function Home() {
             </svg>
           </div>
         </section>
+
+        <HomeDirectorSection />
 
         {/* Bento — Piliers */}
         <section className="relative z-10 -mt-12 px-4 sm:-mt-16 sm:px-6">
