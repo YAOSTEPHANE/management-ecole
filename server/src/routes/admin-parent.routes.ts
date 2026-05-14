@@ -73,6 +73,82 @@ router.get('/parents/:id', async (req, res) => {
   }
 });
 
+const PARENT_RELATIONS = ['father', 'mother', 'guardian', 'other'] as const;
+
+router.post(
+  '/parents/:id/students',
+  [body('studentId').isString().notEmpty(), body('relation').optional().isString()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const parent = await prisma.parent.findUnique({ where: { id: req.params.id } });
+      if (!parent) {
+        return res.status(404).json({ error: 'Parent introuvable' });
+      }
+
+      const { studentId, relation } = req.body as { studentId: string; relation?: string };
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: { user: { select: { firstName: true, lastName: true } } },
+      });
+      if (!student) {
+        return res.status(404).json({ error: 'Élève introuvable' });
+      }
+
+      const rel =
+        relation && PARENT_RELATIONS.includes(relation as (typeof PARENT_RELATIONS)[number])
+          ? relation
+          : 'guardian';
+
+      const existing = await prisma.studentParent.findFirst({
+        where: { parentId: parent.id, studentId },
+      });
+      if (existing) {
+        return res.status(409).json({ error: 'Cet élève est déjà rattaché à ce parent' });
+      }
+
+      const link = await prisma.studentParent.create({
+        data: {
+          parentId: parent.id,
+          studentId,
+          relation: rel,
+        },
+        include: {
+          student: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true } },
+              class: { select: { id: true, name: true, level: true } },
+            },
+          },
+        },
+      });
+
+      res.status(201).json(link);
+    } catch (error: unknown) {
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+    }
+  }
+);
+
+router.delete('/parents/:id/students/:studentId', async (req, res) => {
+  try {
+    const link = await prisma.studentParent.findFirst({
+      where: { parentId: req.params.id, studentId: req.params.studentId },
+    });
+    if (!link) {
+      return res.status(404).json({ error: 'Lien parent-élève introuvable' });
+    }
+    await prisma.studentParent.delete({ where: { id: link.id } });
+    res.json({ message: 'Lien supprimé' });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
 router.put('/parents/:id', async (req, res) => {
   try {
     const parent = await prisma.parent.findUnique({

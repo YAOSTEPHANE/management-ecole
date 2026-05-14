@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminParentGuardiansApi } from '../../../services/api/admin-parent-guardians.api';
+import { adminApi } from '../../../services/api/admin.api';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
@@ -53,6 +54,17 @@ const CONSENT_LABEL: Record<string, string> = {
   AUTHORIZED_PICKUP_POLICY: 'Politique de récupération',
 };
 
+const RELATION_OPTIONS = [
+  { value: 'mother', label: 'Mère' },
+  { value: 'father', label: 'Père' },
+  { value: 'guardian', label: 'Tuteur légal' },
+  { value: 'other', label: 'Autre' },
+] as const;
+
+const RELATION_LABEL: Record<string, string> = Object.fromEntries(
+  RELATION_OPTIONS.map((o) => [o.value, o.label])
+);
+
 type ParentRow = {
   id: string;
   user?: {
@@ -78,6 +90,12 @@ const ParentGuardiansModule: React.FC = () => {
   const { data: detail, isLoading: loadDetail } = useQuery({
     queryKey: ['admin-parent', detailId],
     queryFn: () => adminParentGuardiansApi.getParent(detailId!),
+    enabled: !!detailId,
+  });
+
+  const { data: allStudents } = useQuery({
+    queryKey: ['admin-students-picker'],
+    queryFn: adminApi.getStudents,
     enabled: !!detailId,
   });
 
@@ -116,6 +134,7 @@ const ParentGuardiansModule: React.FC = () => {
   }, [detail]);
 
   const [newContact, setNewContact] = useState({ label: '', phone: '', email: '', sortOrder: 0 });
+  const [newChildLink, setNewChildLink] = useState({ studentId: '', relation: 'guardian' });
   const [newIx, setNewIx] = useState({ channel: 'PHONE' as string, subject: '', body: '' });
   const [consentForm, setConsentForm] = useState({
     consentType: 'DATA_PROCESSING',
@@ -297,6 +316,31 @@ const ParentGuardiansModule: React.FC = () => {
     onError: (e: any) => toast.error(e.response?.data?.error || 'Erreur'),
   });
 
+  const linkChildMut = useMutation({
+    mutationFn: () =>
+      adminParentGuardiansApi.linkParentStudent(detailId!, {
+        studentId: newChildLink.studentId,
+        relation: newChildLink.relation as 'father' | 'mother' | 'guardian' | 'other',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-parent', detailId] });
+      qc.invalidateQueries({ queryKey: ['admin-parents'] });
+      setNewChildLink({ studentId: '', relation: 'guardian' });
+      toast.success('Enfant rattaché au portail parent');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Erreur'),
+  });
+
+  const unlinkChildMut = useMutation({
+    mutationFn: (studentId: string) => adminParentGuardiansApi.unlinkParentStudent(detailId!, studentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-parent', detailId] });
+      qc.invalidateQueries({ queryKey: ['admin-parents'] });
+      toast.success('Lien supprimé');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Erreur'),
+  });
+
   const filtered = useMemo(() => {
     const list = (parents as ParentRow[] | undefined) ?? [];
     const t = search.trim().toLowerCase();
@@ -315,6 +359,19 @@ const ParentGuardiansModule: React.FC = () => {
       label: `${sp.student?.user?.firstName ?? ''} ${sp.student?.user?.lastName ?? ''}`.trim(),
     }));
   }, [detail]);
+
+  const availableStudents = useMemo(() => {
+    const linkedIds = new Set(studentOptions.map((s) => s.id));
+    const list = (allStudents as any[] | undefined) ?? [];
+    return list
+      .filter((s) => s?.id && !linkedIds.has(s.id))
+      .map((s) => ({
+        id: s.id as string,
+        label: `${s.user?.firstName ?? ''} ${s.user?.lastName ?? ''}`.trim() || s.studentId || s.id,
+        className: s.class?.name ?? '',
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  }, [allStudents, studentOptions]);
 
   useEffect(() => {
     if (!studentOptions.length) return;
@@ -478,6 +535,96 @@ const ParentGuardiansModule: React.FC = () => {
               <Button type="button" size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
                 <FiSave className="w-4 h-4 mr-1 inline" />
                 Enregistrer
+              </Button>
+            </section>
+
+            <section className="rounded-xl border border-stone-200/90 p-3 space-y-3 bg-white/90">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-stone-600">Enfants rattachés</h3>
+              <p className="text-xs text-stone-500">
+                Seuls les élèves listés ici apparaissent dans le portail parent (notes, frais, présences…).
+              </p>
+              <ul className="space-y-1.5">
+                {(((detail as any).students as any[]) ?? []).length === 0 && (
+                  <li className="text-sm text-stone-500 italic">Aucun enfant rattaché — le parent ne verra rien dans son espace.</li>
+                )}
+                {(((detail as any).students as any[]) ?? []).map((sp: any) => (
+                  <li
+                    key={sp.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50/80 px-2 py-1.5"
+                  >
+                    <span>
+                      <span className="font-medium text-stone-900">
+                        {sp.student?.user?.firstName} {sp.student?.user?.lastName}
+                      </span>
+                      <span className="text-xs text-stone-500 block">
+                        {RELATION_LABEL[sp.relation] ?? sp.relation}
+                        {sp.student?.class?.name ? ` · ${sp.student.class.name}` : ''}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      title="Retirer du portail parent"
+                      onClick={() => {
+                        if (window.confirm('Retirer cet élève du portail de ce parent ?')) {
+                          unlinkChildMut.mutate(sp.student.id);
+                        }
+                      }}
+                    >
+                      <FiTrash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="grid sm:grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+                <div>
+                  <label className="text-xs font-medium text-stone-700">Élève</label>
+                  <select
+                    aria-label="Élève à rattacher"
+                    value={newChildLink.studentId}
+                    onChange={(e) => setNewChildLink((f) => ({ ...f, studentId: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border-2 rounded-xl border-stone-200/90 text-sm"
+                  >
+                    <option value="">Choisir un élève…</option>
+                    {availableStudents.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                        {s.className ? ` (${s.className})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-stone-700">Lien de parenté</label>
+                  <select
+                    aria-label="Lien de parenté"
+                    value={newChildLink.relation}
+                    onChange={(e) => setNewChildLink((f) => ({ ...f, relation: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border-2 rounded-xl border-stone-200/90 text-sm"
+                  >
+                    {RELATION_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (!newChildLink.studentId) {
+                    toast.error('Sélectionnez un élève');
+                    return;
+                  }
+                  linkChildMut.mutate();
+                }}
+                disabled={linkChildMut.isPending || availableStudents.length === 0}
+              >
+                <FiPlus className="w-4 h-4 mr-1 inline" />
+                Rattacher un enfant
               </Button>
             </section>
 

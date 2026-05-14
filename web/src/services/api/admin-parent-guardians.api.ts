@@ -109,4 +109,15 @@ export const adminParentGuardiansApi = {
     const response = await api.delete(`/admin/parents/${parentId}/pickup-authorizations/${pickupId}`);
     return response.data;
   },
+  linkParentStudent: async (
+    parentId: string,
+    data: { studentId: string; relation?: 'father' | 'mother' | 'guardian' | 'other' }
+  ) => {
+    const response = await api.post(`/admin/parents/${parentId}/students`, data);
+    return response.data;
+  },
+  unlinkParentStudent: async (parentId: string, studentId: string) => {
+    const response = await api.delete(`/admin/parents/${parentId}/students/${studentId}`);
+    return response.data;
+  },
 };

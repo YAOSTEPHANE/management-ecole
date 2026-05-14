@@ -536,38 +536,43 @@ router.put('/appointments/:id/reschedule', async (req: AuthRequest, res) => {
   }
 });
 
-// Obtenir les enfants du parent
-router.get('/children', async (req: AuthRequest, res) => {
-  try {
-    const parent = await prisma.parent.findFirst({
-      where: {
-        userId: req.user!.id,
-      },
-      include: {
-        students: {
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                    avatar: true,
-                  },
-                },
-                class: {
-                  include: {
-                    teacher: {
-                      include: {
-                        user: {
-                          select: {
-                            firstName: true,
-                            lastName: true,
-                          },
-                        },
-                      },
+async function findOrCreateParentProfile(userId: string) {
+  let parent = await prisma.parent.findFirst({ where: { userId } });
+  if (parent) return parent;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!user || user.role !== 'PARENT') {
+    return null;
+  }
+
+  return prisma.parent.create({ data: { userId } });
+}
+
+const parentChildrenInclude = {
+  students: {
+    include: {
+      student: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+            },
+          },
+          class: {
+            include: {
+              teacher: {
+                include: {
+                  user: {
+                    select: {
+                      firstName: true,
+                      lastName: true,
                     },
                   },
                 },
@@ -576,6 +581,21 @@ router.get('/children', async (req: AuthRequest, res) => {
           },
         },
       },
+    },
+  },
+};
+
+// Obtenir les enfants du parent
+router.get('/children', async (req: AuthRequest, res) => {
+  try {
+    const profile = await findOrCreateParentProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({ error: 'Parent non trouvé' });
+    }
+
+    const parent = await prisma.parent.findUnique({
+      where: { id: profile.id },
+      include: parentChildrenInclude,
     });
 
     if (!parent) {
