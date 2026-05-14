@@ -131,7 +131,32 @@ function StudiesDirectorSpace({
       <QuickModuleNav
         visibleModules={visibleModules}
         onOpenModule={onOpenModule}
-        ids={['validations', 'academic_overview', 'class_councils']}
+        ids={[
+          'pedagogical_tracking',
+          'discipline_mgmt',
+          'extracurricular_mgmt',
+          'orientation_mgmt',
+          'communication_mgmt',
+          'library_mgmt',
+          'material_mgmt',
+          'reports_mgmt',
+          'analytics_mgmt',
+          'schedule_mgmt',
+          'pointage_mgmt',
+          'attendance_mgmt',
+          'hr_mgmt',
+          'students_mgmt',
+          'academic_mgmt',
+          'grading_mgmt',
+          'classes_mgmt',
+          'teachers_mgmt',
+          'educators_mgmt',
+          'staff_mgmt',
+          'parents_mgmt',
+          'validations',
+          'academic_overview',
+          'class_councils',
+        ]}
       />
       <div className="grid sm:grid-cols-2 gap-3">
         <Panel

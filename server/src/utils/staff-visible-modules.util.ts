@@ -17,6 +17,27 @@ export const STAFF_MODULE_IDS = [
   'digital_library',
   'it_requests',
   'maintenance_requests',
+  'students_mgmt',
+  'academic_mgmt',
+  'grading_mgmt',
+  'classes_mgmt',
+  'teachers_mgmt',
+  'educators_mgmt',
+  'staff_mgmt',
+  'parents_mgmt',
+  'pedagogical_tracking',
+  'discipline_mgmt',
+  'extracurricular_mgmt',
+  'orientation_mgmt',
+  'communication_mgmt',
+  'library_mgmt',
+  'material_mgmt',
+  'reports_mgmt',
+  'analytics_mgmt',
+  'schedule_mgmt',
+  'pointage_mgmt',
+  'attendance_mgmt',
+  'hr_mgmt',
 ] as const;
 
 export type StaffModuleId = (typeof STAFF_MODULE_IDS)[number];
@@ -38,6 +59,27 @@ export const STAFF_MODULE_LABELS: Record<StaffModuleId, string> = {
   digital_library: 'Bibliothèque numérique',
   it_requests: 'Support informatique',
   maintenance_requests: 'Maintenance & travaux',
+  students_mgmt: 'Élèves',
+  academic_mgmt: 'Gestion académique',
+  grading_mgmt: 'Notation & évaluation',
+  classes_mgmt: 'Classes',
+  teachers_mgmt: 'Enseignants',
+  educators_mgmt: 'Éducateurs',
+  staff_mgmt: 'Personnel administratif',
+  parents_mgmt: 'Parents & tuteurs',
+  pedagogical_tracking: 'Suivi pédagogique',
+  discipline_mgmt: 'Discipline & règlement',
+  extracurricular_mgmt: 'Activités parascolaires',
+  orientation_mgmt: 'Orientation',
+  communication_mgmt: 'Communication',
+  library_mgmt: 'Bibliothèque',
+  material_mgmt: 'Gestion matérielle',
+  reports_mgmt: 'Rapports & statistiques',
+  analytics_mgmt: 'Analytique avancée',
+  schedule_mgmt: 'Emploi du temps',
+  pointage_mgmt: 'Pointage des élèves',
+  attendance_mgmt: 'Gestion des présences',
+  hr_mgmt: 'Ressources humaines',
 };
 
 /** Modules éligibles selon le métier (supportKind). */
@@ -52,7 +94,33 @@ export function getEligibleModulesForSupportKind(
     case 'ACCOUNTANT':
       return ['overview', 'counter', 'treasury'];
     case 'STUDIES_DIRECTOR':
-      return ['overview', 'validations', 'academic_overview', 'class_councils'];
+      return [
+        'overview',
+        'validations',
+        'academic_overview',
+        'class_councils',
+        'students_mgmt',
+        'academic_mgmt',
+        'grading_mgmt',
+        'classes_mgmt',
+        'teachers_mgmt',
+        'educators_mgmt',
+        'staff_mgmt',
+        'parents_mgmt',
+        'pedagogical_tracking',
+        'discipline_mgmt',
+        'extracurricular_mgmt',
+        'orientation_mgmt',
+        'communication_mgmt',
+        'library_mgmt',
+        'material_mgmt',
+        'reports_mgmt',
+        'analytics_mgmt',
+        'schedule_mgmt',
+        'pointage_mgmt',
+        'attendance_mgmt',
+        'hr_mgmt',
+      ];
     case 'NURSE':
       return ['overview', 'health_log'];
     case 'LIBRARIAN':
@@ -102,14 +170,39 @@ export function resolveVisibleStaffModules(
   if (staffCategory !== 'SUPPORT') {
     return ['overview'];
   }
+  const eligible = getEligibleModulesForStaffMember(staffCategory, supportKind);
   if (!stored || stored.length === 0) {
-    return getEligibleModulesForStaffMember(staffCategory, supportKind);
+    return eligible;
   }
-  const picked = stored.filter((id): id is StaffModuleId => MODULE_SET.has(id));
+  let picked = stored.filter((id): id is StaffModuleId => MODULE_SET.has(id));
   if (!picked.includes('overview')) {
     picked.unshift('overview');
   }
-  return picked.length > 0 ? picked : ['overview'];
+
+  return picked.length > 0 ? picked : eligible;
+}
+
+/** Met à jour visibleStaffModules en base si le catalogue éligible a évolué. */
+export async function syncStaffVisibleModulesIfStale(staff: {
+  id: string;
+  staffCategory: StaffCategory;
+  supportKind: SupportStaffKind | null;
+  visibleStaffModules: string[];
+}): Promise<StaffModuleId[] | null> {
+  const resolved = resolveVisibleStaffModules(
+    staff.staffCategory,
+    staff.supportKind,
+    staff.visibleStaffModules,
+  );
+  const stored = staff.visibleStaffModules ?? [];
+  const same =
+    resolved.length === stored.length && resolved.every((id) => stored.includes(id));
+  if (same) return null;
+  await prisma.staffMember.update({
+    where: { id: staff.id },
+    data: { visibleStaffModules: resolved },
+  });
+  return resolved;
 }
 
 export async function getStaffMemberModuleContext(userId: string) {

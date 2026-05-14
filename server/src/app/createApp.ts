@@ -131,8 +131,6 @@ export function createApp(): express.Express {
   app.use(`${apiPrefix}/public`, publicRoutes);
   app.use(`${apiPrefix}/academic-validation`, academicValidationRoutes);
   app.use(`${apiPrefix}/digital-library`, digitalLibraryRoutes);
-  app.use(`${apiPrefix}/health`, healthRoutes);
-  app.use(`${apiPrefix}/elearning`, elearningRoutes);
 
   const healthJson = { status: 'OK', message: 'School Manager API is running' };
   app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));
@@ -142,6 +140,9 @@ export function createApp(): express.Express {
   if (apiPrefix === '') {
     app.get('/api/health', (req, res) => res.json(healthJson));
   }
+
+  app.use(`${apiPrefix}/health`, healthRoutes);
+  app.use(`${apiPrefix}/elearning`, elearningRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: 'Route non trouvée' });

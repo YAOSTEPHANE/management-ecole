@@ -10,6 +10,7 @@ import {
   type StaffModuleId,
 } from '../utils/staff-visible-modules.util';
 import staffRolesRoutes from './staff-roles.routes';
+import staffPedagogyRoutes from './staff-pedagogy.routes';
 import staffHealthMessagingRoutes from './staff-health-messaging.routes';
 import { searchLibraryBorrowers } from '../utils/library-borrower-search.util';
 import { createLibraryLoansBatch } from '../utils/library-create-loans.util';
@@ -500,6 +501,8 @@ router.patch('/library/loans/:id/return', requireStaffModule('library'), async (
 });
 
 router.use('/health-messaging', staffHealthMessagingRoutes);
+
+router.use('/pedagogy', staffPedagogyRoutes);
 
 router.use('/', staffRolesRoutes);
 

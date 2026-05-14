@@ -1,5 +1,6 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
+import type { StaffCategory, SupportStaffKind } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { generateToken } from '../utils/jwt.util';
 import { hashPassword, comparePassword } from '../utils/password.util';
@@ -20,11 +21,31 @@ import {
   gdprErasureRequestLimiter,
 } from '../middleware/rate-limit.middleware';
 import { decryptSessionUserPayload } from '../utils/student-sensitive-crypto.util';
+import { syncStaffVisibleModulesIfStale } from '../utils/staff-visible-modules.util';
 import { buildGdprDataExport } from '../utils/gdpr-data-export.util';
 import QRCode from 'qrcode';
 import { generateTwoFactorSecret, verifyTwoFactorToken } from '../utils/two-factor.util';
 
 const router = express.Router();
+
+async function withSyncedStaffModules<
+  T extends {
+    staffProfile?: {
+      id: string;
+      staffCategory: StaffCategory;
+      supportKind: SupportStaffKind | null;
+      visibleStaffModules: string[];
+    } | null;
+  },
+>(user: T): Promise<T> {
+  if (!user.staffProfile) return user;
+  const synced = await syncStaffVisibleModulesIfStale(user.staffProfile);
+  if (!synced) return user;
+  return {
+    ...user,
+    staffProfile: { ...user.staffProfile, visibleStaffModules: synced },
+  };
+}
 
 // Inscription
 router.post(
@@ -229,10 +250,11 @@ router.post(
 
       // Retourner les données utilisateur (sans le mot de passe)
       const { password: _, ...userWithoutPassword } = user;
+      const userForSession = await withSyncedStaffModules(userWithoutPassword);
 
       res.json({
         message: 'Connexion réussie',
-        user: decryptSessionUserPayload(userWithoutPassword),
+        user: decryptSessionUserPayload(userForSession),
         token,
         twoFactorEnabled: Boolean(twoFactor?.enabled),
       });
@@ -400,7 +422,8 @@ router.get('/me', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    res.json(decryptSessionUserPayload(user));
+    const userForSession = await withSyncedStaffModules(user);
+    res.json(decryptSessionUserPayload(userForSession));
   } catch (error: any) {
     console.error('Erreur dans /auth/me:', error);
     res.status(500).json({ 

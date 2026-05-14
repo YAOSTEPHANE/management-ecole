@@ -27,7 +27,12 @@ import { formatFCFA } from '../../../utils/currency';
 import StaffModuleAccessField from './StaffModuleAccessField';
 import StaffModulesRecapPanel from './StaffModulesRecapPanel';
 import { resolveStaffSupportKind } from '@/views/staff/staffSpaceConfig';
-import { getAllStaffVisibleModules, type StaffModuleId } from '@/lib/staffModules';
+import {
+  getAllStaffVisibleModules,
+  getEligibleModulesForSupportKind,
+  resolveVisibleStaffModules,
+  type StaffModuleId,
+} from '@/lib/staffModules';
 import { useAppBranding } from '@/contexts/AppBrandingContext';
 import { downloadJobDescriptionPdf, type JobDescriptionPdfPayload } from '@/lib/jobDescriptionPdf';
 import AdminUserPasswordSection from '../AdminUserPasswordSection';
@@ -122,7 +127,7 @@ function OrgBranch({ node }: { node: any }) {
   );
 }
 
-const StaffPersonnelModule: React.FC = () => {
+const StaffPersonnelModule: React.FC<{ pedagogyReadOnly?: boolean }> = ({ pedagogyReadOnly = false }) => {
   const qc = useQueryClient();
   const { branding } = useAppBranding();
   const schoolName = branding.schoolDisplayName?.trim() || branding.appTitle?.trim() || null;
@@ -196,21 +201,23 @@ const StaffPersonnelModule: React.FC = () => {
     );
   }, [staffList, search]);
 
-  const subTabs: { id: StaffTab; label: string; icon: typeof FiUsers }[] = [
-    { id: 'members', label: 'Personnel', icon: FiUsers },
-    { id: 'modules', label: 'Espace personnel', icon: FiCheckSquare },
-    { id: 'org', label: 'Organigramme', icon: FiGitBranch },
-    { id: 'jobs', label: 'Fiches de poste', icon: FiFileText },
-  ];
+  const subTabs = (
+    [
+      { id: 'members' as const, label: 'Personnel', icon: FiUsers },
+      { id: 'modules' as const, label: 'Espace personnel', icon: FiCheckSquare },
+      { id: 'org' as const, label: 'Organigramme', icon: FiGitBranch },
+      { id: 'jobs' as const, label: 'Fiches de poste', icon: FiFileText },
+    ] as const
+  ).filter((t) => !pedagogyReadOnly || t.id === 'members');
 
   return (
     <div className={ADM.root}>
       <div>
         <h2 className={ADM.h2}>Personnel administratif &amp; soutien</h2>
         <p className={ADM.intro}>
-          Administration, personnel de soutien (bibliothèque, infirmerie, etc.), sécurité, organigramme,
-          fiches de poste et pointages. L&apos;onglet <strong>Espace personnel</strong> récapitule les modules
-          visibles sur le tableau de bord STAFF de chaque agent de soutien.
+          {pedagogyReadOnly
+            ? 'Consultation de l’annuaire du personnel (sans données salariales ni modification).'
+            : 'Administration, personnel de soutien (bibliothèque, infirmerie, etc.), sécurité, organigramme, fiches de poste et pointages. L’onglet Espace personnel récapitule les modules visibles sur le tableau de bord STAFF de chaque agent de soutien.'}
         </p>
       </div>
 
@@ -247,6 +254,7 @@ const StaffPersonnelModule: React.FC = () => {
         <Card className="p-3 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
             <SearchBar value={search} onChange={setSearch} placeholder="Rechercher…" className="max-w-md" />
+            {!pedagogyReadOnly ? (
             <Button
               type="button"
               size="sm"
@@ -258,6 +266,7 @@ const StaffPersonnelModule: React.FC = () => {
               <FiPlus className="w-4 h-4 mr-1 inline" />
               Ajouter
             </Button>
+            ) : null}
           </div>
           {loadStaff ? (
             <p className="text-sm text-stone-500">Chargement…</p>
@@ -309,6 +318,7 @@ const StaffPersonnelModule: React.FC = () => {
                         >
                           <FiEye className="w-4 h-4" />
                         </button>
+                        {!pedagogyReadOnly ? (
                         <button
                           type="button"
                           className="p-1.5 text-stone-600 hover:text-amber-700"
@@ -320,6 +330,7 @@ const StaffPersonnelModule: React.FC = () => {
                         >
                           <FiEdit2 className="w-4 h-4" />
                         </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -493,7 +504,7 @@ const StaffPersonnelModule: React.FC = () => {
                   ? format(new Date((detailStaff as any).hireDate), 'dd/MM/yyyy', { locale: fr })
                   : '—'}
               </p>
-              {(detailStaff as any).salary != null && (
+              {!pedagogyReadOnly && (detailStaff as any).salary != null && (
                 <p>
                   <span className="text-stone-500">Salaire indicatif :</span>{' '}
                   {formatFCFA(Number((detailStaff as any).salary))}
@@ -522,11 +533,14 @@ const StaffPersonnelModule: React.FC = () => {
                 </Button>
               </div>
             )}
+            {!pedagogyReadOnly ? (
             <StaffAttendanceBlock
               staffId={detailId!}
               rows={attendances as any[] | undefined}
               onRefresh={() => refetchAtt()}
             />
+            ) : null}
+            {!pedagogyReadOnly ? (
             <div className="flex flex-wrap gap-2 pt-2 border-t border-stone-200">
               <Button
                 type="button"
@@ -559,6 +573,7 @@ const StaffPersonnelModule: React.FC = () => {
                 Supprimer
               </Button>
             </div>
+            ) : null}
           </div>
         )}
       </Modal>
@@ -901,7 +916,13 @@ function StaffFormModal({
       setJobDesc(s.jobDescriptionId ?? '');
       setManager(s.managerId ?? '');
       setIsActive(s.user?.isActive !== false);
-      setVisibleStaffModules(getAllStaffVisibleModules());
+      const kind = resolveStaffSupportKind(s.supportKind);
+      const stored = s.visibleStaffModules;
+      setVisibleStaffModules(
+        Array.isArray(stored) && stored.length > 0
+          ? resolveVisibleStaffModules(kind, stored, s.staffCategory)
+          : getEligibleModulesForSupportKind(kind),
+      );
     }
     if (!staffId && isOpen) {
       setEmail('');

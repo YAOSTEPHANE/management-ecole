@@ -2,15 +2,31 @@ import type { IconType } from 'react-icons';
 
 import {
 
+  FiAward,
+
+  FiBarChart2,
+
+  FiBell,
+
   FiBook,
 
   FiBookOpen,
 
+  FiBriefcase,
+
+  FiCalendar,
+
   FiCheckCircle,
+
+  FiCheckSquare,
 
   FiClipboard,
 
+  FiCompass,
+
   FiDollarSign,
+
+  FiEdit3,
 
   FiHeart,
 
@@ -20,11 +36,17 @@ import {
 
   FiMonitor,
 
+  FiPieChart,
+
+  FiShield,
+
   FiTool,
 
   FiUserCheck,
 
   FiUsers,
+
+  FiZap,
 
 } from 'react-icons/fi';
 
@@ -62,11 +84,82 @@ export const STAFF_MODULE_IDS = [
 
   'maintenance_requests',
 
+  'students_mgmt',
+
+  'academic_mgmt',
+
+  'grading_mgmt',
+
+  'classes_mgmt',
+
+  'teachers_mgmt',
+
+  'educators_mgmt',
+
+  'staff_mgmt',
+
+  'parents_mgmt',
+
+  'pedagogical_tracking',
+
+  'discipline_mgmt',
+
+  'extracurricular_mgmt',
+
+  'orientation_mgmt',
+
+  'communication_mgmt',
+
+  'library_mgmt',
+
+  'material_mgmt',
+
+  'reports_mgmt',
+
+  'analytics_mgmt',
+
+  'schedule_mgmt',
+
+  'pointage_mgmt',
+
+  'attendance_mgmt',
+
+  'hr_mgmt',
+
 ] as const;
 
 
 
 export type StaffModuleId = (typeof STAFF_MODULE_IDS)[number];
+
+/** Modules pédagogiques réutilisant les écrans admin (proxy /staff/pedagogy). */
+export const PEDAGOGY_STAFF_MODULE_IDS: StaffModuleId[] = [
+  'students_mgmt',
+  'academic_mgmt',
+  'grading_mgmt',
+  'classes_mgmt',
+  'teachers_mgmt',
+  'educators_mgmt',
+  'staff_mgmt',
+  'parents_mgmt',
+  'pedagogical_tracking',
+  'discipline_mgmt',
+  'extracurricular_mgmt',
+  'orientation_mgmt',
+  'communication_mgmt',
+  'library_mgmt',
+  'material_mgmt',
+  'reports_mgmt',
+  'analytics_mgmt',
+  'schedule_mgmt',
+  'pointage_mgmt',
+  'attendance_mgmt',
+  'hr_mgmt',
+];
+
+export function hasPedagogyStaffAccess(modules: StaffModuleId[]): boolean {
+  return modules.some((m) => PEDAGOGY_STAFF_MODULE_IDS.includes(m));
+}
 
 
 
@@ -99,6 +192,48 @@ export const STAFF_MODULE_LABELS: Record<StaffModuleId, string> = {
   it_requests: 'Support informatique',
 
   maintenance_requests: 'Maintenance',
+
+  students_mgmt: 'Élèves',
+
+  academic_mgmt: 'Gestion académique',
+
+  grading_mgmt: 'Notation & évaluation',
+
+  classes_mgmt: 'Classes',
+
+  teachers_mgmt: 'Enseignants',
+
+  educators_mgmt: 'Éducateurs',
+
+  staff_mgmt: 'Personnel administratif',
+
+  parents_mgmt: 'Parents & tuteurs',
+
+  pedagogical_tracking: 'Suivi pédagogique',
+
+  discipline_mgmt: 'Discipline & règlement',
+
+  extracurricular_mgmt: 'Activités parascolaires',
+
+  orientation_mgmt: 'Orientation',
+
+  communication_mgmt: 'Communication',
+
+  library_mgmt: 'Bibliothèque',
+
+  material_mgmt: 'Gestion matérielle',
+
+  reports_mgmt: 'Rapports & statistiques',
+
+  analytics_mgmt: 'Analytique avancée',
+
+  schedule_mgmt: 'Emploi du temps',
+
+  pointage_mgmt: 'Pointage des élèves',
+
+  attendance_mgmt: 'Gestion des présences',
+
+  hr_mgmt: 'Ressources humaines',
 
 };
 
@@ -133,6 +268,48 @@ export const STAFF_MODULE_DESCRIPTIONS: Record<StaffModuleId, string> = {
   it_requests: 'Demandes et incidents informatiques',
 
   maintenance_requests: 'Signalements et interventions bâtiment',
+
+  students_mgmt: 'Liste des élèves, classes et dossiers scolaires',
+
+  academic_mgmt: 'Structure pédagogique, programmes, EDT et calendrier',
+
+  grading_mgmt: 'Notes, moyennes, bulletins et validations',
+
+  classes_mgmt: 'Classes, niveaux, effectifs et groupes',
+
+  teachers_mgmt: 'Corps enseignant, matières et affectations',
+
+  educators_mgmt: 'Éducateurs, classes suivies et vie scolaire',
+
+  staff_mgmt: 'Annuaire du personnel administratif et de soutien',
+
+  parents_mgmt: 'Familles, contacts, consentements et enfants rattachés',
+
+  pedagogical_tracking: 'Indicateurs, élèves à risque et suivi par classe',
+
+  discipline_mgmt: 'Règlement intérieur, sanctions et conseils de discipline',
+
+  extracurricular_mgmt: 'Offres, inscriptions et activités hors cursus',
+
+  orientation_mgmt: 'Filières, partenariats, tests et suivi d’orientation',
+
+  communication_mgmt: 'Messagerie, annonces et notifications',
+
+  library_mgmt: 'Catalogue, emprunts, réservations et pénalités',
+
+  material_mgmt: 'Salles, équipements, stocks et maintenance',
+
+  reports_mgmt: 'Tableaux de bord et rapports consolidés',
+
+  analytics_mgmt: 'Statistiques avancées et analyses croisées',
+
+  schedule_mgmt: 'Créneaux, salles et disponibilités enseignants',
+
+  pointage_mgmt: 'Carte scolaire, NFC et appel manuel',
+
+  attendance_mgmt: 'Appel, absences et rapports d’assiduité',
+
+  hr_mgmt: 'Congés, évaluations et suivi du personnel',
 
 };
 
@@ -324,6 +501,258 @@ const TAB_META: Record<StaffModuleId, Omit<StaffTabMeta, 'id'>> = {
 
   },
 
+  students_mgmt: {
+
+    label: STAFF_MODULE_LABELS.students_mgmt,
+
+    icon: FiUsers,
+
+    color: 'from-blue-500 to-indigo-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.students_mgmt,
+
+  },
+
+  academic_mgmt: {
+
+    label: STAFF_MODULE_LABELS.academic_mgmt,
+
+    icon: FiBookOpen,
+
+    color: 'from-violet-500 to-purple-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.academic_mgmt,
+
+  },
+
+  grading_mgmt: {
+
+    label: STAFF_MODULE_LABELS.grading_mgmt,
+
+    icon: FiEdit3,
+
+    color: 'from-fuchsia-500 to-pink-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.grading_mgmt,
+
+  },
+
+  classes_mgmt: {
+
+    label: STAFF_MODULE_LABELS.classes_mgmt,
+
+    icon: FiLayers,
+
+    color: 'from-cyan-500 to-teal-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.classes_mgmt,
+
+  },
+
+  teachers_mgmt: {
+
+    label: STAFF_MODULE_LABELS.teachers_mgmt,
+
+    icon: FiUserCheck,
+
+    color: 'from-emerald-500 to-teal-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.teachers_mgmt,
+
+  },
+
+  educators_mgmt: {
+
+    label: STAFF_MODULE_LABELS.educators_mgmt,
+
+    icon: FiShield,
+
+    color: 'from-amber-500 to-orange-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.educators_mgmt,
+
+  },
+
+  staff_mgmt: {
+
+    label: STAFF_MODULE_LABELS.staff_mgmt,
+
+    icon: FiBriefcase,
+
+    color: 'from-stone-500 to-slate-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.staff_mgmt,
+
+  },
+
+  parents_mgmt: {
+
+    label: STAFF_MODULE_LABELS.parents_mgmt,
+
+    icon: FiHeart,
+
+    color: 'from-rose-500 to-pink-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.parents_mgmt,
+
+  },
+
+  pedagogical_tracking: {
+
+    label: STAFF_MODULE_LABELS.pedagogical_tracking,
+
+    icon: FiAward,
+
+    color: 'from-yellow-500 to-amber-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.pedagogical_tracking,
+
+  },
+
+  discipline_mgmt: {
+
+    label: STAFF_MODULE_LABELS.discipline_mgmt,
+
+    icon: FiShield,
+
+    color: 'from-red-500 to-rose-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.discipline_mgmt,
+
+  },
+
+  extracurricular_mgmt: {
+
+    label: STAFF_MODULE_LABELS.extracurricular_mgmt,
+
+    icon: FiZap,
+
+    color: 'from-lime-500 to-green-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.extracurricular_mgmt,
+
+  },
+
+  orientation_mgmt: {
+
+    label: STAFF_MODULE_LABELS.orientation_mgmt,
+
+    icon: FiCompass,
+
+    color: 'from-indigo-500 to-violet-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.orientation_mgmt,
+
+  },
+
+  communication_mgmt: {
+
+    label: STAFF_MODULE_LABELS.communication_mgmt,
+
+    icon: FiBell,
+
+    color: 'from-rose-500 to-pink-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.communication_mgmt,
+
+  },
+
+  library_mgmt: {
+
+    label: STAFF_MODULE_LABELS.library_mgmt,
+
+    icon: FiBookOpen,
+
+    color: 'from-sky-500 to-indigo-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.library_mgmt,
+
+  },
+
+  material_mgmt: {
+
+    label: STAFF_MODULE_LABELS.material_mgmt,
+
+    icon: FiTool,
+
+    color: 'from-slate-500 to-slate-700',
+
+    description: STAFF_MODULE_DESCRIPTIONS.material_mgmt,
+
+  },
+
+  reports_mgmt: {
+
+    label: STAFF_MODULE_LABELS.reports_mgmt,
+
+    icon: FiPieChart,
+
+    color: 'from-cyan-500 to-blue-700',
+
+    description: STAFF_MODULE_DESCRIPTIONS.reports_mgmt,
+
+  },
+
+  analytics_mgmt: {
+
+    label: STAFF_MODULE_LABELS.analytics_mgmt,
+
+    icon: FiBarChart2,
+
+    color: 'from-emerald-500 to-emerald-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.analytics_mgmt,
+
+  },
+
+  schedule_mgmt: {
+
+    label: STAFF_MODULE_LABELS.schedule_mgmt,
+
+    icon: FiCalendar,
+
+    color: 'from-orange-500 to-orange-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.schedule_mgmt,
+
+  },
+
+  pointage_mgmt: {
+
+    label: STAFF_MODULE_LABELS.pointage_mgmt,
+
+    icon: FiUserCheck,
+
+    color: 'from-emerald-500 to-emerald-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.pointage_mgmt,
+
+  },
+
+  attendance_mgmt: {
+
+    label: STAFF_MODULE_LABELS.attendance_mgmt,
+
+    icon: FiCheckSquare,
+
+    color: 'from-teal-500 to-cyan-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.attendance_mgmt,
+
+  },
+
+  hr_mgmt: {
+
+    label: STAFF_MODULE_LABELS.hr_mgmt,
+
+    icon: FiBriefcase,
+
+    color: 'from-rose-500 to-pink-600',
+
+    description: STAFF_MODULE_DESCRIPTIONS.hr_mgmt,
+
+  },
+
 };
 
 
@@ -343,7 +772,33 @@ export function getEligibleModulesForSupportKind(kind: SupportStaffKindKey): Sta
 
     case 'STUDIES_DIRECTOR':
 
-      return ['overview', 'validations', 'academic_overview', 'class_councils'];
+      return [
+        'overview',
+        'validations',
+        'academic_overview',
+        'class_councils',
+        'students_mgmt',
+        'academic_mgmt',
+        'grading_mgmt',
+        'classes_mgmt',
+        'teachers_mgmt',
+        'educators_mgmt',
+        'staff_mgmt',
+        'parents_mgmt',
+        'pedagogical_tracking',
+        'discipline_mgmt',
+        'extracurricular_mgmt',
+        'orientation_mgmt',
+        'communication_mgmt',
+        'library_mgmt',
+        'material_mgmt',
+        'reports_mgmt',
+        'analytics_mgmt',
+        'schedule_mgmt',
+        'pointage_mgmt',
+        'attendance_mgmt',
+        'hr_mgmt',
+      ];
 
     case 'NURSE':
 
@@ -384,14 +839,21 @@ export function getAllStaffVisibleModules(): StaffModuleId[] {
 export function resolveVisibleStaffModules(
   kind: SupportStaffKindKey,
   stored: string[] | null | undefined,
+  staffCategory?: string | null,
 ): StaffModuleId[] {
-  if (!stored?.length) return getEligibleModulesForSupportKind(kind);
+  if (staffCategory && staffCategory !== 'SUPPORT') {
+    return ['overview'];
+  }
 
-  const picked = stored.filter((id): id is StaffModuleId =>
+  const eligible = getEligibleModulesForSupportKind(kind);
+  if (!stored?.length) return eligible;
+
+  let picked = stored.filter((id): id is StaffModuleId =>
     (STAFF_MODULE_IDS as readonly string[]).includes(id),
   );
   if (!picked.includes('overview')) picked.unshift('overview');
-  return picked.length ? picked : ['overview'];
+
+  return picked.length ? picked : eligible;
 }
 
 

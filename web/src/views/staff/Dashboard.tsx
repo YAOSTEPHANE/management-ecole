@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -20,12 +21,36 @@ import StaffStudentRegistryPanel from '../../components/staff/StaffStudentRegist
 import StaffTreasuryPanel from '../../components/staff/StaffTreasuryPanel';
 import StaffAcademicOverviewPanel from '../../components/staff/StaffAcademicOverviewPanel';
 import StaffClassCouncilsPanel from '../../components/staff/StaffClassCouncilsPanel';
+import StaffPedagogyShell from '../../components/staff/StaffPedagogyShell';
+import StudentsList from '../../components/admin/StudentsList';
+import AcademicManagement from '../../components/admin/AcademicManagement';
+import GradingEvaluationManagement from '../../components/admin/GradingEvaluationManagement';
+import ClassesList from '../../components/admin/ClassesList';
+import TeachersList from '../../components/admin/TeachersList';
+import EducatorsList from '../../components/admin/EducatorsList';
+import StaffPersonnelModule from '../../components/admin/staff/StaffPersonnelModule';
+import ParentGuardiansModule from '../../components/admin/parents/ParentGuardiansModule';
+import PedagogicalTracking from '../../components/admin/PedagogicalTracking';
+import DisciplineAdminModule from '../../components/admin/DisciplineAdminModule';
+import ExtracurricularAdminModule from '../../components/admin/ExtracurricularAdminModule';
+import OrientationAdminModule from '../../components/admin/OrientationAdminModule';
+import CommunicationHubModule from '../../components/admin/CommunicationHubModule';
+import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
+import MaterialManagementModule from '../../components/admin/material/MaterialManagementModule';
+import ReportsStatisticsModule from '../../components/admin/reports/ReportsStatisticsModule';
+import AdvancedAnalytics from '../../components/admin/AdvancedAnalytics';
+import ScheduleManagement from '../../components/admin/ScheduleManagement';
+import PointageEleves from '../../components/admin/PointageEleves';
+import AttendanceManagementModule from '../../components/admin/AttendanceManagementModule';
+import HRManagementModule from '../../components/admin/hr/HRManagementModule';
 import StaffRoleWorkspaces from './StaffRoleWorkspaces';
 import { resolveStaffSupportKind, staffNavBadgeLabel } from './staffSpaceConfig';
 import { inactiveModuleIconClass } from '../../lib/navModuleIconClass';
 import {
   getStaffTabsFromModules,
+  hasPedagogyStaffAccess,
   isStaffModuleTab,
+  PEDAGOGY_STAFF_MODULE_IDS,
   resolveVisibleStaffModules,
   type StaffModuleId,
 } from '@/lib/staffModules';
@@ -33,10 +58,12 @@ import { FiBookOpen, FiBriefcase, FiUser } from 'react-icons/fi';
 
 const StaffDashboard = () => {
   const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const sp = (user as {
     staffProfile?: {
+      staffCategory?: string;
       supportKind?: string;
       jobTitle?: string;
       employeeId?: string;
@@ -48,11 +75,43 @@ const StaffDashboard = () => {
   const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'Collègue';
 
   const visibleModules = useMemo(
-    () => resolveVisibleStaffModules(supportKind, sp?.visibleStaffModules),
-    [supportKind, sp?.visibleStaffModules],
+    () => resolveVisibleStaffModules(supportKind, sp?.visibleStaffModules, sp?.staffCategory),
+    [supportKind, sp?.visibleStaffModules, sp?.staffCategory],
   );
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:27772/ingest/8fcbe373-cd61-4167-a91a-7ca0597a67fb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9b55cf' },
+      body: JSON.stringify({
+        sessionId: '9b55cf',
+        runId: 'modules-visibility',
+        hypothesisId: 'H1-H4',
+        location: 'Dashboard.tsx:visibleModules',
+        message: 'staff module resolution',
+        data: {
+          staffCategory: sp?.staffCategory,
+          supportKindRaw: sp?.supportKind,
+          supportKindResolved: supportKind,
+          storedModules: sp?.visibleStaffModules,
+          visibleModules,
+          tabCount: visibleModules.length,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [sp?.staffCategory, sp?.supportKind, sp?.visibleStaffModules, supportKind, visibleModules]);
+  const pedagogyApiEnabled = useMemo(() => hasPedagogyStaffAccess(visibleModules), [visibleModules]);
   const tabs = useMemo(() => getStaffTabsFromModules(visibleModules), [visibleModules]);
   const [activeTab, setActiveTab] = useState<StaffModuleId>('overview');
+
+  useEffect(() => {
+    if (!pedagogyApiEnabled) return;
+    if (!PEDAGOGY_STAFF_MODULE_IDS.includes(activeTab)) return;
+    void queryClient.invalidateQueries();
+  }, [activeTab, pedagogyApiEnabled, queryClient]);
 
   useEffect(() => {
     const fromUrl = searchParams.get('tab');
@@ -160,6 +219,132 @@ const StaffDashboard = () => {
             title="Maintenance & travaux"
             newLabel="Nouveau signalement"
           />
+        );
+      case 'students_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <StudentsList />
+          </StaffPedagogyShell>
+        );
+      case 'academic_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <AcademicManagement />
+          </StaffPedagogyShell>
+        );
+      case 'grading_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <GradingEvaluationManagement />
+          </StaffPedagogyShell>
+        );
+      case 'classes_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <ClassesList />
+          </StaffPedagogyShell>
+        );
+      case 'teachers_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <TeachersList />
+          </StaffPedagogyShell>
+        );
+      case 'educators_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <EducatorsList />
+          </StaffPedagogyShell>
+        );
+      case 'staff_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <StaffPersonnelModule pedagogyReadOnly />
+          </StaffPedagogyShell>
+        );
+      case 'parents_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <ParentGuardiansModule />
+          </StaffPedagogyShell>
+        );
+      case 'pedagogical_tracking':
+        return (
+          <StaffPedagogyShell>
+            <PedagogicalTracking />
+          </StaffPedagogyShell>
+        );
+      case 'discipline_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <DisciplineAdminModule />
+          </StaffPedagogyShell>
+        );
+      case 'extracurricular_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <ExtracurricularAdminModule />
+          </StaffPedagogyShell>
+        );
+      case 'orientation_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <OrientationAdminModule />
+          </StaffPedagogyShell>
+        );
+      case 'communication_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <CommunicationHubModule />
+          </StaffPedagogyShell>
+        );
+      case 'library_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <LibraryManagementModule />
+          </StaffPedagogyShell>
+        );
+      case 'material_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <MaterialManagementModule />
+          </StaffPedagogyShell>
+        );
+      case 'reports_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <ReportsStatisticsModule />
+          </StaffPedagogyShell>
+        );
+      case 'analytics_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <AdvancedAnalytics />
+          </StaffPedagogyShell>
+        );
+      case 'schedule_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <ScheduleManagement />
+          </StaffPedagogyShell>
+        );
+      case 'pointage_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <PointageEleves />
+          </StaffPedagogyShell>
+        );
+      case 'attendance_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <AttendanceManagementModule />
+          </StaffPedagogyShell>
+        );
+      case 'hr_mgmt':
+        return (
+          <StaffPedagogyShell>
+            <HRManagementModule />
+          </StaffPedagogyShell>
         );
       default:
         return null;

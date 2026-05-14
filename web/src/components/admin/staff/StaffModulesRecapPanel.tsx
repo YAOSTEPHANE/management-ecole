@@ -56,7 +56,7 @@ function effectiveModules(row: StaffRow): { modules: StaffModuleId[]; isCustom: 
   const kind = resolveStaffSupportKind(row.supportKind);
   const stored = row.visibleStaffModules;
   const isCustom = Array.isArray(stored) && stored.length > 0;
-  const modules = resolveVisibleStaffModules(kind, isCustom ? stored : undefined);
+  const modules = resolveVisibleStaffModules(kind, isCustom ? stored : undefined, row.staffCategory);
   return { modules, isCustom };
 }
 
