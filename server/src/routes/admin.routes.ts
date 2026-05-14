@@ -44,6 +44,7 @@ import {
 import {
   assignTuitionFeeInvoiceNumbers,
   autoReceiptUrl,
+  notifyTuitionFeeChanged,
   runAutomaticTuitionReminders,
 } from '../utils/tuition-financial-automation.util';
 import { runMongoBackup } from '../utils/mongodb-backup.util';
@@ -7661,6 +7662,16 @@ router.post('/tuition-fees', async (req, res) => {
     });
 
     console.log('Frais de scolarité créé avec succès:', tuitionFee.id);
+
+    notifyTuitionFeeChanged({
+      studentId: tuitionFee.studentId,
+      period: tuitionFee.period,
+      academicYear: tuitionFee.academicYear,
+      amount: tuitionFee.amount,
+      dueDate: tuitionFee.dueDate,
+      kind: 'created',
+    }).catch((err) => console.error('Notification frais (création):', err));
+
     res.status(201).json(tuitionFee);
   } catch (error: any) {
     console.error('Erreur lors de la création du frais de scolarité:', error);
@@ -7787,6 +7798,15 @@ router.post('/tuition-fees/bulk', async (req, res) => {
       });
 
       createdFees.push(tuitionFee);
+
+      notifyTuitionFeeChanged({
+        studentId: tuitionFee.studentId,
+        period: tuitionFee.period,
+        academicYear: tuitionFee.academicYear,
+        amount: tuitionFee.amount,
+        dueDate: tuitionFee.dueDate,
+        kind: 'created',
+      }).catch((err) => console.error('Notification frais (lot):', err));
     }
 
     res.status(201).json({
@@ -7853,6 +7873,8 @@ router.put('/tuition-fees/:id', async (req, res) => {
       computedAmount = Math.max(0, Math.round(Number(tuitionFee.baseAmount) - nextDisc));
     }
 
+    const previousAmount = Number(tuitionFee.amount);
+
     const updatedTuitionFee = await prisma.tuitionFee.update({
       where: { id },
       data: {
@@ -7904,6 +7926,16 @@ router.put('/tuition-fees/:id', async (req, res) => {
         },
       },
     });
+
+    notifyTuitionFeeChanged({
+      studentId: updatedTuitionFee.studentId,
+      period: updatedTuitionFee.period,
+      academicYear: updatedTuitionFee.academicYear,
+      amount: updatedTuitionFee.amount,
+      dueDate: updatedTuitionFee.dueDate,
+      kind: 'updated',
+      previousAmount,
+    }).catch((err) => console.error('Notification frais (mise à jour):', err));
 
     res.json(updatedTuitionFee);
   } catch (error: any) {

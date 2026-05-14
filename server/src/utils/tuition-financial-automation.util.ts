@@ -179,6 +179,69 @@ export async function runAutomaticTuitionReminders(options?: {
   return { notifiedFees, parentNotifications };
 }
 
+/** Notifie l'élève et les parents liés lors de la création ou mise à jour d'une ligne de frais. */
+export async function notifyTuitionFeeChanged(params: {
+  studentId: string;
+  period: string;
+  academicYear: string;
+  amount: number;
+  dueDate: Date;
+  kind: 'created' | 'updated';
+  previousAmount?: number;
+}): Promise<void> {
+  const student = await prisma.student.findUnique({
+    where: { id: params.studentId },
+    select: {
+      userId: true,
+      user: { select: { firstName: true, lastName: true } },
+    },
+  });
+  if (!student) return;
+
+  const links = await prisma.studentParent.findMany({
+    where: { studentId: params.studentId },
+    select: { parent: { select: { userId: true } } },
+  });
+
+  const userIds = new Set<string>([student.userId]);
+  for (const link of links) {
+    userIds.add(link.parent.userId);
+  }
+
+  const name = `${student.user.firstName} ${student.user.lastName}`.trim();
+  const dueStr = params.dueDate.toISOString().slice(0, 10);
+  const amountStr = `${Math.round(params.amount)} FCFA`;
+
+  let title: string;
+  let content: string;
+
+  if (params.kind === 'created') {
+    title = 'Nouveaux frais de scolarité';
+    content =
+      `Des frais « ${params.period} » (${params.academicYear}) ont été enregistrés pour ${name} : ` +
+      `${amountStr}, échéance ${dueStr}. Consultez votre espace pour le détail et le paiement.`;
+  } else {
+    title = 'Frais de scolarité mis à jour';
+    const prev = params.previousAmount;
+    if (prev != null && Math.round(prev) !== Math.round(params.amount)) {
+      content =
+        `Les frais « ${params.period} » (${params.academicYear}) pour ${name} ont été modifiés : ` +
+        `${Math.round(prev)} FCFA → ${amountStr}, échéance ${dueStr}.`;
+    } else {
+      content =
+        `Les frais « ${params.period} » (${params.academicYear}) pour ${name} ont été mis à jour ` +
+        `(${amountStr}, échéance ${dueStr}).`;
+    }
+  }
+
+  await notifyUsersImportant([...userIds], {
+    type: 'tuition_fee',
+    title,
+    content,
+    email: undefined,
+  });
+}
+
 /** Marque un reçu « disponible » côté client PDF (référence stable). */
 export function autoReceiptUrl(paymentReference: string): string {
   return `auto:pdf:${paymentReference}`;
