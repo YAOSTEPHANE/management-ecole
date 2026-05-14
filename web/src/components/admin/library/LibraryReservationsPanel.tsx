@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
@@ -20,27 +20,28 @@ const stLabel: Record<string, string> = {
 
 const LibraryReservationsPanel: React.FC = () => {
   const queryClient = useQueryClient();
+  const { libraryApi, scope } = useLibraryManagement();
   const [open, setOpen] = useState(false);
   const [bookId, setBookId] = useState('');
   const [userId, setUserId] = useState('');
 
   const { data: resv, isLoading } = useQuery({
-    queryKey: ['library-reservations'],
-    queryFn: () => adminApi.getLibraryReservations(),
+    queryKey: ['library-reservations', scope],
+    queryFn: () => libraryApi.getLibraryReservations(),
   });
 
   const { data: books } = useQuery({
-    queryKey: ['library-books-resv'],
-    queryFn: () => adminApi.getLibraryBooks(),
+    queryKey: ['library-books-resv', scope],
+    queryFn: () => libraryApi.getLibraryBooks(),
   });
 
   const { data: users } = useQuery({
-    queryKey: ['admin-users-resv'],
-    queryFn: () => adminApi.getAllUsers({ isActive: true }),
+    queryKey: ['library-users-resv', scope],
+    queryFn: () => libraryApi.getAllUsers({ isActive: true }),
   });
 
   const createMut = useMutation({
-    mutationFn: () => adminApi.createLibraryReservation({ bookId, userId }),
+    mutationFn: () => libraryApi.createLibraryReservation({ bookId, userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-reservations'] });
       toast.success('Réservation enregistrée');
@@ -54,7 +55,7 @@ const LibraryReservationsPanel: React.FC = () => {
 
   const updateMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'FULFILLED' | 'CANCELLED' }) =>
-      adminApi.updateLibraryReservation(id, { status }),
+      libraryApi.updateLibraryReservation(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-reservations'] });
       toast.success('Mise à jour effectuée');

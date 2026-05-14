@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
@@ -13,6 +13,7 @@ import { formatFCFA } from '../../../utils/currency';
 
 const LibraryPenaltiesPanel: React.FC = () => {
   const queryClient = useQueryClient();
+  const { libraryApi, scope } = useLibraryManagement();
   const [paidFilter, setPaidFilter] = useState<'all' | 'false' | 'true'>('false');
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState('');
@@ -21,26 +22,26 @@ const LibraryPenaltiesPanel: React.FC = () => {
   const [loanId, setLoanId] = useState('');
 
   const { data: penalties, isLoading } = useQuery({
-    queryKey: ['library-penalties', paidFilter],
+    queryKey: ['library-penalties', scope, paidFilter],
     queryFn: () =>
       paidFilter === 'all'
-        ? adminApi.getLibraryPenalties()
-        : adminApi.getLibraryPenalties({ paid: paidFilter }),
+        ? libraryApi.getLibraryPenalties()
+        : libraryApi.getLibraryPenalties({ paid: paidFilter }),
   });
 
   const { data: users } = useQuery({
-    queryKey: ['admin-users-pen'],
-    queryFn: () => adminApi.getAllUsers({ isActive: true }),
+    queryKey: ['library-users-pen', scope],
+    queryFn: () => libraryApi.getAllUsers({ isActive: true }),
   });
 
   const { data: loans } = useQuery({
-    queryKey: ['library-loans-pen'],
-    queryFn: () => adminApi.getLibraryLoans({ status: 'ACTIVE' }),
+    queryKey: ['library-loans-pen', scope],
+    queryFn: () => libraryApi.getLibraryLoans({ status: 'ACTIVE' }),
   });
 
   const createMut = useMutation({
     mutationFn: () =>
-      adminApi.createLibraryPenalty({
+      libraryApi.createLibraryPenalty({
         userId,
         amount: parseFloat(amount.replace(',', '.')),
         reason: reason.trim(),
@@ -60,7 +61,7 @@ const LibraryPenaltiesPanel: React.FC = () => {
   });
 
   const payMut = useMutation({
-    mutationFn: (id: string) => adminApi.updateLibraryPenalty(id, { paid: true }),
+    mutationFn: (id: string) => libraryApi.updateLibraryPenalty(id, { paid: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-penalties'] });
       toast.success('Marqué comme payé');
@@ -70,7 +71,7 @@ const LibraryPenaltiesPanel: React.FC = () => {
   });
 
   const waiveMut = useMutation({
-    mutationFn: (id: string) => adminApi.updateLibraryPenalty(id, { waived: true }),
+    mutationFn: (id: string) => libraryApi.updateLibraryPenalty(id, { waived: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-penalties'] });
       toast.success('Pénalité annulée');

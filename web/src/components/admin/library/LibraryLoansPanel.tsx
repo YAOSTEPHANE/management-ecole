@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
@@ -33,6 +33,7 @@ type LoanRow = {
 
 const LibraryLoansPanel: React.FC = () => {
   const queryClient = useQueryClient();
+  const { libraryApi, scope } = useLibraryManagement();
   const [status, setStatus] = useState<'ACTIVE' | 'RETURNED' | 'all'>('ACTIVE');
   const [loanModal, setLoanModal] = useState(false);
   const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
@@ -41,14 +42,14 @@ const LibraryLoansPanel: React.FC = () => {
   const [dueDate, setDueDate] = useState(() => format(addDays(new Date(), 21), 'yyyy-MM-dd'));
 
   const { data: loans, isLoading } = useQuery({
-    queryKey: ['library-loans', status],
+    queryKey: ['library-loans', scope, status],
     queryFn: () =>
-      status === 'all' ? adminApi.getLibraryLoans() : adminApi.getLibraryLoans({ status }),
+      status === 'all' ? libraryApi.getLibraryLoans() : libraryApi.getLibraryLoans({ status }),
   });
 
   const { data: books } = useQuery({
-    queryKey: ['library-books-loans'],
-    queryFn: () => adminApi.getLibraryBooks(),
+    queryKey: ['library-books-loans', scope],
+    queryFn: () => libraryApi.getLibraryBooks(),
   });
 
   const openLoanModal = () => {
@@ -60,7 +61,7 @@ const LibraryLoansPanel: React.FC = () => {
   };
 
   const returnMut = useMutation({
-    mutationFn: adminApi.returnLibraryLoan,
+    mutationFn: libraryApi.returnLibraryLoan,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-loans'] });
       queryClient.invalidateQueries({ queryKey: ['library-books'] });
@@ -73,7 +74,7 @@ const LibraryLoansPanel: React.FC = () => {
 
   const createMut = useMutation({
     mutationFn: () =>
-      adminApi.createLibraryLoansBatch({
+      libraryApi.createLibraryLoansBatch({
         bookIds: selectedBookIds,
         borrowerId,
         dueDate: new Date(dueDate).toISOString(),
@@ -229,7 +230,7 @@ const LibraryLoansPanel: React.FC = () => {
                 setBorrowerId(id);
                 setSelectedBorrower(borrower ?? null);
               }}
-              searchFn={adminApi.searchLibraryBorrowers}
+              searchFn={libraryApi.searchLibraryBorrowers}
               disabled={createMut.isPending}
             />
           </div>

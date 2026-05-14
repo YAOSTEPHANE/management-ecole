@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import { FiPrinter } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { adminApi } from '@/services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAppBranding } from '@/contexts/AppBrandingContext';
@@ -65,23 +65,24 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
 
 export default function LibraryReportsPanel() {
   const { branding } = useAppBranding();
+  const { libraryApi, scope } = useLibraryManagement();
   const schoolName = branding.schoolDisplayName || branding.appTitle || 'Bibliothèque';
 
   const { data: books, isLoading: booksLoading } = useQuery({
-    queryKey: ['library-books-reports'],
-    queryFn: () => adminApi.getLibraryBooks({ isActive: 'all' }),
+    queryKey: ['library-books-reports', scope],
+    queryFn: () => libraryApi.getLibraryBooks({ isActive: 'all' }),
   });
   const { data: loans, isLoading: loansLoading } = useQuery({
-    queryKey: ['library-loans-reports'],
-    queryFn: () => adminApi.getLibraryLoans(),
+    queryKey: ['library-loans-reports', scope],
+    queryFn: () => libraryApi.getLibraryLoans(),
   });
   const { data: reservations, isLoading: resvLoading } = useQuery({
-    queryKey: ['library-reservations-reports'],
-    queryFn: () => adminApi.getLibraryReservations(),
+    queryKey: ['library-reservations-reports', scope],
+    queryFn: () => libraryApi.getLibraryReservations(),
   });
   const { data: penalties, isLoading: penLoading } = useQuery({
-    queryKey: ['library-penalties-reports'],
-    queryFn: () => adminApi.getLibraryPenalties({ paid: 'false' }),
+    queryKey: ['library-penalties-reports', scope],
+    queryFn: () => libraryApi.getLibraryPenalties({ paid: 'false' }),
   });
 
   const loading = booksLoading || loansLoading || resvLoading || penLoading;

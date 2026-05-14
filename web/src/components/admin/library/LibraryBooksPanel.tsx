@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
@@ -24,15 +24,16 @@ const emptyForm = {
 
 const LibraryBooksPanel: React.FC = () => {
   const queryClient = useQueryClient();
+  const { libraryApi, scope } = useLibraryManagement();
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const { data: books, isLoading } = useQuery({
-    queryKey: ['library-books', search],
+    queryKey: ['library-books', scope, search],
     queryFn: () =>
-      adminApi.getLibraryBooks({
+      libraryApi.getLibraryBooks({
         ...(search.trim() && { search: search.trim() }),
       }),
   });
@@ -58,9 +59,9 @@ const LibraryBooksPanel: React.FC = () => {
         shelfLocation: form.shelfLocation || null,
       };
       if (editId) {
-        return adminApi.updateLibraryBook(editId, payload);
+        return libraryApi.updateLibraryBook(editId, payload);
       }
-      return adminApi.createLibraryBook(payload);
+      return libraryApi.createLibraryBook(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-books'] });
@@ -74,7 +75,7 @@ const LibraryBooksPanel: React.FC = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: adminApi.deleteLibraryBook,
+    mutationFn: libraryApi.deleteLibraryBook,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-books'] });
       toast.success('Livre retiré du catalogue actif');

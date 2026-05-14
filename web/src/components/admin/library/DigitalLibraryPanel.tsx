@@ -7,8 +7,9 @@ import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
 import Modal from '../../ui/Modal';
-import { digitalLibraryApi, type DigitalResourceRow } from '@/services/api/digitalLibrary.api';
+import type { DigitalResourceRow } from '@/services/api/digitalLibrary.api';
 import { uploadDigitalLibraryFile } from '@/services/api/upload';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import {
   DIGITAL_AUDIENCE_ROLES,
   DIGITAL_KIND_LABELS,
@@ -36,14 +37,15 @@ const emptyForm = () => ({
 
 export default function DigitalLibraryPanel() {
   const qc = useQueryClient();
+  const { digitalApi, scope } = useLibraryManagement();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm());
   const [uploading, setUploading] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['admin-digital-library'],
-    queryFn: () => digitalLibraryApi.adminList({ isActive: 'all' }),
+    queryKey: ['digital-library-admin', scope],
+    queryFn: () => digitalApi.adminList({ isActive: 'all' }),
   });
 
   const saveMut = useMutation({
@@ -52,12 +54,12 @@ export default function DigitalLibraryPanel() {
         ...form,
         allowedRoles: form.allowedRoles,
       };
-      if (editId) return digitalLibraryApi.adminUpdate(editId, payload);
-      return digitalLibraryApi.adminCreate(payload);
+      if (editId) return digitalApi.adminUpdate(editId, payload);
+      return digitalApi.adminCreate(payload);
     },
     onSuccess: () => {
       toast.success(editId ? 'Ressource mise à jour' : 'Ressource publiée');
-      qc.invalidateQueries({ queryKey: ['admin-digital-library'] });
+      qc.invalidateQueries({ queryKey: ['digital-library-admin'] });
       setOpen(false);
       setEditId(null);
       setForm(emptyForm());
@@ -68,10 +70,10 @@ export default function DigitalLibraryPanel() {
   });
 
   const archiveMut = useMutation({
-    mutationFn: (id: string) => digitalLibraryApi.adminArchive(id),
+    mutationFn: (id: string) => digitalApi.adminArchive(id),
     onSuccess: () => {
       toast.success('Ressource archivée');
-      qc.invalidateQueries({ queryKey: ['admin-digital-library'] });
+      qc.invalidateQueries({ queryKey: ['digital-library-admin'] });
     },
   });
 

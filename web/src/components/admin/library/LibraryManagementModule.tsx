@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
 import Card from '../../ui/Card';
 import LibraryBooksPanel from './LibraryBooksPanel';
 import LibraryLoansPanel from './LibraryLoansPanel';
@@ -20,6 +19,7 @@ import {
   FiPrinter,
 } from 'react-icons/fi';
 import { ADM } from '../adminModuleLayout';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 
 type LibTab =
   | 'overview'
@@ -31,24 +31,29 @@ type LibTab =
   | 'inventory'
   | 'reports';
 
-const LibraryManagementModule: React.FC = () => {
-  const [tab, setTab] = useState<LibTab>('overview');
+const LibraryManagementModule: React.FC<{ initialTab?: LibTab }> = ({ initialTab = 'overview' }) => {
+  const [tab, setTab] = useState<LibTab>(initialTab);
+  const { libraryApi, scope } = useLibraryManagement();
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   const { data: books } = useQuery({
-    queryKey: ['library-books-overview'],
-    queryFn: () => adminApi.getLibraryBooks(),
+    queryKey: ['library-books-overview', scope],
+    queryFn: () => libraryApi.getLibraryBooks(),
   });
   const { data: loans } = useQuery({
-    queryKey: ['library-loans-overview'],
-    queryFn: () => adminApi.getLibraryLoans({ status: 'ACTIVE' }),
+    queryKey: ['library-loans-overview', scope],
+    queryFn: () => libraryApi.getLibraryLoans({ status: 'ACTIVE' }),
   });
   const { data: resv } = useQuery({
-    queryKey: ['library-reservations-overview'],
-    queryFn: () => adminApi.getLibraryReservations(),
+    queryKey: ['library-reservations-overview', scope],
+    queryFn: () => libraryApi.getLibraryReservations(),
   });
   const { data: penalties } = useQuery({
-    queryKey: ['library-penalties-overview'],
-    queryFn: () => adminApi.getLibraryPenalties({ paid: 'false' }),
+    queryKey: ['library-penalties-overview', scope],
+    queryFn: () => libraryApi.getLibraryPenalties({ paid: 'false' }),
   });
 
   const overview = useMemo(() => {

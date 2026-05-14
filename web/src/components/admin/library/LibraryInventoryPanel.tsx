@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '../../../services/api';
+import { useLibraryManagement } from '@/contexts/LibraryManagementContext';
 import Card from '../../ui/Card';
 import Button from '../../ui/Button';
 import { FiDownload } from 'react-icons/fi';
@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 const LibraryInventoryPanel: React.FC = () => {
+  const { libraryApi, scope } = useLibraryManagement();
   const { data: books, isLoading } = useQuery({
-    queryKey: ['library-books-inventory'],
-    queryFn: () => adminApi.getLibraryBooks({ isActive: 'all' }),
+    queryKey: ['library-books-inventory', scope],
+    queryFn: () => libraryApi.getLibraryBooks({ isActive: 'all' }),
   });
 
   const stats = useMemo(() => {

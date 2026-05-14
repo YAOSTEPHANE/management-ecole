@@ -11,8 +11,8 @@ import Layout from '../../components/Layout';
 import Card from '../../components/ui/Card';
 import AcademicValidationPanel from '../../components/academic/AcademicValidationPanel';
 import StaffCounterTuitionPayment from '../../components/staff/StaffCounterTuitionPayment';
-import StaffLibraryPanel from '../../components/staff/StaffLibraryPanel';
-import DigitalLibraryPanel from '../../components/admin/library/DigitalLibraryPanel';
+import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
+import { LibraryManagementProvider } from '@/contexts/LibraryManagementContext';
 import StaffModuleRecordsPanel from '../../components/staff/StaffModuleRecordsPanel';
 import NurseHealthModule from '../../components/health/NurseHealthModule';
 import StaffAdmissionsPanel from '../../components/staff/StaffAdmissionsPanel';
@@ -35,7 +35,6 @@ import DisciplineAdminModule from '../../components/admin/DisciplineAdminModule'
 import ExtracurricularAdminModule from '../../components/admin/ExtracurricularAdminModule';
 import OrientationAdminModule from '../../components/admin/OrientationAdminModule';
 import CommunicationHubModule from '../../components/admin/CommunicationHubModule';
-import LibraryManagementModule from '../../components/admin/library/LibraryManagementModule';
 import MaterialManagementModule from '../../components/admin/material/MaterialManagementModule';
 import ReportsStatisticsModule from '../../components/admin/reports/ReportsStatisticsModule';
 import AdvancedAnalytics from '../../components/admin/AdvancedAnalytics';
@@ -79,30 +78,6 @@ const StaffDashboard = () => {
     [supportKind, sp?.visibleStaffModules, sp?.staffCategory],
   );
 
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:27772/ingest/8fcbe373-cd61-4167-a91a-7ca0597a67fb', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '9b55cf' },
-      body: JSON.stringify({
-        sessionId: '9b55cf',
-        runId: 'modules-visibility',
-        hypothesisId: 'H1-H4',
-        location: 'Dashboard.tsx:visibleModules',
-        message: 'staff module resolution',
-        data: {
-          staffCategory: sp?.staffCategory,
-          supportKindRaw: sp?.supportKind,
-          supportKindResolved: supportKind,
-          storedModules: sp?.visibleStaffModules,
-          visibleModules,
-          tabCount: visibleModules.length,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [sp?.staffCategory, sp?.supportKind, sp?.visibleStaffModules, supportKind, visibleModules]);
   const pedagogyApiEnabled = useMemo(() => hasPedagogyStaffAccess(visibleModules), [visibleModules]);
   const tabs = useMemo(() => getStaffTabsFromModules(visibleModules), [visibleModules]);
   const [activeTab, setActiveTab] = useState<StaffModuleId>('overview');
@@ -201,9 +176,17 @@ const StaffDashboard = () => {
       case 'health_log':
         return <NurseHealthModule />;
       case 'library':
-        return <StaffLibraryPanel />;
+        return (
+          <LibraryManagementProvider scope="staff">
+            <LibraryManagementModule />
+          </LibraryManagementProvider>
+        );
       case 'digital_library':
-        return <DigitalLibraryPanel />;
+        return (
+          <LibraryManagementProvider scope="staff">
+            <LibraryManagementModule initialTab="digital" />
+          </LibraryManagementProvider>
+        );
       case 'it_requests':
         return (
           <StaffModuleRecordsPanel
