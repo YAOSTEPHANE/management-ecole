@@ -32,6 +32,15 @@ import { apiGlobalLimiter } from '../middleware/rate-limit.middleware';
 export function createApp(): express.Express {
   const app = express();
 
+  const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
+  const healthJson = { status: 'OK', message: 'School Manager API is running' };
+
+  /** Liveness — avant middlewares lourds (diagnostic prod / load balancer). */
+  app.get('/health', (_req, res) => res.json(healthJson));
+  if (apiPrefix === '/api') {
+    app.get('/api/health', (_req, res) => res.json(healthJson));
+  }
+
   if (process.env.TRUST_PROXY === '1' || process.env.VERCEL === '1') {
     app.set('trust proxy', 1);
   }
@@ -81,7 +90,6 @@ export function createApp(): express.Express {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  const apiPrefix = process.env.VERCEL === '1' ? '' : '/api';
   if (apiPrefix) {
     app.use(apiPrefix, apiGlobalLimiter);
   } else {
@@ -161,7 +169,6 @@ export function createApp(): express.Express {
   app.use(`${apiPrefix}/academic-validation`, academicValidationRoutes);
   app.use(`${apiPrefix}/digital-library`, digitalLibraryRoutes);
 
-  const healthJson = { status: 'OK', message: 'School Manager API is running' };
   app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));
   if (apiPrefix === '/api') {
     app.get('/health', (req, res) => res.json(healthJson));

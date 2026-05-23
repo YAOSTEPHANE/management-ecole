@@ -1,23 +1,24 @@
 import dotenv from 'dotenv';
 import { ensureJwtConfiguration } from './utils/jwt.util';
-import { ensureDeviceApiKeyConfiguration } from './utils/device-api-key.util';
 import { useBlobStorage } from './utils/blob-storage.util';
 import { createApp } from './app/createApp';
 import { startScheduledMongoBackups } from './jobs/scheduled-mongodb-backup';
 import { startScheduledTuitionReminders } from './jobs/scheduled-tuition-reminders';
 import { startScheduledAppointmentReminders } from './jobs/scheduled-appointment-reminders';
+import { logProductionEnvDiagnostics } from './utils/production-env-diagnostics.util';
 
 dotenv.config();
 
 try {
   ensureJwtConfiguration();
-  ensureDeviceApiKeyConfiguration();
 } catch (e) {
   console.error(e);
   if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }
 }
+
+logProductionEnvDiagnostics();
 
 if (process.env.NODE_ENV === 'production' && !process.env.SENSITIVE_FIELD_ENCRYPTION_KEY?.trim()) {
   console.warn(

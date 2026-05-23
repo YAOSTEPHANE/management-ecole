@@ -28,6 +28,7 @@ import {
 import { buildGdprDataExport } from '../utils/gdpr-data-export.util';
 import QRCode from 'qrcode';
 import { generateTwoFactorSecret, verifyTwoFactorToken } from '../utils/two-factor.util';
+import { prismaConnectionErrorMessage } from '../utils/production-env-diagnostics.util';
 
 const router = express.Router();
 
@@ -268,11 +269,12 @@ router.post(
         token,
         twoFactorEnabled: Boolean(twoFactor?.enabled),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erreur lors de la connexion:', error);
-      res.status(500).json({ 
-        error: error.message || 'Erreur serveur lors de la connexion',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      const dbMsg = prismaConnectionErrorMessage(error);
+      res.status(dbMsg ? 503 : 500).json({
+        error: dbMsg || (error instanceof Error ? error.message : 'Erreur serveur lors de la connexion'),
+        details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
       });
     }
   }

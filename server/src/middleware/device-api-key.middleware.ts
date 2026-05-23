@@ -32,7 +32,18 @@ export function verifyDeviceApiKey(req: Request, res: Response, next: NextFuncti
     provided = queryKey;
   }
 
-  if (!provided || !secureCompareStrings(provided, getDeviceApiKey())) {
+  let deviceKey: string;
+  try {
+    deviceKey = getDeviceApiKey();
+  } catch (e) {
+    console.error('[device-api-key] Configuration matériel invalide:', e);
+    res.status(503).json({
+      error: 'Pointage matériel non configuré sur ce serveur (NFC_API_KEY).',
+    });
+    return;
+  }
+
+  if (!provided || !secureCompareStrings(provided, deviceKey)) {
     res.status(401).json({
       error: 'Clé API matériel invalide ou manquante',
       message: 'Fournissez X-NFC-API-Key (terminal de pointage).',
