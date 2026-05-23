@@ -31,9 +31,23 @@ function backendOriginForUploadsProxy(): string | null {
   return null;
 }
 
+/** Pages publiques sensibles aux mises à jour (formulaire pré-inscription, etc.). */
+const NO_STORE_CACHE_HEADERS = [
+  { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+  { key: "Pragma", value: "no-cache" },
+  { key: "CDN-Cache-Control", value: "no-store" },
+  { key: "Surrogate-Control", value: "no-store" },
+] as const;
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(process.cwd()),
+  },
+  async headers() {
+    return [
+      { source: "/inscription", headers: [...NO_STORE_CACHE_HEADERS] },
+      { source: "/pre-inscription", headers: [...NO_STORE_CACHE_HEADERS] },
+    ];
   },
   async rewrites() {
     // Même domaine que l’API (reverse proxy, pas de proxy Next nécessaire) — évite une boucle si l’API est sur le même hôte.
