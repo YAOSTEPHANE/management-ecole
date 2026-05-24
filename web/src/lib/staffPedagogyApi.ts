@@ -16,6 +16,8 @@ const STAFF_GET_STAYS_ON_ADMIN_PREFIXES = [
   '/admin/payments',
   '/admin/tuition-fees',
   '/admin/tuition-fee-catalog',
+  '/admin/tuition-level-rates',
+  '/admin/tuition-class-rates',
   '/admin/tuition-payment-schedule-templates',
   '/admin/suppliers',
   '/admin/school-expenses',
@@ -34,8 +36,29 @@ const STAFF_GET_STAYS_ON_ADMIN_PREFIXES = [
   '/admin/metrics',
 ];
 
+/** Extrait le chemin API (/admin/…) quel que soit le format axios (relatif, /api/…, URL absolue). */
+export function normalizeAdminApiPath(url: string): string {
+  const withoutQuery = (url.split('?')[0] ?? '').trim();
+  if (!withoutQuery) return '/';
+
+  try {
+    if (/^https?:\/\//i.test(withoutQuery)) {
+      const u = new URL(withoutQuery);
+      const p = u.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
+      return p.startsWith('/') ? p : `/${p}`;
+    }
+  } catch {
+    /* chemin relatif */
+  }
+
+  let path = withoutQuery.startsWith('/') ? withoutQuery : `/${withoutQuery}`;
+  if (path.startsWith('/api/')) path = path.slice(4);
+  else if (path === '/api') path = '/';
+  return path;
+}
+
 function staffGetStaysOnAdmin(url: string): boolean {
-  const path = url.split('?')[0] ?? '';
+  const path = normalizeAdminApiPath(url);
   return STAFF_GET_STAYS_ON_ADMIN_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );
@@ -43,10 +66,14 @@ function staffGetStaysOnAdmin(url: string): boolean {
 
 /** Réécrit /admin/… → /staff/pedagogy/… pour les GET de consultation (pas finance ni établissements). */
 export function rewriteAdminGetUrl(url: string): string {
-  if (!url || !url.includes('/admin/')) return url;
-  if (url.includes('/admin/schools')) return url.replace('/admin/schools', '/staff/schools');
+  if (!url) return url;
+  const path = normalizeAdminApiPath(url);
+  if (!path.includes('/admin/')) return url;
+  if (path.includes('/admin/schools')) {
+    return url.replace(/\/admin\/schools/, '/staff/schools');
+  }
   if (staffGetStaysOnAdmin(url)) return url;
-  return url.replace('/admin/', '/staff/pedagogy/');
+  return url.replace(/\/admin\//, '/staff/pedagogy/');
 }
 
 function attachStaffPedagogyInterceptor(instance: AxiosInstance): void {

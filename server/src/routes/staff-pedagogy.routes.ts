@@ -8,10 +8,12 @@ import orientationAdminRoutes from './admin-orientation.routes';
 import extracurricularAdminRoutes from './admin-extracurricular.routes';
 import adminReportsRoutes from './admin-reports.routes';
 import staffPedagogyExtraRoutes from './staff-pedagogy-extra.routes';
+import tuitionCatalogRoutes from './admin-tuition-catalog.routes';
 import {
   getStaffMemberModuleContext,
   type StaffModuleId,
 } from '../utils/staff-visible-modules.util';
+import { staffTuitionRatesReadAllowed } from '../utils/staff-module-admin-access.util';
 import {
   classScopeWhere,
   readSchoolIdFromRequest,
@@ -127,6 +129,42 @@ async function requireStaffPedagogy(req: AuthRequest, res: express.Response, nex
     next(e);
   }
 }
+
+async function requireStaffTuitionRatesRead(
+  req: AuthRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  try {
+    const ctx = await getStaffMemberModuleContext(req.user!.id);
+    if (!ctx) {
+      return res.status(403).json({ error: 'Profil personnel introuvable.' });
+    }
+    if (!staffTuitionRatesReadAllowed(ctx.visibleModules)) {
+      return res.status(403).json({
+        error: 'Consultation des barèmes de scolarité non autorisée pour votre compte.',
+      });
+    }
+    next();
+  } catch (e) {
+    next(e);
+  }
+}
+
+/** Secours si le client appelle encore /staff/pedagogy/tuition-level-rates/… (lecture seule). */
+function tuitionCatalogReadOnlyRouter() {
+  const sub = express.Router();
+  sub.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return res.status(403).json({ error: 'Modification réservée aux administrateurs (/admin).' });
+    }
+    next();
+  });
+  sub.use(tuitionCatalogRoutes);
+  return sub;
+}
+
+router.use(requireStaffTuitionRatesRead, tuitionCatalogReadOnlyRouter());
 
 router.use(requireStaffPedagogy);
 

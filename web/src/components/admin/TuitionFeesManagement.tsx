@@ -496,20 +496,36 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       return;
     }
 
-    let bulkAmount = parseFloat(assignFormData.amount);
+    const parsedDiscount = assignFormData.discountAmount.trim()
+      ? parseFloat(assignFormData.discountAmount)
+      : 0;
+    const discount =
+      Number.isNaN(parsedDiscount) ? 0 : Math.max(0, Math.round(parsedDiscount));
+
+    let bulkAmount: number;
+    let payloadBaseAmount: number;
     if (assignFormData.baseAmount.trim()) {
       const b = parseFloat(assignFormData.baseAmount);
-      const d = assignFormData.discountAmount.trim() ? parseFloat(assignFormData.discountAmount) : 0;
       if (Number.isNaN(b) || b <= 0) {
         toast.error('Montant brut invalide');
         return;
       }
-      bulkAmount = Math.max(0, Math.round(b - (Number.isNaN(d) ? 0 : d)));
-    } else if (assignFormData.discountAmount.trim()) {
-      const d = parseFloat(assignFormData.discountAmount);
-      bulkAmount = Math.max(0, Math.round(bulkAmount - (Number.isNaN(d) ? 0 : d)));
+      payloadBaseAmount = Math.round(b);
+      bulkAmount = Math.max(0, payloadBaseAmount - discount);
+    } else if (assignFormData.amount.trim()) {
+      const net = parseFloat(assignFormData.amount);
+      if (Number.isNaN(net) || net <= 0) {
+        toast.error('Le montant à payer doit être strictement positif');
+        return;
+      }
+      bulkAmount = Math.max(0, Math.round(net));
+      // « Montant à payer » est déjà le net : ne pas soustraire la remise une seconde fois
+      payloadBaseAmount = discount > 0 ? bulkAmount + discount : bulkAmount;
+    } else {
+      toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
+      return;
     }
-    if (Number.isNaN(bulkAmount) || bulkAmount <= 0) {
+    if (bulkAmount <= 0) {
       toast.error('Le montant à payer doit être strictement positif');
       return;
     }
@@ -541,16 +557,12 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       academicYear: assignFormData.academicYear.trim(),
       period: assignFormData.period.trim(),
       amount: bulkAmount,
+      baseAmount: payloadBaseAmount,
+      discountAmount: discount,
       dueDate: assignFormData.dueDate.trim(),
       description: assignFormData.description.trim() || undefined,
       feeType: assignFormData.feeType,
       billingPeriod: assignFormData.billingPeriod,
-      ...(assignFormData.baseAmount.trim()
-        ? { baseAmount: parseFloat(assignFormData.baseAmount) }
-        : {}),
-      ...(assignFormData.discountAmount.trim()
-        ? { discountAmount: parseFloat(assignFormData.discountAmount) }
-        : {}),
     };
 
     if (assignFormData.assignScope === 'BY_STUDENT') {
@@ -594,24 +606,35 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
       return;
     }
-    let amountValue = parseFloat(editFormData.amount);
+    const parsedEditDiscount = editFormData.discountAmount.trim()
+      ? parseFloat(editFormData.discountAmount)
+      : 0;
+    const editDiscount =
+      Number.isNaN(parsedEditDiscount) ? 0 : Math.max(0, Math.round(parsedEditDiscount));
+
+    let amountValue: number;
+    let editBaseAmount: number;
     if (editFormData.baseAmount.trim()) {
       const b = parseFloat(editFormData.baseAmount);
-      const d = editFormData.discountAmount.trim() ? parseFloat(editFormData.discountAmount) : 0;
       if (Number.isNaN(b) || b <= 0) {
         toast.error('Montant brut invalide');
         return;
       }
-      amountValue = Math.max(0, Math.round(b - (Number.isNaN(d) ? 0 : d)));
-    } else if (editFormData.discountAmount.trim()) {
-      const d = parseFloat(editFormData.discountAmount);
-      if (Number.isNaN(amountValue) || amountValue <= 0) {
-        toast.error('Montant à payer requis si vous indiquez une remise');
+      editBaseAmount = Math.round(b);
+      amountValue = Math.max(0, editBaseAmount - editDiscount);
+    } else if (editFormData.amount.trim()) {
+      const net = parseFloat(editFormData.amount);
+      if (Number.isNaN(net) || net <= 0) {
+        toast.error('Le montant à payer doit être strictement positif');
         return;
       }
-      amountValue = Math.max(0, Math.round(amountValue - (Number.isNaN(d) ? 0 : d)));
+      amountValue = Math.max(0, Math.round(net));
+      editBaseAmount = editDiscount > 0 ? amountValue + editDiscount : amountValue;
+    } else {
+      toast.error('Indiquez le montant à payer ou le montant brut (FCFA)');
+      return;
     }
-    if (Number.isNaN(amountValue) || amountValue <= 0) {
+    if (amountValue <= 0) {
       toast.error('Le montant à payer doit être strictement positif');
       return;
     }
@@ -619,17 +642,13 @@ const TuitionFeesManagement: React.FC<TuitionFeesManagementProps> = ({
       academicYear: editFormData.academicYear,
       period: editFormData.period,
       amount: amountValue,
+      baseAmount: editBaseAmount,
+      discountAmount: editDiscount,
       dueDate: editFormData.dueDate,
       description: editFormData.description || undefined,
       feeType: editFormData.feeType,
       billingPeriod: editFormData.billingPeriod,
     };
-    if (editFormData.baseAmount.trim()) {
-      upd.baseAmount = parseFloat(editFormData.baseAmount);
-    } else {
-      upd.baseAmount = null;
-    }
-    upd.discountAmount = editFormData.discountAmount.trim() ? parseFloat(editFormData.discountAmount) : 0;
     updateMutation.mutate({
       id: selectedFee.id,
       data: upd,

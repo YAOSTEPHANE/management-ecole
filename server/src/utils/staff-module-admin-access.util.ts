@@ -48,8 +48,28 @@ const MODULE_ROUTE_RULES: ModuleRouteRule[] = [
   { moduleId: 'class_councils', prefixes: ['/class-councils'], access: 'write' },
   { moduleId: 'validations', prefixes: ['/academic-change-requests', '/grades'], access: 'write' },
   // ——— Finances ———
-  { moduleId: 'fees_mgmt', prefixes: ['/tuition-fees', '/tuition-fee-catalog', '/tuition-payment-schedule-templates'], access: 'write' },
-  { moduleId: 'tuition_fees_mgmt', prefixes: ['/tuition-fees', '/tuition-fee-catalog', '/tuition-payment-schedule-templates'], access: 'write' },
+  {
+    moduleId: 'fees_mgmt',
+    prefixes: [
+      '/tuition-fees',
+      '/tuition-fee-catalog',
+      '/tuition-level-rates',
+      '/tuition-class-rates',
+      '/tuition-payment-schedule-templates',
+    ],
+    access: 'write',
+  },
+  {
+    moduleId: 'tuition_fees_mgmt',
+    prefixes: [
+      '/tuition-fees',
+      '/tuition-fee-catalog',
+      '/tuition-level-rates',
+      '/tuition-class-rates',
+      '/tuition-payment-schedule-templates',
+    ],
+    access: 'write',
+  },
   { moduleId: 'payments_mgmt', prefixes: ['/payments'], access: 'write' },
   {
     moduleId: 'accounting_mgmt',
@@ -63,6 +83,41 @@ const MODULE_ROUTE_RULES: ModuleRouteRule[] = [
 ];
 
 const ALL_PREFIXES = [...new Set(MODULE_ROUTE_RULES.flatMap((r) => r.prefixes))];
+
+/**
+ * Métiers / modules qui consultent le barème scolarité (inscription, admissions, frais)
+ * sans avoir obligatoirement fees_mgmt.
+ */
+export const STAFF_TUITION_RATES_READ_MODULE_IDS: StaffModuleId[] = [
+  'admissions',
+  'appointments',
+  'students_mgmt',
+  'student_registry',
+  'classes_mgmt',
+  'class_councils',
+  'fees_mgmt',
+  'tuition_fees_mgmt',
+  'payments_mgmt',
+  'treasury',
+  'counter',
+  'administrative_mgmt',
+  'validations',
+  'academic_overview',
+  'pedagogical_tracking',
+];
+
+function isTuitionRatesAdminPath(path: string): boolean {
+  return (
+    path === '/tuition-level-rates' ||
+    path.startsWith('/tuition-level-rates/') ||
+    path === '/tuition-class-rates' ||
+    path.startsWith('/tuition-class-rates/')
+  );
+}
+
+export function staffTuitionRatesReadAllowed(visibleModules: StaffModuleId[]): boolean {
+  return hasAnyModule(visibleModules, STAFF_TUITION_RATES_READ_MODULE_IDS);
+}
 
 function normalizePath(path: string): string {
   const raw = path.split('?')[0] || '/';
@@ -276,6 +331,9 @@ export function staffModuleAdminPathAllowed(
     }
     if (p.startsWith('/staff-personnel')) {
       return hasAnyModule(visibleModules, ['administrative_mgmt', 'hr_mgmt', 'staff_mgmt']);
+    }
+    if (isTuitionRatesAdminPath(p)) {
+      return staffTuitionRatesReadAllowed(visibleModules);
     }
   }
 

@@ -54,4 +54,33 @@ describe('staff-module-admin-access', () => {
       true,
     );
   });
+
+  it('admissions seul peut GET resolve-for-class (secrétaire, DES, etc.)', () => {
+    assert.equal(
+      staffModuleAdminPathAllowed(
+        ['admissions'],
+        '/tuition-level-rates/resolve-for-class',
+        'GET',
+      ),
+      true,
+    );
+  });
+
+  it('student_registry peut GET tuition-class-rates', () => {
+    assert.equal(
+      staffModuleAdminPathAllowed(['student_registry'], '/tuition-class-rates', 'GET'),
+      true,
+    );
+  });
+
+  it('schedule_mgmt seul ne peut pas GET tuition-level-rates', () => {
+    assert.equal(
+      staffModuleAdminPathAllowed(
+        scheduleOnly,
+        '/tuition-level-rates/resolve-for-class',
+        'GET',
+      ),
+      false,
+    );
+  });
 });
