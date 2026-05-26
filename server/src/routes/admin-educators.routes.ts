@@ -333,9 +333,21 @@ router.delete('/educators/:id', async (req, res) => {
         where: { id: req.params.id },
       });
 
-      // 3. Supprimer l'utilisateur associé
-      await tx.user.delete({
+      // 3. Désactiver/anonymiser l'utilisateur associé : il peut être référencé
+      // par des notifications, messages, logs ou évaluations de conduite.
+      await tx.passwordResetToken.deleteMany({ where: { userId: educator.userId } });
+      await tx.pushSubscription.deleteMany({ where: { userId: educator.userId } });
+      await tx.schoolMember.deleteMany({ where: { userId: educator.userId } });
+      await tx.user.update({
         where: { id: educator.userId },
+        data: {
+          email: `deleted-educator-${educator.id}-${Date.now()}@deleted.local`,
+          firstName: 'Éducateur',
+          lastName: 'supprimé',
+          phone: null,
+          avatar: null,
+          isActive: false,
+        },
       });
     });
 

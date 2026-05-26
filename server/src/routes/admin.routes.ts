@@ -2124,9 +2124,21 @@ router.delete('/users/:id', async (req, res) => {
       return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
     }
 
-    // Supprimer l'utilisateur (cascade supprimera les profils associés)
-    await prisma.user.delete({
-      where: { id: req.params.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      await tx.pushSubscription.deleteMany({ where: { userId: user.id } });
+      await tx.schoolMember.deleteMany({ where: { userId: user.id } });
+      await tx.user.update({
+        where: { id: req.params.id },
+        data: {
+          email: `deleted-user-${user.id}-${Date.now()}@deleted.local`,
+          firstName: 'Utilisateur',
+          lastName: 'supprimé',
+          phone: null,
+          avatar: null,
+          isActive: false,
+        },
+      });
     });
 
     res.status(204).send();

@@ -708,7 +708,20 @@ router.delete('/staff/:id', async (req: SchoolContextRequest, res) => {
       await reassignDirectReportsBeforeDelete(tx, staff.id, staff.managerId);
       await tx.staffAttendance.deleteMany({ where: { staffId: staff.id } });
       await tx.staffMember.delete({ where: { id: staff.id } });
-      await tx.user.delete({ where: { id: staff.userId } });
+      await tx.passwordResetToken.deleteMany({ where: { userId: staff.userId } });
+      await tx.pushSubscription.deleteMany({ where: { userId: staff.userId } });
+      await tx.schoolMember.deleteMany({ where: { userId: staff.userId } });
+      await tx.user.update({
+        where: { id: staff.userId },
+        data: {
+          email: `deleted-staff-${staff.id}-${Date.now()}@deleted.local`,
+          firstName: 'Personnel',
+          lastName: 'supprimé',
+          phone: null,
+          avatar: null,
+          isActive: false,
+        },
+      });
     });
 
     res.json({ message: 'Membre du personnel supprimé' });
