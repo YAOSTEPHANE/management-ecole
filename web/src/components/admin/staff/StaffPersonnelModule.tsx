@@ -46,15 +46,17 @@ import { schoolQueryKey } from '@/hooks/useSchoolReady';
 import AddEducatorModal from '../AddEducatorModal';
 import EditEducatorModal from '../EditEducatorModal';
 import EducatorDetailsModal from '../EducatorDetailsModal';
+import EditTeacherModal from '../EditTeacherModal';
+import TeacherDetailsModal from '../TeacherDetailsModal';
 
 type StaffTab = 'members' | 'metiers' | 'modules' | 'org' | 'jobs';
-export type PersonnelCategoryFilter = 'all' | 'STAFF' | 'EDUCATOR';
+export type PersonnelCategoryFilter = 'all' | 'STAFF' | 'TEACHER' | 'EDUCATOR';
 
 export const PERSONNEL_REGISTRY_QUERY_KEY = 'admin-personnel-registry';
 
 type PersonnelRegistryRow = {
   id: string;
-  kind: 'STAFF' | 'EDUCATOR';
+  kind: 'STAFF' | 'TEACHER' | 'EDUCATOR';
   employeeId: string;
   user: {
     firstName: string;
@@ -181,6 +183,8 @@ const StaffPersonnelModule: React.FC<{
   const [staffModal, setStaffModal] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [teacherDetailId, setTeacherDetailId] = useState<string | null>(null);
+  const [teacherEditId, setTeacherEditId] = useState<string | null>(null);
   const [addEducatorOpen, setAddEducatorOpen] = useState(false);
   const [educatorDetailId, setEducatorDetailId] = useState<string | null>(null);
   const [educatorEditId, setEducatorEditId] = useState<string | null>(null);
@@ -263,6 +267,19 @@ const StaffPersonnelModule: React.FC<{
     onError: (e: any) => toast.error(e.response?.data?.error || 'Erreur'),
   });
 
+  const deleteTeacherMut = useMutation({
+    mutationFn: adminApi.deleteTeacher,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-teachers'] });
+      qc.invalidateQueries({ queryKey: [PERSONNEL_REGISTRY_QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      toast.success('Enseignant supprimé');
+      setTeacherDetailId(null);
+      setTeacherEditId(null);
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Erreur'),
+  });
+
   const filtered = useMemo(() => {
     let list = (personnelRegistry as PersonnelRegistryRow[] | undefined) ?? [];
     if (categoryFilter !== 'all') {
@@ -283,7 +300,7 @@ const StaffPersonnelModule: React.FC<{
   const membersTitle =
     initialCategoryFilter === 'EDUCATOR'
       ? 'Éducateurs'
-      : 'Personnel (administration, soutien et éducateurs)';
+      : 'Personnel (enseignants, administration, soutien et éducateurs)';
   const membersIntro =
     initialCategoryFilter === 'EDUCATOR'
       ? pedagogyReadOnly
@@ -291,7 +308,7 @@ const StaffPersonnelModule: React.FC<{
         : 'Gestion des éducateurs : fiches, spécialisation et comptes.'
       : pedagogyReadOnly
         ? 'Consultation de l’annuaire du personnel (sans données salariales ni modification).'
-        : 'Administration, personnel de soutien, éducateurs, organigramme, fiches de poste et pointages.';
+        : 'Enseignants, administration, personnel de soutien, éducateurs, organigramme, fiches de poste et pointages.';
 
   const subTabs = (
     [
@@ -354,6 +371,7 @@ const StaffPersonnelModule: React.FC<{
                   onChange={(e) => setCategoryFilter(e.target.value as PersonnelCategoryFilter)}
                 >
                   <option value="all">Tous</option>
+                  <option value="TEACHER">Enseignants</option>
                   <option value="STAFF">Personnel admin. &amp; soutien</option>
                   <option value="EDUCATOR">Éducateurs</option>
                 </select>
@@ -422,7 +440,9 @@ const StaffPersonnelModule: React.FC<{
                       <td className="px-2 py-2">
                         <Badge
                           className={
-                            row.kind === 'EDUCATOR'
+                            row.kind === 'TEACHER'
+                              ? 'text-[10px] bg-blue-100 text-blue-900'
+                              : row.kind === 'EDUCATOR'
                               ? 'text-[10px] bg-purple-100 text-purple-900'
                               : 'text-[10px] bg-teal-100 text-teal-900'
                           }
@@ -443,7 +463,8 @@ const StaffPersonnelModule: React.FC<{
                           className="p-1.5 text-stone-600 hover:text-teal-700"
                           title="Détails"
                           onClick={() => {
-                            if (row.kind === 'EDUCATOR') setEducatorDetailId(row.id);
+                            if (row.kind === 'TEACHER') setTeacherDetailId(row.id);
+                            else if (row.kind === 'EDUCATOR') setEducatorDetailId(row.id);
                             else setDetailId(row.id);
                           }}
                         >
@@ -456,7 +477,8 @@ const StaffPersonnelModule: React.FC<{
                               className="p-1.5 text-stone-600 hover:text-amber-700"
                               title="Modifier"
                               onClick={() => {
-                                if (row.kind === 'EDUCATOR') setEducatorEditId(row.id);
+                                if (row.kind === 'TEACHER') setTeacherEditId(row.id);
+                                else if (row.kind === 'EDUCATOR') setEducatorEditId(row.id);
                                 else {
                                   setEditingStaffId(row.id);
                                   setStaffModal(true);
@@ -473,14 +495,17 @@ const StaffPersonnelModule: React.FC<{
                                 const label = `${row.user?.firstName} ${row.user?.lastName}`.trim();
                                 if (
                                   !window.confirm(
-                                    row.kind === 'EDUCATOR'
+                                    row.kind === 'TEACHER'
+                                      ? `Supprimer l'enseignant ${label} ?`
+                                      : row.kind === 'EDUCATOR'
                                       ? `Supprimer l'éducateur ${label} ?`
                                       : `Supprimer ${label} du personnel ?`
                                   )
                                 ) {
                                   return;
                                 }
-                                if (row.kind === 'EDUCATOR') deleteEducatorMut.mutate(row.id);
+                                if (row.kind === 'TEACHER') deleteTeacherMut.mutate(row.id);
+                                else if (row.kind === 'EDUCATOR') deleteEducatorMut.mutate(row.id);
                                 else deleteStaffMut.mutate(row.id);
                               }}
                             >
@@ -644,7 +669,30 @@ const StaffPersonnelModule: React.FC<{
       <EditEducatorModal
         isOpen={!!educatorEditId}
         educatorId={educatorEditId ?? ''}
-        onClose={() => setEducatorEditId(null)}
+        onClose={() => {
+          setEducatorEditId(null);
+          qc.invalidateQueries({ queryKey: [PERSONNEL_REGISTRY_QUERY_KEY] });
+        }}
+      />
+
+      <TeacherDetailsModal
+        isOpen={!!teacherDetailId}
+        teacherId={teacherDetailId ?? ''}
+        onClose={() => setTeacherDetailId(null)}
+        onEdit={() => {
+          if (teacherDetailId) setTeacherEditId(teacherDetailId);
+          setTeacherDetailId(null);
+        }}
+      />
+
+      <EditTeacherModal
+        isOpen={!!teacherEditId}
+        teacherId={teacherEditId ?? ''}
+        onClose={() => {
+          setTeacherEditId(null);
+          qc.invalidateQueries({ queryKey: ['admin-teachers'] });
+          qc.invalidateQueries({ queryKey: [PERSONNEL_REGISTRY_QUERY_KEY] });
+        }}
       />
 
       <Modal

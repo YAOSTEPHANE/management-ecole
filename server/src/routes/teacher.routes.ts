@@ -7,6 +7,7 @@ import { notifyUsersImportant } from '../utils/notify-important.util';
 import { notifyParentsNewAssignment } from '../utils/parent-notify.util';
 import { appointmentInclude } from '../utils/parent-teacher-appointment.util';
 import { punchStudentCourseAttendance } from '../utils/attendance-punch.util';
+import { toAttendanceDateKey, upsertTeacherAttendance } from '../utils/teacher-attendance.util';
 import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
 import {
   createGradeChangeRequest,
@@ -27,6 +28,109 @@ const getTeacherId = async (userId: string) => {
   });
   return teacher?.id;
 };
+
+function parseTeacherAttendanceDate(raw: unknown): Date {
+  if (typeof raw === 'string' && raw.trim()) {
+    const value = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(`${value}T00:00:00`);
+    }
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
+router.get('/notifications', async (req: AuthRequest, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(notifications);
+  } catch (error: unknown) {
+    console.error('GET /teacher/notifications:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/read-all', async (req: AuthRequest, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user!.id, read: false },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error('PUT /teacher/notifications/read-all:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.put('/notifications/:id/read', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.notification.findFirst({
+      where: { id, userId: req.user!.id },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Notification non trouvée' });
+    }
+
+    const notification = await prisma.notification.update({
+      where: { id },
+      data: { read: true, readAt: new Date() },
+    });
+    res.json(notification);
+  } catch (error: unknown) {
+    console.error('PUT /teacher/notifications/:id/read:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/my-attendance', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+
+    const date = parseTeacherAttendanceDate(req.query.date);
+    const attendanceDate = toAttendanceDateKey(date);
+    const attendance = await prisma.teacherAttendance.findFirst({
+      where: { teacherId, attendanceDate },
+      orderBy: [{ checkInAt: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    res.json({ attendance, attendanceDate });
+  } catch (error: unknown) {
+    console.error('GET /teacher/my-attendance:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.post('/my-attendance/mark-present', async (req: AuthRequest, res) => {
+  try {
+    const teacherId = await getTeacherId(req.user!.id);
+    if (!teacherId) {
+      return res.status(404).json({ error: 'Profil enseignant non trouvé' });
+    }
+
+    const attendance = await upsertTeacherAttendance({
+      teacherId,
+      date: parseTeacherAttendanceDate(req.body?.date),
+      source: 'SELF',
+      recordedByUserId: req.user!.id,
+    });
+
+    res.status(201).json({ attendance, attendanceDate: attendance.attendanceDate });
+  } catch (error: unknown) {
+    const statusCode = (error as { statusCode?: number })?.statusCode ?? 500;
+    console.error('POST /teacher/my-attendance/mark-present:', error);
+    res.status(statusCode).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
 
 router.get('/dashboard/kpis', async (req: AuthRequest, res) => {
   try {

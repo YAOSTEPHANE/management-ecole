@@ -149,8 +149,18 @@ const TeachersList: React.FC<TeachersListProps> = ({ searchQuery = '' }) => {
 
   const deleteTeacherMutation = useMutation({
     mutationFn: adminApi.deleteTeacher,
-    onSuccess: () => {
+    onSuccess: (_data, deletedTeacherId) => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-personnel-registry'] });
+      queryClient.removeQueries({ queryKey: ['teacher', deletedTeacherId] });
+      if (selectedTeacherId === deletedTeacherId) {
+        setIsDetailsModalOpen(false);
+        setSelectedTeacherId(null);
+      }
+      if (editingTeacherId === deletedTeacherId) {
+        setIsEditModalOpen(false);
+        setEditingTeacherId(null);
+      }
       toast.success('Enseignant supprimé avec succès');
     },
     onError: (error: any) => {

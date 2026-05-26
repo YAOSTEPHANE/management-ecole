@@ -295,8 +295,9 @@ router.post(
 // Obtenir un enseignant par ID
 router.get('/teachers/:id', async (req, res) => {
   try {
+    const teacherId = req.params.id;
     const teacher = await prisma.teacher.findUnique({
-      where: { id: req.params.id },
+      where: { id: teacherId },
       include: {
         user: {
           select: {
@@ -328,17 +329,6 @@ router.get('/teachers/:id', async (req, res) => {
             },
           },
         },
-        qualifications: { orderBy: { createdAt: 'desc' } },
-        careerHistory: { orderBy: { startDate: 'desc' } },
-        professionalTrainings: { orderBy: { createdAt: 'desc' } },
-        administrativeDocuments: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            uploadedBy: { select: { firstName: true, lastName: true, role: true } },
-          },
-        },
-        performanceReviews: { orderBy: { createdAt: 'desc' }, take: 50 },
-        scheduleAvailabilitySlots: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
       },
     });
 
@@ -351,8 +341,68 @@ router.get('/teachers/:id', async (req, res) => {
       0
     );
 
+    const optionalTeacherBlocks = await Promise.all([
+      prisma.teacherQualification
+        .findMany({ where: { teacherId }, orderBy: { createdAt: 'desc' } })
+        .catch((error: unknown) => {
+          console.warn('Qualifications enseignant indisponibles:', error);
+          return [];
+        }),
+      prisma.teacherCareerHistory
+        .findMany({ where: { teacherId }, orderBy: { startDate: 'desc' } })
+        .catch((error: unknown) => {
+          console.warn('Historique carrière enseignant indisponible:', error);
+          return [];
+        }),
+      prisma.teacherProfessionalTraining
+        .findMany({ where: { teacherId }, orderBy: { createdAt: 'desc' } })
+        .catch((error: unknown) => {
+          console.warn('Formations enseignant indisponibles:', error);
+          return [];
+        }),
+      prisma.teacherAdministrativeDocument
+        .findMany({
+          where: { teacherId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: { select: { firstName: true, lastName: true, role: true } },
+          },
+        })
+        .catch((error: unknown) => {
+          console.warn('Documents enseignant indisponibles:', error);
+          return [];
+        }),
+      prisma.teacherPerformanceReview
+        .findMany({ where: { teacherId }, orderBy: { createdAt: 'desc' }, take: 50 })
+        .catch((error: unknown) => {
+          console.warn('Évaluations enseignant indisponibles:', error);
+          return [];
+        }),
+      prisma.teacherScheduleAvailabilitySlot
+        .findMany({ where: { teacherId }, orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] })
+        .catch((error: unknown) => {
+          console.warn('Disponibilités enseignant indisponibles:', error);
+          return [];
+        }),
+    ]);
+
+    const [
+      qualifications,
+      careerHistory,
+      professionalTrainings,
+      administrativeDocuments,
+      performanceReviews,
+      scheduleAvailabilitySlots,
+    ] = optionalTeacherBlocks;
+
     res.json({
       ...teacher,
+      qualifications,
+      careerHistory,
+      professionalTrainings,
+      administrativeDocuments,
+      performanceReviews,
+      scheduleAvailabilitySlots,
       workloadSummary: {
         programmedWeeklyHours,
         courseCount: teacher.courses.length,
@@ -1087,6 +1137,52 @@ router.delete('/teachers/:id', async (req, res) => {
       });
       if (courses.length > 0) {
         const courseIds = courses.map((c) => c.id);
+
+        const elearningCourses = await tx.elearningCourse.findMany({
+          where: {
+            OR: [
+              { teacherId: req.params.id },
+              { courseId: { in: courseIds } },
+            ],
+          },
+          select: { id: true },
+        });
+        const elearningCourseIds = elearningCourses.map((c) => c.id);
+        if (elearningCourseIds.length > 0) {
+          const lessons = await tx.elearningLesson.findMany({
+            where: { elearningCourseId: { in: elearningCourseIds } },
+            select: { id: true },
+          });
+          const lessonIds = lessons.map((l) => l.id);
+          if (lessonIds.length > 0) {
+            const quizzes = await tx.elearningQuiz.findMany({
+              where: { lessonId: { in: lessonIds } },
+              select: { id: true },
+            });
+            const quizIds = quizzes.map((q) => q.id);
+            if (quizIds.length > 0) {
+              await tx.elearningQuizAttempt.deleteMany({ where: { quizId: { in: quizIds } } });
+              await tx.elearningQuizQuestion.deleteMany({ where: { quizId: { in: quizIds } } });
+              await tx.elearningQuiz.deleteMany({ where: { id: { in: quizIds } } });
+            }
+            await tx.elearningLessonProgress.deleteMany({ where: { lessonId: { in: lessonIds } } });
+            await tx.elearningLesson.deleteMany({ where: { id: { in: lessonIds } } });
+          }
+          await tx.virtualClassSession.deleteMany({
+            where: { elearningCourseId: { in: elearningCourseIds } },
+          });
+          await tx.elearningCourse.deleteMany({ where: { id: { in: elearningCourseIds } } });
+        }
+
+        await tx.virtualClassSession.deleteMany({
+          where: {
+            OR: [
+              { teacherId: req.params.id },
+              { courseId: { in: courseIds } },
+            ],
+          },
+        });
+
         await tx.schedule.deleteMany({
           where: { courseId: { in: courseIds } },
         });
@@ -1105,6 +1201,50 @@ router.delete('/teachers/:id', async (req, res) => {
         where: { teacherId: req.params.id },
         data: { teacherId: null },
       });
+
+      await tx.schedule.updateMany({
+        where: { substituteTeacherId: req.params.id },
+        data: { substituteTeacherId: null, replacementNote: null },
+      });
+
+      await tx.virtualClassSession.deleteMany({
+        where: { teacherId: req.params.id },
+      });
+
+      await tx.pedagogicalResourceBank.deleteMany({
+        where: { createdByTeacherId: req.params.id },
+      });
+
+      const remainingElearningCourses = await tx.elearningCourse.findMany({
+        where: { teacherId: req.params.id },
+        select: { id: true },
+      });
+      const remainingElearningCourseIds = remainingElearningCourses.map((c) => c.id);
+      if (remainingElearningCourseIds.length > 0) {
+        const lessons = await tx.elearningLesson.findMany({
+          where: { elearningCourseId: { in: remainingElearningCourseIds } },
+          select: { id: true },
+        });
+        const lessonIds = lessons.map((l) => l.id);
+        if (lessonIds.length > 0) {
+          const quizzes = await tx.elearningQuiz.findMany({
+            where: { lessonId: { in: lessonIds } },
+            select: { id: true },
+          });
+          const quizIds = quizzes.map((q) => q.id);
+          if (quizIds.length > 0) {
+            await tx.elearningQuizAttempt.deleteMany({ where: { quizId: { in: quizIds } } });
+            await tx.elearningQuizQuestion.deleteMany({ where: { quizId: { in: quizIds } } });
+            await tx.elearningQuiz.deleteMany({ where: { id: { in: quizIds } } });
+          }
+          await tx.elearningLessonProgress.deleteMany({ where: { lessonId: { in: lessonIds } } });
+          await tx.elearningLesson.deleteMany({ where: { id: { in: lessonIds } } });
+        }
+        await tx.virtualClassSession.deleteMany({
+          where: { elearningCourseId: { in: remainingElearningCourseIds } },
+        });
+        await tx.elearningCourse.deleteMany({ where: { id: { in: remainingElearningCourseIds } } });
+      }
 
       await tx.teacherLeave.deleteMany({
         where: { teacherId: req.params.id },
@@ -1150,9 +1290,21 @@ router.delete('/teachers/:id', async (req, res) => {
         where: { id: req.params.id },
       });
 
-      // 9. Supprimer l'utilisateur associé
-      await tx.user.delete({
+      // 9. Désactiver/anonymiser l'utilisateur associé au lieu de le supprimer :
+      // il peut être référencé par des messages, logs, notifications ou historiques.
+      await tx.passwordResetToken.deleteMany({ where: { userId: teacher.userId } });
+      await tx.pushSubscription.deleteMany({ where: { userId: teacher.userId } });
+      await tx.schoolMember.deleteMany({ where: { userId: teacher.userId } });
+      await tx.user.update({
         where: { id: teacher.userId },
+        data: {
+          email: `deleted-teacher-${teacher.id}-${Date.now()}@deleted.local`,
+          firstName: 'Professeur',
+          lastName: 'supprimé',
+          phone: null,
+          avatar: null,
+          isActive: false,
+        },
       });
     });
 

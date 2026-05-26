@@ -253,7 +253,7 @@ router.delete('/staff/job-descriptions/:id', async (req, res) => {
   }
 });
 
-/** Annuaire unifié : personnel administratif / soutien + éducateurs. */
+/** Annuaire unifié : enseignants + personnel administratif / soutien + éducateurs. */
 router.get('/staff/personnel-registry', async (req: SchoolContextRequest, res) => {
   try {
     const list = await listPersonnelRegistry(req.schoolId);

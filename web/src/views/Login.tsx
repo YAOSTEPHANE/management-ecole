@@ -188,12 +188,13 @@ const Login = () => {
                     <input
                       id="login-email"
                       type="email"
+                      name="username"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="votre.email@exemple.com"
                       autoFocus
-                      autoComplete="email"
+                      autoComplete="username"
                       className="w-full pl-12 pr-4 py-4 bg-white/90 border-2 border-stone-200 rounded-xl shadow-sm transition-all duration-200 text-stone-900 placeholder:text-stone-400 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
                     />
                   </div>
@@ -236,11 +237,13 @@ const Login = () => {
                     </div>
                     <input
                       type="email"
+                      name="username"
                       value={email}
                       disabled
                       readOnly
                       aria-readonly="true"
                       aria-label="Adresse e-mail utilisée pour la connexion (non modifiable)"
+                      autoComplete="username"
                       className="w-full pl-12 pr-4 py-4 bg-stone-100/90 border-2 border-stone-200 rounded-xl text-stone-600 cursor-not-allowed shadow-inner"
                     />
                   </div>
@@ -271,7 +274,6 @@ const Login = () => {
                       onClick={() => setShowPassword((prev) => !prev)}
                       className="absolute inset-y-0 right-0 z-10 flex items-center pr-3 pl-2 text-stone-500 hover:text-amber-900 hover:bg-stone-100/80 rounded-r-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/45"
                       aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                      aria-pressed={showPassword}
                       title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                     >
                       {showPassword ? (

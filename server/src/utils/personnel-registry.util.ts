@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { educatorClassAssignmentInclude } from './educator-class-assignment.util';
 
-export type PersonnelKind = 'STAFF' | 'EDUCATOR';
+export type PersonnelKind = 'STAFF' | 'TEACHER' | 'EDUCATOR';
 
 const userSelect = {
   id: true,
@@ -69,8 +69,29 @@ function staffSchoolScopeWhere(schoolId: string | undefined) {
   return { schoolId };
 }
 
+function teacherSchoolScopeWhere(schoolId: string | undefined): Prisma.TeacherWhereInput {
+  if (!schoolId) return {};
+  return {
+    OR: [
+      { user: { schoolMemberships: { some: { schoolId } } } },
+      { classes: { some: { schoolId } } },
+      { courses: { some: { class: { schoolId } } } },
+    ],
+  };
+}
+
+function educatorSchoolScopeWhere(schoolId: string | undefined): Prisma.EducatorWhereInput {
+  if (!schoolId) return {};
+  return {
+    OR: [
+      { user: { schoolMemberships: { some: { schoolId } } } },
+      { classAssignments: { some: { class: { schoolId } } } },
+    ],
+  };
+}
+
 export async function listPersonnelRegistry(schoolId?: string): Promise<PersonnelRegistryEntry[]> {
-  const [staffRows, educatorRows] = await Promise.all([
+  const [staffRows, teacherRows, educatorRows] = await Promise.all([
     prisma.staffMember.findMany({
       where: staffSchoolScopeWhere(schoolId),
       include: {
@@ -85,7 +106,17 @@ export async function listPersonnelRegistry(schoolId?: string): Promise<Personne
       },
       orderBy: { createdAt: 'desc' },
     }),
+    prisma.teacher.findMany({
+      where: teacherSchoolScopeWhere(schoolId),
+      include: {
+        user: { select: userSelect },
+        classes: { select: { name: true, level: true } },
+        courses: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
     prisma.educator.findMany({
+      where: educatorSchoolScopeWhere(schoolId),
       include: {
         user: { select: userSelect },
         ...educatorClassAssignmentInclude,
@@ -120,6 +151,27 @@ export async function listPersonnelRegistry(schoolId?: string): Promise<Personne
     jobDescription: s.jobDescription,
   }));
 
+  const teachers: PersonnelRegistryEntry[] = teacherRows.map((t) => {
+    const classLabels = t.classes.map((c) => `${c.name} (${c.level})`);
+    return {
+      id: t.id,
+      kind: 'TEACHER',
+      employeeId: t.employeeId,
+      user: t.user,
+      hireDate: t.hireDate.toISOString(),
+      contractType: t.contractType,
+      salary: t.salary,
+      displayCategory: 'Enseignant',
+      displaySubCategory:
+        classLabels.length > 0
+          ? `${classLabels.length} classe${classLabels.length > 1 ? 's' : ''}`
+          : `${t.courses.length} cours`,
+      displayRole: t.specialization,
+      manager: null,
+      specialization: t.specialization,
+    };
+  });
+
   const educators: PersonnelRegistryEntry[] = educatorRows.map((e) => {
     const classLabels = e.classAssignments.map(
       (a) => `${a.class.name} (${a.class.level})`,
@@ -143,7 +195,7 @@ export async function listPersonnelRegistry(schoolId?: string): Promise<Personne
     };
   });
 
-  return [...staff, ...educators].sort((a, b) => {
+  return [...staff, ...teachers, ...educators].sort((a, b) => {
     const na = `${a.user.lastName} ${a.user.firstName}`.toLocaleLowerCase('fr');
     const nb = `${b.user.lastName} ${b.user.firstName}`.toLocaleLowerCase('fr');
     return na.localeCompare(nb, 'fr');
