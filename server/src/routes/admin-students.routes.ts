@@ -1009,6 +1009,12 @@ router.delete('/students/:id', async (req, res) => {
         where: { studentId },
       });
 
+      // Garde finale : certaines bases de prod ont des conduites historiques orphelines
+      // qui bloquent la relation obligatoire ConductToStudent au moment du delete.
+      await tx.conduct.deleteMany({
+        where: { studentId },
+      });
+
       // 5. Supprimer le profil élève
       await tx.student.delete({
         where: { id: studentId },
