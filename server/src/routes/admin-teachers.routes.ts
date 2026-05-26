@@ -298,8 +298,32 @@ router.get('/teachers/:id', async (req, res) => {
     const teacherId = req.params.id;
     const teacher = await prisma.teacher.findUnique({
       where: { id: teacherId },
-      include: {
-        user: {
+      select: {
+        id: true,
+        userId: true,
+        employeeId: true,
+        nfcId: true,
+        biometricId: true,
+        specialization: true,
+        hireDate: true,
+        contractType: true,
+        engagementKind: true,
+        salary: true,
+        bio: true,
+        maxWeeklyHours: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ error: 'Enseignant non trouvé' });
+    }
+
+    const [user, classes, courseRows] = await Promise.all([
+      prisma.user
+        .findUnique({
+          where: { id: teacher.userId },
           select: {
             id: true,
             email: true,
@@ -309,34 +333,78 @@ router.get('/teachers/:id', async (req, res) => {
             avatar: true,
             isActive: true,
           },
-        },
-        classes: {
+        })
+        .catch((error: unknown) => {
+          console.warn('Utilisateur enseignant indisponible:', error);
+          return null;
+        }),
+      prisma.class
+        .findMany({
+          where: { teacherId },
           select: {
             id: true,
             name: true,
             level: true,
             academicYear: true,
           },
-        },
-        courses: {
-          include: {
-            class: {
-              select: {
-                id: true,
-                name: true,
-                level: true,
-              },
-            },
+        })
+        .catch((error: unknown) => {
+          console.warn('Classes enseignant indisponibles:', error);
+          return [];
+        }),
+      prisma.course
+        .findMany({
+          where: { teacherId },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            description: true,
+            weeklyHours: true,
+            classId: true,
+            teacherId: true,
+            createdAt: true,
+            updatedAt: true,
           },
-        },
-      },
-    });
+        })
+        .catch((error: unknown) => {
+          console.warn('Cours enseignant indisponibles:', error);
+          return [];
+        }),
+    ]);
 
-    if (!teacher) {
-      return res.status(404).json({ error: 'Enseignant non trouvé' });
-    }
+    const courseClassIds = [...new Set(courseRows.map((c) => c.classId).filter(Boolean))];
+    const courseClasses =
+      courseClassIds.length > 0
+        ? await prisma.class
+            .findMany({
+              where: { id: { in: courseClassIds } },
+              select: { id: true, name: true, level: true },
+            })
+            .catch((error: unknown) => {
+              console.warn('Classes des cours enseignant indisponibles:', error);
+              return [];
+            })
+        : [];
+    const courseClassMap = new Map(courseClasses.map((c) => [c.id, c]));
+    const courses = courseRows.map((course) => ({
+      ...course,
+      class: courseClassMap.get(course.classId) ?? null,
+    }));
 
-    const programmedWeeklyHours = teacher.courses.reduce(
+    const safeUser =
+      user ??
+      ({
+        id: teacher.userId,
+        email: `deleted-teacher-${teacher.id}@deleted.local`,
+        firstName: 'Professeur',
+        lastName: 'supprimé',
+        phone: null,
+        avatar: null,
+        isActive: false,
+      } as const);
+
+    const programmedWeeklyHours = courses.reduce(
       (sum, c) => sum + (c.weeklyHours ?? 0),
       0
     );
@@ -397,6 +465,9 @@ router.get('/teachers/:id', async (req, res) => {
 
     res.json({
       ...teacher,
+      user: safeUser,
+      classes,
+      courses,
       qualifications,
       careerHistory,
       professionalTrainings,
@@ -405,7 +476,7 @@ router.get('/teachers/:id', async (req, res) => {
       scheduleAvailabilitySlots,
       workloadSummary: {
         programmedWeeklyHours,
-        courseCount: teacher.courses.length,
+        courseCount: courses.length,
         maxWeeklyHours: teacher.maxWeeklyHours ?? null,
       },
     });
