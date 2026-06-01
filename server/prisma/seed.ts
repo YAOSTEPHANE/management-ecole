@@ -1,6 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { generateDigitalCardPublicId } from '../src/utils/digital-card.util';
+import { seedSchoolStaffMetiers } from '../src/utils/school-staff-metiers.util';
+
+/** Mot de passe commun des comptes de démo (politique : majuscule, minuscule, chiffre, spécial). */
+export const DEV_TEST_PASSWORD = 'Test@1234';
 
 const prisma = new PrismaClient();
 
@@ -118,11 +122,46 @@ async function main() {
   await prisma.schoolGalleryItem.deleteMany();
   await prisma.schoolCalendarEvent.deleteMany();
   await prisma.roomScheduleUnavailableSlot.deleteMany();
+  await prisma.adminWorkspaceMember.deleteMany();
+  await prisma.adminWorkspace.deleteMany();
   await prisma.appBranding.deleteMany();
+  await prisma.schoolMember.deleteMany();
+  await prisma.schoolStaffMetier.deleteMany();
+  await prisma.school.deleteMany();
   await prisma.userTwoFactorSettings.deleteMany();
   await prisma.user.deleteMany();
 
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash(DEV_TEST_PASSWORD, 10);
+
+  console.log('🏫 Création de l’établissement de démonstration...');
+  const devSchool = await prisma.school.create({
+    data: {
+      slug: 'ecole-test-dev',
+      name: 'Collège Les Palmiers (démo)',
+      shortName: 'Les Palmiers',
+      address: 'Abidjan, Cocody — données de test',
+      phone: '+225 27 00 00 00 00',
+      email: 'contact@ecole-test.local',
+      principalName: 'M. Jean Dupont',
+      isDefault: true,
+      isActive: true,
+    },
+  });
+  const schoolId = devSchool.id;
+  await prisma.appBranding.create({
+    data: {
+      id: schoolId,
+      schoolId,
+      appTitle: 'Gestion scolaire',
+      appTagline: 'Jeu de données de démonstration',
+      schoolDisplayName: devSchool.name,
+      schoolAddress: devSchool.address,
+      schoolPhone: devSchool.phone,
+      schoolEmail: devSchool.email,
+      schoolPrincipal: devSchool.principalName,
+    },
+  });
+  await seedSchoolStaffMetiers(schoolId);
 
   // Créer des utilisateurs ADMIN
   console.log('👤 Création des administrateurs...');
@@ -234,6 +273,7 @@ async function main() {
       room: 'Salle 101',
       capacity: 30,
       academicYear: '2024-2025',
+      schoolId,
       teacherId: teacher1Profile!.id,
     },
   });
@@ -245,6 +285,7 @@ async function main() {
       room: 'Salle 102',
       capacity: 28,
       academicYear: '2024-2025',
+      schoolId,
       teacherId: teacher2Profile!.id,
     },
   });
@@ -315,6 +356,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU001',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-05-15'),
           gender: 'MALE',
@@ -341,6 +383,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU002',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-08-20'),
           gender: 'FEMALE',
@@ -367,6 +410,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU003',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-03-10'),
           gender: 'MALE',
@@ -393,6 +437,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU004',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-11-22'),
           gender: 'FEMALE',
@@ -419,6 +464,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU005',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-04-18'),
           gender: 'MALE',
@@ -445,6 +491,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU006',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-07-30'),
           gender: 'FEMALE',
@@ -471,6 +518,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU007',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-01-25'),
           gender: 'MALE',
@@ -497,6 +545,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU008',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2012-09-12'),
           gender: 'FEMALE',
@@ -523,6 +572,7 @@ async function main() {
       studentProfile: {
         create: {
           studentId: 'STU009',
+          schoolId,
           digitalCardPublicId: generateDigitalCardPublicId(),
           dateOfBirth: new Date('2011-12-05'),
           gender: 'MALE',
@@ -700,6 +750,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF001',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'SECRETARY',
           jobTitle: 'Secrétaire de direction',
@@ -722,6 +773,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF002',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'BURSAR',
           jobTitle: 'Économe',
@@ -744,6 +796,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF003',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'STUDIES_DIRECTOR',
           jobTitle: 'Directrice des études',
@@ -766,6 +819,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF004',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'NURSE',
           jobTitle: 'Infirmière scolaire',
@@ -788,6 +842,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF005',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'LIBRARIAN',
           jobTitle: 'Bibliothécaire',
@@ -810,6 +865,7 @@ async function main() {
       staffProfile: {
         create: {
           employeeId: 'STF006',
+          schoolId,
           staffCategory: 'SUPPORT',
           supportKind: 'ACCOUNTANT',
           jobTitle: 'Comptable',
@@ -1815,15 +1871,25 @@ async function main() {
     ],
   });
 
+  console.log('🔗 Rattachement des utilisateurs à l’établissement...');
+  const allUsers = await prisma.user.findMany({ select: { id: true } });
+  if (allUsers.length > 0) {
+    await prisma.schoolMember.createMany({
+      data: allUsers.map((u) => ({ schoolId, userId: u.id, isDefault: true })),
+    });
+  }
+
   console.log('✅ Seed terminé avec succès !');
+  console.log(`\n🔐 Mot de passe de tous les comptes de démo : ${DEV_TEST_PASSWORD}`);
   console.log('\n📊 Résumé des données créées :');
-  console.log(`   - 1 Super administrateur (superadmin@tranlefet.ci / password123)`);
-  console.log(`   - 1 Administrateur (admin@school.com / password123)`);
-  console.log(`   - 3 Enseignants (teacher1@school.com … / password123)`);
-  console.log(`   - 9 Élèves (student1@school.com … student9@school.com / password123)`);
-  console.log(`   - 2 Parents (parent1@school.com, parent2@school.com / password123)`);
-  console.log(`   - 3 Comptes STAFF soutien (secretary@, bursar@, studies@school.com / password123)`);
-  console.log(`   - 3 STAFF suppl. (nurse@, librarian@, accountant@school.com / password123)`);
+  console.log(`   - Établissement : ${devSchool.name} (slug: ${devSchool.slug})`);
+  console.log(`   - 1 Super administrateur (superadmin@tranlefet.ci)`);
+  console.log(`   - 1 Administrateur (admin@school.com)`);
+  console.log(`   - 3 Enseignants (teacher1@school.com … teacher3@school.com)`);
+  console.log(`   - 9 Élèves (student1@school.com … student9@school.com)`);
+  console.log(`   - 2 Parents (parent1@school.com, parent2@school.com)`);
+  console.log(`   - 3 Comptes STAFF soutien (secretary@, bursar@, studies@school.com)`);
+  console.log(`   - 3 STAFF suppl. (nurse@, librarian@, accountant@school.com)`);
   console.log(`   - 5 Admissions (statuts variés)`);
   console.log(`   - 4 Rendez-vous parents–enseignants`);
   console.log(`   - Frais de scolarité, catalogue, gabarit et paiements`);
