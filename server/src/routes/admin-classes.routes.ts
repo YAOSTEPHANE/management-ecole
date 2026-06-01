@@ -3,6 +3,8 @@ import type { Prisma } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import type { SchoolContextRequest } from '../utils/school-context.util';
+import { assertClassInSchool, SchoolAccessDeniedError } from '../utils/school-access-guard.util';
+import { ClassDeleteBlockedError, deleteClassById } from '../utils/delete-class.util';
 import { classScopeWhere } from '../utils/school-context.util';
 
 const router = express.Router();
@@ -142,6 +144,46 @@ router.patch('/classes/:id', async (req, res) => {
     res.json(updated);
   } catch (error: unknown) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.delete('/classes/:id', async (req: SchoolContextRequest, res) => {
+  try {
+    const classId = req.params.id;
+    const schoolId = req.schoolId!;
+    const isDefault = req.school?.isDefault ?? false;
+
+    await assertClassInSchool(classId, schoolId, isDefault);
+
+    const unlinkStudents =
+      req.query.unlinkStudents === 'true' || req.body?.unlinkStudents === true;
+
+    const result = await deleteClassById({ classId, unlinkStudents });
+
+    res.json({
+      ...result,
+      message: result.unlinkedStudents
+        ? `Classe supprimée. ${result.unlinkedStudents} élève(s) détaché(s).`
+        : 'Classe supprimée.',
+    });
+  } catch (error: unknown) {
+    if (error instanceof SchoolAccessDeniedError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    if (error instanceof ClassDeleteBlockedError) {
+      return res.status(error.statusCode).json({
+        error: error.message,
+        studentCount: error.studentCount,
+        code: 'CLASS_HAS_STUDENTS',
+      });
+    }
+    const statusCode =
+      error && typeof error === 'object' && 'statusCode' in error
+        ? Number((error as { statusCode: number }).statusCode)
+        : 500;
+    res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+    });
   }
 });
 

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -20,6 +20,7 @@ import {
   FiTrendingUp,
   FiEdit2,
   FiGrid,
+  FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSchool } from '../../contexts/SchoolContext';
@@ -60,6 +61,7 @@ const levelColors: Record<string, string> = {
 };
 
 const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = false }) => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editClass, setEditClass] = useState<AdminClassRow | null>(null);
@@ -82,6 +84,27 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
     enabled: schoolReady,
   });
 
+  const deleteClassMutation = useMutation({
+    mutationFn: ({ id, unlinkStudents }: { id: string; unlinkStudents?: boolean }) =>
+      adminApi.deleteClass(id, { unlinkStudents }),
+    onSuccess: (data: { message?: string }) => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKey(['classes'], activeSchoolId) });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKey(['students'], activeSchoolId) });
+      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-schedules'] });
+      toast.success(data?.message ?? 'Classe supprimée');
+    },
+    onError: (error: any) => {
+      const code = error.response?.data?.code;
+      const studentCount = error.response?.data?.studentCount as number | undefined;
+      if (code === 'CLASS_HAS_STUDENTS' && studentCount != null) {
+        toast.error(error.response?.data?.error ?? `Cette classe compte ${studentCount} élève(s).`);
+        return;
+      }
+      toast.error(error.response?.data?.error || 'Impossible de supprimer la classe');
+    },
+  });
+
   const { data: allStudents } = useQuery({
     queryKey: schoolQueryKey(['students'], activeSchoolId),
     queryFn: adminApi.getStudents,
@@ -100,6 +123,41 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
     }
     return map;
   }, [allStudents]);
+
+  const handleDeleteClass = (classItem: { id: string; name: string; _count?: { students?: number } }) => {
+    const count = classItem._count?.students ?? studentsByClassId.get(classItem.id)?.length ?? 0;
+    const label = classItem.name || 'cette classe';
+
+    if (count === 0) {
+      if (
+        !window.confirm(
+          `Supprimer définitivement la classe « ${label} » ?\n\nLes matières et l’emploi du temps associés seront également supprimés.`,
+        )
+      ) {
+        return;
+      }
+      deleteClassMutation.mutate({ id: classItem.id });
+      return;
+    }
+
+    const detach = window.confirm(
+      `La classe « ${label} » compte ${count} élève(s).\n\n` +
+        `OK : détacher les élèves (sans les supprimer) puis supprimer la classe.\n` +
+        `Annuler : garder la classe.`,
+    );
+    if (!detach) return;
+
+    if (
+      !window.confirm(
+        `Confirmer la suppression de « ${label} » ?\n\n` +
+          `${count} élève(s) seront détachés de la classe. Les matières et créneaux EDT de cette classe seront supprimés.`,
+      )
+    ) {
+      return;
+    }
+
+    deleteClassMutation.mutate({ id: classItem.id, unlinkStudents: true });
+  };
 
   const downloadRosterForClass = (classItem: {
     id: string;
@@ -536,6 +594,15 @@ const ClassesList: React.FC<ClassesListProps> = ({ searchQuery = '', compact = f
                           title="Groupes"
                         >
                           <FiGrid className="w-4 h-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClass(classItem)}
+                          disabled={deleteClassMutation.isPending}
+                          className="p-1.5 rounded-lg text-red-700 hover:bg-red-50 border border-transparent hover:border-red-100 disabled:opacity-50"
+                          title="Supprimer la classe"
+                        >
+                          <FiTrash2 className="w-4 h-4" aria-hidden />
                         </button>
                       </div>
                     </div>

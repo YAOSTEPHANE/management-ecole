@@ -88,6 +88,12 @@ export const adminApi = {
     const response = await api.patch(`/admin/classes/${id}`, data);
     return response.data;
   },
+  deleteClass: async (id: string, options?: { unlinkStudents?: boolean }) => {
+    const response = await api.delete(`/admin/classes/${id}`, {
+      params: options?.unlinkStudents ? { unlinkStudents: 'true' } : undefined,
+    });
+    return response.data;
+  },
   createClassGroup: async (classId: string, data: { name: string; sortOrder?: number }) => {
     const response = await api.post(`/admin/classes/${classId}/groups`, data);
     return response.data;

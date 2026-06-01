@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getEvaluationTypeLabel } from '@/lib/evaluationTypes';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
@@ -1007,13 +1007,47 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
   // Filter data based on search query
   const filteredGrades = grades?.filter((grade: any) => {
     const searchLower = searchQuery.toLowerCase();
+    const className = grade.student?.class?.name?.toLowerCase() ?? '';
+    const classLevel = grade.student?.class?.level?.toLowerCase() ?? '';
     return (
       grade.student.user.firstName.toLowerCase().includes(searchLower) ||
       grade.student.user.lastName.toLowerCase().includes(searchLower) ||
       grade.course.name.toLowerCase().includes(searchLower) ||
-      grade.title.toLowerCase().includes(searchLower)
+      grade.title.toLowerCase().includes(searchLower) ||
+      className.includes(searchLower) ||
+      classLevel.includes(searchLower)
     );
   }) || [];
+
+  const gradesByClass = useMemo(() => {
+    const map = new Map<
+      string,
+      { classKey: string; className: string; level: string | null; grades: any[] }
+    >();
+    for (const grade of filteredGrades) {
+      const cls = grade.student?.class;
+      const classKey = grade.student?.classId ?? cls?.id ?? '__none__';
+      const className = cls?.name ?? 'Sans classe';
+      const level = cls?.level ?? null;
+      let bucket = map.get(classKey);
+      if (!bucket) {
+        bucket = { classKey, className, level, grades: [] as any[] };
+        map.set(classKey, bucket);
+      }
+      bucket.grades.push(grade);
+    }
+    const classOrder = new Map<string, number>(
+      (classes ?? []).map((c: { id: string }, index: number) => [c.id, index]),
+    );
+    return [...map.values()].sort((a, b) => {
+      if (a.classKey === '__none__') return 1;
+      if (b.classKey === '__none__') return -1;
+      const orderA = classOrder.get(a.classKey) ?? 9999;
+      const orderB = classOrder.get(b.classKey) ?? 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.className.localeCompare(b.className, 'fr');
+    });
+  }, [filteredGrades, classes]);
 
   const filteredAbsences = absences?.filter((absence: any) => {
     const searchLower = searchQuery.toLowerCase();
@@ -1292,97 +1326,120 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
                 <p className="text-gray-600">Aucune note trouvée</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className={`w-full ${gradeTableText}`}>
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className={gradeTh}>Élève</th>
-                      <th className={gradeTh}>Classe</th>
-                      <th className={gradeTh}>Matière</th>
-                      <th className={gradeTh}>Évaluation</th>
-                      <th className={gradeTh}>Note</th>
-                      <th className={gradeTh}>Date</th>
-                      <th className={gradeTh}>Enseignant</th>
-                      <th className={gradeTh}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredGrades.map((grade: any) => (
-                      <tr key={grade.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className={gradeTd}>
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <FiUser className={gradeIcon} />
-                            <span className={`font-medium truncate ${tightTable ? '' : 'text-sm'}`}>
-                              {grade.student.user.firstName} {grade.student.user.lastName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className={gradeTd}>
-                          <Badge
-                            className={`bg-blue-100 text-blue-800 ${tightTable ? 'text-[10px] px-1.5 py-0' : ''}`}
-                          >
-                            {grade.student.class.name}
-                          </Badge>
-                        </td>
-                        <td className={gradeTd}>
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <FiBook className={gradeIcon} />
-                            <span className="truncate">{grade.course.name}</span>
-                          </div>
-                        </td>
-                        <td className={gradeTd}>
-                          <span
-                            className={
-                              tightTable ? 'text-[11px] leading-snug text-gray-700' : 'text-xs text-gray-800'
-                            }
-                          >
-                            {grade.title}
-                          </span>
-                        </td>
-                        <td className={gradeTd}>
-                          <Badge
-                            className={`${getGradeColor(grade.score, grade.maxScore)} ${
-                              tightTable ? 'text-[10px] px-1.5 py-0 tabular-nums' : 'tabular-nums'
-                            }`}
-                          >
-                            {grade.score.toFixed(2)} / {grade.maxScore}
-                          </Badge>
-                        </td>
-                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
-                          {format(new Date(grade.date), 'dd/MM/yyyy', { locale: fr })}
-                        </td>
-                        <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
-                          {grade.teacher.user.firstName} {grade.teacher.user.lastName}
-                        </td>
-                        <td className={gradeTd}>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleViewGrade(grade.id)}
-                              className={`text-blue-600 hover:bg-blue-50 rounded-lg transition-colors ${
-                                tightTable ? 'p-1' : 'p-2'
-                              }`}
-                              title="Voir les détails"
+              <div className="space-y-6">
+                {gradesByClass.map((group) => (
+                  <section
+                    key={group.classKey}
+                    className="rounded-xl border border-gray-200 overflow-hidden bg-white"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FiBook className="w-5 h-5 text-blue-700 shrink-0" aria-hidden />
+                        <div>
+                          <h4 className={`font-semibold text-gray-900 ${tightTable ? 'text-sm' : 'text-base'}`}>
+                            {group.className}
+                            {group.level ? (
+                              <span className="font-normal text-gray-600"> · {group.level}</span>
+                            ) : null}
+                          </h4>
+                          <p className={`text-gray-500 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
+                            {group.grades.length} note{group.grades.length > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-white/80 text-blue-800 border border-blue-100">
+                        {group.grades.length}
+                      </Badge>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className={`w-full ${gradeTableText}`}>
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50/80">
+                            <th className={gradeTh}>Élève</th>
+                            <th className={gradeTh}>Matière</th>
+                            <th className={gradeTh}>Évaluation</th>
+                            <th className={gradeTh}>Note</th>
+                            <th className={gradeTh}>Date</th>
+                            <th className={gradeTh}>Enseignant</th>
+                            <th className={gradeTh}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.grades.map((grade: any) => (
+                            <tr
+                              key={grade.id}
+                              className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                             >
-                              <FiEye className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedGradeId(grade.id);
-                                setIsAddGradeModalOpen(true);
-                              }}
-                              className={`text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ${
-                                tightTable ? 'p-1' : 'p-2'
-                              }`}
-                              title="Modifier"
-                            >
-                              <FiEdit className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                              <td className={gradeTd}>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <FiUser className={gradeIcon} />
+                                  <span className={`font-medium truncate ${tightTable ? '' : 'text-sm'}`}>
+                                    {grade.student.user.firstName} {grade.student.user.lastName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={gradeTd}>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <FiBook className={gradeIcon} />
+                                  <span className="truncate">{grade.course.name}</span>
+                                </div>
+                              </td>
+                              <td className={gradeTd}>
+                                <span
+                                  className={
+                                    tightTable ? 'text-[11px] leading-snug text-gray-700' : 'text-xs text-gray-800'
+                                  }
+                                >
+                                  {grade.title}
+                                </span>
+                              </td>
+                              <td className={gradeTd}>
+                                <Badge
+                                  className={`${getGradeColor(grade.score, grade.maxScore)} ${
+                                    tightTable ? 'text-[10px] px-1.5 py-0 tabular-nums' : 'tabular-nums'
+                                  }`}
+                                >
+                                  {grade.score.toFixed(2)} / {grade.maxScore}
+                                </Badge>
+                              </td>
+                              <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
+                                {format(new Date(grade.date), 'dd/MM/yyyy', { locale: fr })}
+                              </td>
+                              <td className={`${gradeTd} text-gray-600 ${tightTable ? 'text-[11px]' : 'text-xs'}`}>
+                                {grade.teacher.user.firstName} {grade.teacher.user.lastName}
+                              </td>
+                              <td className={gradeTd}>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleViewGrade(grade.id)}
+                                    className={`text-blue-600 hover:bg-blue-50 rounded-lg transition-colors ${
+                                      tightTable ? 'p-1' : 'p-2'
+                                    }`}
+                                    title="Voir les détails"
+                                  >
+                                    <FiEye className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedGradeId(grade.id);
+                                      setIsAddGradeModalOpen(true);
+                                    }}
+                                    className={`text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ${
+                                      tightTable ? 'p-1' : 'p-2'
+                                    }`}
+                                    title="Modifier"
+                                  >
+                                    <FiEdit className={tightTable ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </Card>

@@ -190,6 +190,7 @@ router.get('/grades', async (req, res) => {
             },
             class: {
               select: {
+                id: true,
                 name: true,
                 level: true,
               },
