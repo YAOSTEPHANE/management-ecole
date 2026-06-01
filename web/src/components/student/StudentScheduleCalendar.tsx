@@ -42,9 +42,11 @@ const DAYS = [
   { value: 6, label: 'Samedi', short: 'Sam' },
 ];
 
-import { SCHEDULE_TIME_SLOTS } from '../../lib/scheduleTimeSlots';
-
-const TIME_SLOTS = SCHEDULE_TIME_SLOTS;
+import {
+  isScheduleGridLabelMinute,
+  scheduleStartsAtMinute,
+  SCHEDULE_TIME_SLOTS,
+} from '../../lib/scheduleTimeSlots';
 
 const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ schedule }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -307,8 +309,8 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
               Planning Hebdomadaire
             </h3>
 
-            {/* Weekly Schedule Grid */}
-            <div className="overflow-x-auto">
+            {/* Weekly Schedule Grid (précision minute) */}
+            <div className="max-h-[28rem] overflow-auto rounded-lg border border-purple-100/80">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr>
@@ -336,24 +338,20 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                   </tr>
                 </thead>
                 <tbody>
-                  {TIME_SLOTS.map((time, idx) => {
-                    if (idx % 2 !== 0) return null; // Afficher seulement les heures pleines
-                    return (
-                      <tr key={time}>
+                  {SCHEDULE_TIME_SLOTS.slice(0, -1).map((time) => (
+                      <tr key={time} className="h-4">
                         <td 
-                          className="relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-xs font-medium text-gray-600"
+                          className="relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 px-1.5 py-0 text-[10px] font-medium text-gray-600 tabular-nums"
                           style={{
                             boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)',
                           }}
                         >
-                          {time}
+                          {isScheduleGridLabelMinute(time) ? time : ''}
                         </td>
                         {DAYS.slice(1, 6).map((day) => {
-                          const scheduleForSlot = weeklySchedule[day.value]?.find((s: ScheduleItem) => {
-                            const start = s.startTime;
-                            const end = s.endTime;
-                            return start <= time && end > time;
-                          });
+                          const scheduleForSlot = weeklySchedule[day.value]?.find((s: ScheduleItem) =>
+                            scheduleStartsAtMinute(s.startTime, time),
+                          );
 
                           return (
                             <td
@@ -421,20 +419,12 @@ const StudentScheduleCalendar: React.FC<StudentScheduleCalendarProps> = ({ sched
                                     </div>
                                   </div>
                                 </div>
-                              ) : (
-                                <div 
-                                  className="h-14 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-50 sm:h-16"
-                                  style={{
-                                    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
-                                  }}
-                                ></div>
-                              )}
+                              ) : null}
                             </td>
                           );
                         })}
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>

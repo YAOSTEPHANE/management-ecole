@@ -15,6 +15,7 @@ import {
   courseGradingCoefficientMap,
   computeOverallAverageFromCourseAverages,
 } from '../utils/course-grading-coefficient.util';
+import { normalizeScheduleTime } from '../utils/schedule-time.util';
 import { computeClassBulletinRanks, enrichReportCardsWithTermHistory } from '../utils/report-card.util';
 import {
   assertScheduleConstraints,
@@ -633,34 +634,49 @@ router.put(
         }
       }
 
-      const course = await prisma.course.update({
-        where: { id: courseId },
-        data: {
-          ...(name != null && { name: String(name).trim() }),
-          ...(code != null && { code: String(code).trim() }),
-          ...(description !== undefined && {
-            description: description === null || description === '' ? null : String(description),
-          }),
-          ...(classId != null && { classId }),
-          ...(teacherId != null && { teacherId }),
-          ...(weeklyHours !== undefined && {
-            weeklyHours:
-              weeklyHours === null || weeklyHours === ''
-                ? null
-                : Number(weeklyHours),
-          }),
-          ...(parsedGradingCoefficient !== undefined && {
-            gradingCoefficient: parsedGradingCoefficient,
-          }),
-        },
-        include: {
-          class: { select: { id: true, name: true, level: true } },
-          teacher: {
-            include: {
-              user: { select: { firstName: true, lastName: true } },
+      const course = await prisma.$transaction(async (tx) => {
+        const updated = await tx.course.update({
+          where: { id: courseId },
+          data: {
+            ...(name != null && { name: String(name).trim() }),
+            ...(code != null && { code: String(code).trim() }),
+            ...(description !== undefined && {
+              description: description === null || description === '' ? null : String(description),
+            }),
+            ...(classId != null && { classId }),
+            ...(teacherId != null && { teacherId }),
+            ...(weeklyHours !== undefined && {
+              weeklyHours:
+                weeklyHours === null || weeklyHours === ''
+                  ? null
+                  : Number(weeklyHours),
+            }),
+            ...(parsedGradingCoefficient !== undefined && {
+              gradingCoefficient: parsedGradingCoefficient,
+            }),
+          },
+          include: {
+            class: { select: { id: true, name: true, level: true } },
+            teacher: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
             },
           },
-        },
+        });
+
+        if (
+          parsedGradingCoefficient !== undefined &&
+          parsedGradingCoefficient !== (existing.gradingCoefficient ?? 1)
+        ) {
+          const previousDefault = existing.gradingCoefficient ?? 1;
+          await tx.grade.updateMany({
+            where: { courseId, coefficient: previousDefault },
+            data: { coefficient: parsedGradingCoefficient },
+          });
+        }
+
+        return updated;
       });
       res.json(course);
     } catch (error: any) {
@@ -3676,13 +3692,19 @@ router.post('/schedules', async (req, res) => {
       return res.status(400).json({ error: 'Tous les champs sont requis' });
     }
 
+    const normalizedStart = normalizeScheduleTime(String(startTime));
+    const normalizedEnd = normalizeScheduleTime(String(endTime));
+    if (!normalizedStart || !normalizedEnd) {
+      return res.status(400).json({ error: 'Heure de début ou de fin invalide (format HH:mm)' });
+    }
+
     try {
       await assertScheduleConstraints(prisma, {
         classId: String(classId),
         courseId: String(courseId),
         dayOfWeek: parseInt(String(dayOfWeek), 10),
-        startTime: String(startTime),
-        endTime: String(endTime),
+        startTime: normalizedStart,
+        endTime: normalizedEnd,
         room: room ? String(room) : null,
         substituteTeacherId: substituteTeacherId ? String(substituteTeacherId) : null,
       });
@@ -3698,8 +3720,8 @@ router.post('/schedules', async (req, res) => {
         classId,
         courseId,
         dayOfWeek: parseInt(String(dayOfWeek), 10),
-        startTime: String(startTime),
-        endTime: String(endTime),
+        startTime: normalizedStart,
+        endTime: normalizedEnd,
         room: room ? String(room) : null,
         substituteTeacherId: substituteTeacherId ? String(substituteTeacherId) : null,
         replacementNote: replacementNote ? String(replacementNote) : null,
@@ -3741,8 +3763,16 @@ router.put('/schedules/:id', async (req, res) => {
     if (!current) return res.status(404).json({ error: 'Emploi du temps non trouvé' });
 
     const nextDay = dayOfWeek !== undefined ? parseInt(String(dayOfWeek), 10) : current.dayOfWeek;
-    const nextStart = startTime ? String(startTime) : current.startTime;
-    const nextEnd = endTime ? String(endTime) : current.endTime;
+    const nextStartRaw = startTime ? String(startTime) : current.startTime;
+    const nextEndRaw = endTime ? String(endTime) : current.endTime;
+    const nextStart = normalizeScheduleTime(nextStartRaw) ?? nextStartRaw;
+    const nextEnd = normalizeScheduleTime(nextEndRaw) ?? nextEndRaw;
+    if (startTime && !normalizeScheduleTime(String(startTime))) {
+      return res.status(400).json({ error: 'Heure de début invalide (format HH:mm)' });
+    }
+    if (endTime && !normalizeScheduleTime(String(endTime))) {
+      return res.status(400).json({ error: 'Heure de fin invalide (format HH:mm)' });
+    }
     const nextRoom = room !== undefined ? (room ? String(room) : null) : current.room;
     const nextSubstitute =
       substituteTeacherId !== undefined

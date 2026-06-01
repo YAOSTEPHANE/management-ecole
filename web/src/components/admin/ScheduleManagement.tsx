@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../services/api';
 import Card from '../ui/Card';
@@ -48,7 +48,15 @@ const DAYS = [
   { value: 6, label: 'Samedi' },
 ];
 
-import { DEFAULT_SCHEDULE_START, SCHEDULE_TIME_SLOTS } from '../../lib/scheduleTimeSlots';
+import ScheduleTimeInput from '../schedule/ScheduleTimeInput';
+import {
+  DEFAULT_SCHEDULE_START,
+  SCHEDULE_DAY_END,
+  SCHEDULE_TIME_SLOTS,
+  isScheduleGridLabelMinute,
+  scheduleSlotDurationHours,
+  scheduleStartsAtMinute,
+} from '../../lib/scheduleTimeSlots';
 
 const getTeacherDisplayName = (teacher?: any) =>
   teacher?.user ? `${teacher.user.firstName ?? ''} ${teacher.user.lastName ?? ''}`.trim() : '';
@@ -370,6 +378,33 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
         s.room?.toLowerCase().includes(query)
     );
   }
+
+  const weeklyHoursSummary = useMemo(() => {
+    if (selectedClass === 'all' || !courses) return [];
+    const classCourses = (courses as any[]).filter((c) => c.classId === selectedClass);
+    const classSchedules = (schedules as any[] | undefined)?.filter(
+      (s) => s.classId === selectedClass,
+    ) ?? filteredSchedulesList;
+
+    const plannedByCourse = new Map<string, number>();
+    for (const s of classSchedules) {
+      const h = scheduleSlotDurationHours(s.startTime, s.endTime);
+      plannedByCourse.set(s.courseId, (plannedByCourse.get(s.courseId) ?? 0) + h);
+    }
+
+    return classCourses.map((c) => {
+      const target = c.weeklyHours != null ? Number(c.weeklyHours) : null;
+      const planned = Math.round((plannedByCourse.get(c.id) ?? 0) * 10) / 10;
+      return {
+        id: c.id,
+        name: c.name,
+        target,
+        planned,
+        gap:
+          target != null ? Math.round((planned - target) * 10) / 10 : null,
+      };
+    });
+  }, [selectedClass, courses, schedules, filteredSchedulesList]);
 
   // Organiser les horaires par jour et classe
   const organizedSchedules = filteredSchedulesList.reduce((acc: any, schedule: any) => {
@@ -709,6 +744,50 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
         </div>
       </Card>
 
+      {selectedClass !== 'all' && weeklyHoursSummary.length > 0 && (
+        <Card className="relative z-40 border-amber-200/80 bg-amber-50/40">
+          <h3 className="mb-2 font-semibold text-gray-800">Volume horaire (matières de la classe)</h3>
+          <p className="mb-3 text-xs text-gray-600">
+            Heures planifiées dans l&apos;emploi du temps vs volume défini sur chaque matière (module
+            Matières).
+          </p>
+          <div className="overflow-x-auto">
+            <table className={compact ? 'min-w-full text-xs' : 'min-w-full text-sm'}>
+              <thead className="bg-white/80 text-left text-gray-600">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Matière</th>
+                  <th className="px-3 py-2 font-medium">Prévu (h/sem.)</th>
+                  <th className="px-3 py-2 font-medium">Planifié (h/sem.)</th>
+                  <th className="px-3 py-2 font-medium">Écart</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100">
+                {weeklyHoursSummary.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-3 py-2 font-medium text-gray-900">{row.name}</td>
+                    <td className="px-3 py-2 tabular-nums text-gray-700">
+                      {row.target != null ? row.target : '—'}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-gray-700">{row.planned}</td>
+                    <td className="px-3 py-2 tabular-nums">
+                      {row.gap == null ? (
+                        '—'
+                      ) : row.gap === 0 ? (
+                        <span className="text-emerald-700">OK</span>
+                      ) : row.gap > 0 ? (
+                        <span className="text-amber-800">+{row.gap} h</span>
+                      ) : (
+                        <span className="text-red-700">{row.gap} h</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 relative z-40">
         <Card>
           <h3 className="mb-3 font-semibold text-gray-800">Disponibilités enseignants</h3>
@@ -739,20 +818,24 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                 onChange={(e) => setAvailabilityForm({ ...availabilityForm, label: e.target.value })}
                 placeholder="Label (optionnel)"
               />
-              <FilterDropdown
-                variant="field"
-                label="Début"
-                value={availabilityForm.startTime}
-                onChange={(value) => setAvailabilityForm({ ...availabilityForm, startTime: value })}
-                options={SCHEDULE_TIME_SLOTS.map((t) => ({ value: t, label: t }))}
-              />
-              <FilterDropdown
-                variant="field"
-                label="Fin"
-                value={availabilityForm.endTime}
-                onChange={(value) => setAvailabilityForm({ ...availabilityForm, endTime: value })}
-                options={SCHEDULE_TIME_SLOTS.filter((t) => t > availabilityForm.startTime).map((t) => ({ value: t, label: t }))}
-              />
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-700">Début</label>
+                <ScheduleTimeInput
+                  value={availabilityForm.startTime}
+                  onChange={(value) => setAvailabilityForm({ ...availabilityForm, startTime: value })}
+                  min={DEFAULT_SCHEDULE_START}
+                  max={SCHEDULE_DAY_END}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-700">Fin</label>
+                <ScheduleTimeInput
+                  value={availabilityForm.endTime}
+                  onChange={(value) => setAvailabilityForm({ ...availabilityForm, endTime: value })}
+                  min={availabilityForm.startTime || DEFAULT_SCHEDULE_START}
+                  max={SCHEDULE_DAY_END}
+                />
+              </div>
             </div>
             <Button
               onClick={() => {
@@ -805,20 +888,24 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                 onChange={(value) => setRoomBlockForm({ ...roomBlockForm, dayOfWeek: value })}
                 options={DAYS.map((d) => ({ value: String(d.value), label: d.label }))}
               />
-              <FilterDropdown
-                variant="field"
-                label="Début"
-                value={roomBlockForm.startTime}
-                onChange={(value) => setRoomBlockForm({ ...roomBlockForm, startTime: value })}
-                options={SCHEDULE_TIME_SLOTS.map((t) => ({ value: t, label: t }))}
-              />
-              <FilterDropdown
-                variant="field"
-                label="Fin"
-                value={roomBlockForm.endTime}
-                onChange={(value) => setRoomBlockForm({ ...roomBlockForm, endTime: value })}
-                options={SCHEDULE_TIME_SLOTS.filter((t) => t > roomBlockForm.startTime).map((t) => ({ value: t, label: t }))}
-              />
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-700">Début</label>
+                <ScheduleTimeInput
+                  value={roomBlockForm.startTime}
+                  onChange={(value) => setRoomBlockForm({ ...roomBlockForm, startTime: value })}
+                  min={DEFAULT_SCHEDULE_START}
+                  max={SCHEDULE_DAY_END}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-700">Fin</label>
+                <ScheduleTimeInput
+                  value={roomBlockForm.endTime}
+                  onChange={(value) => setRoomBlockForm({ ...roomBlockForm, endTime: value })}
+                  min={roomBlockForm.startTime || DEFAULT_SCHEDULE_START}
+                  max={SCHEDULE_DAY_END}
+                />
+              </div>
               <div className="col-span-2">
                 <Input
                   value={roomBlockForm.reason}
@@ -943,8 +1030,8 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                   </Badge>
                 </div>
 
-              {/* Weekly Schedule Grid */}
-              <div className="overflow-x-auto">
+              {/* Weekly Schedule Grid (précision minute, défilement vertical) */}
+              <div className="max-h-[28rem] overflow-auto rounded-lg border border-gray-100">
                 <table className={compact ? 'w-full border-collapse text-[11px]' : 'w-full border-collapse text-xs'}>
                   <thead>
                     <tr>
@@ -972,28 +1059,24 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {SCHEDULE_TIME_SLOTS.map((time, idx) => {
-                      if (idx % 2 !== 0) return null; // Afficher seulement les heures pleines
-                      return (
-                        <tr key={time}>
+                    {SCHEDULE_TIME_SLOTS.slice(0, -1).map((time) => (
+                        <tr key={time} className="h-4">
                           <td 
                             className={
                               compact
-                                ? 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-[11px] font-medium text-gray-600'
-                                : 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-1.5 text-xs font-medium text-gray-600'
+                                ? 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 px-1 py-0 text-[10px] font-medium text-gray-600 tabular-nums'
+                                : 'relative border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 px-1.5 py-0 text-[10px] font-medium text-gray-600 tabular-nums'
                             }
                             style={{
                               boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)',
                             }}
                           >
-                            {time}
+                            {isScheduleGridLabelMinute(time) ? time : ''}
                           </td>
                           {DAYS.map((day) => {
-                            const scheduleForSlot = days[day.value]?.find((s: any) => {
-                              const start = s.startTime;
-                              const end = s.endTime;
-                              return start <= time && end > time;
-                            });
+                            const scheduleForSlot = days[day.value]?.find((s: any) =>
+                              scheduleStartsAtMinute(s.startTime, time),
+                            );
 
                             return (
                               <td
@@ -1118,20 +1201,12 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
                                       </div>
                                     </div>
                                   </div>
-                                ) : (
-                                  <div 
-                                    className="h-12 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-50 sm:h-14"
-                                    style={{
-                                      boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
-                                    }}
-                                  ></div>
-                                )}
+                                ) : null}
                               </td>
                             );
                           })}
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1268,12 +1343,12 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
               <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Heure de début <span className="text-red-500">*</span>
               </label>
-              <FilterDropdown
-                variant="field"
-                label="Heure de début"
+              <ScheduleTimeInput
                 value={scheduleForm.startTime}
                 onChange={(value) => setScheduleForm({ ...scheduleForm, startTime: value })}
-                options={SCHEDULE_TIME_SLOTS.map((t) => ({ value: t, label: t }))}
+                min={DEFAULT_SCHEDULE_START}
+                max={SCHEDULE_DAY_END}
+                required
               />
             </div>
 
@@ -1281,15 +1356,12 @@ const ScheduleManagement = ({ compact = false }: ScheduleManagementProps) => {
               <label className="mb-1.5 block text-xs font-semibold text-gray-700">
                 Heure de fin <span className="text-red-500">*</span>
               </label>
-              <FilterDropdown
-                variant="field"
-                label="Heure de fin"
+              <ScheduleTimeInput
                 value={scheduleForm.endTime}
                 onChange={(value) => setScheduleForm({ ...scheduleForm, endTime: value })}
-                options={SCHEDULE_TIME_SLOTS.filter((t) => t > scheduleForm.startTime).map((t) => ({
-                  value: t,
-                  label: t,
-                }))}
+                min={scheduleForm.startTime || DEFAULT_SCHEDULE_START}
+                max={SCHEDULE_DAY_END}
+                required
               />
             </div>
           </div>

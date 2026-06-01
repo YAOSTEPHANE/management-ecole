@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import prisma from './prisma';
+import { normalizeScheduleTime } from './schedule-time.util';
 
 const userBriefSelect = { firstName: true, lastName: true, email: true } as const;
 
@@ -79,8 +80,12 @@ async function enrichSchedules(
     if (!cls || !courseRow) continue;
 
     const courseTeacher = teacherMap.get(courseRow.teacherId) ?? null;
+    const startTime = normalizeScheduleTime(row.startTime) ?? row.startTime;
+    const endTime = normalizeScheduleTime(row.endTime) ?? row.endTime;
     enriched.push({
       ...row,
+      startTime,
+      endTime,
       class: cls,
       course: {
         id: courseRow.id,

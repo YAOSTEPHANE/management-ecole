@@ -76,6 +76,9 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
     mutationFn: ({ id, data }: { id: string; data: any }) => adminApi.updateCourse(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-grades'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['report-cards'] });
       toast.success('Matière mise à jour');
       closeModal();
     },
@@ -385,8 +388,9 @@ const CoursesProgramManagement: React.FC<CoursesProgramManagementProps> = ({ com
             placeholder="1"
           />
           <p className="text-xs text-gray-500 -mt-2">
-            Pondération des notes (moyennes et bulletins). Chaque note peut avoir un coefficient
-            différent si besoin.
+            Pondération des notes (moyennes et bulletins). À la modification, les notes qui
+            utilisaient encore l&apos;ancien coefficient par défaut de la matière sont mises à jour
+            automatiquement.
           </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={closeModal}>
