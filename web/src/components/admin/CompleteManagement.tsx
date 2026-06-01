@@ -50,6 +50,7 @@ const BULLETIN_PERIOD_OPTIONS = [
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
 import toast from 'react-hot-toast';
+import { gradeDeletionSubmittedMessage } from '../../lib/academicValidationMessages';
 import jsPDF from 'jspdf';
 // Import both default and side-effect to ensure plugin is loaded
 import autoTable from 'jspdf-autotable';
@@ -178,9 +179,14 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
         academicYear: bulletinSyncYear,
         publish,
       }),
-    onSuccess: (data: { message?: string; published?: boolean }) => {
+    onSuccess: (data: { message?: string; count?: number }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-report-cards-tab'] });
-      toast.success(data?.message || 'Bulletins synchronisés');
+      toast.success(
+        data?.message ??
+          (data?.count != null && data.count > 0
+            ? `${data.count} demande(s) de moyenne soumise(s) au circuit de validation.`
+            : 'Aucune modification de moyenne à soumettre.'),
+      );
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Erreur lors de la synchronisation');
@@ -210,9 +216,9 @@ const CompleteManagement: React.FC<CompleteManagementProps> = ({
   // Delete mutations
   const deleteGradeMutation = useMutation({
     mutationFn: adminApi.deleteGrade,
-    onSuccess: () => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-grades'] });
-      toast.success('Note supprimée avec succès');
+      toast.success(data?.message ?? gradeDeletionSubmittedMessage);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Erreur lors de la suppression');

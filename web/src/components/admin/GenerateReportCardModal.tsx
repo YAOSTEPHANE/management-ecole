@@ -111,7 +111,7 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
       }
 
       // Save report cards to database
-      await adminApi.saveReportCards({
+      const saveResult = await adminApi.saveReportCards({
         classId: selectedClass,
         period: selectedPeriod,
         academicYear: selectedAcademicYear,
@@ -120,11 +120,22 @@ const GenerateReportCardModal: React.FC<GenerateReportCardModalProps> = ({ isOpe
 
       queryClient.invalidateQueries({ queryKey: ['report-cards'] });
       queryClient.invalidateQueries({ queryKey: ['admin-report-cards-tab'] });
-      return reportCardData.length;
+      return {
+        pdfCount: reportCardData.length,
+        message: saveResult?.message as string | undefined,
+        validationCount: saveResult?.count as number | undefined,
+      };
     },
-    onSuccess: (count) => {
+    onSuccess: ({ pdfCount, message, validationCount }) => {
+      const validationNote =
+        message ??
+        (validationCount != null && validationCount > 0
+          ? `${validationCount} demande(s) de bulletin soumise(s) au circuit de validation.`
+          : 'Aucune modification de moyenne à soumettre.');
       toast.success(
-        `${count} bulletin(s) généré(s) et synchronisé(s)${publishAfterSave ? ', publiés pour les familles' : ''} !`
+        `${pdfCount} bulletin(s) PDF généré(s). ${validationNote}${
+          publishAfterSave ? ' (publication après validation des moyennes)' : ''
+        }`,
       );
       handleClose();
     },

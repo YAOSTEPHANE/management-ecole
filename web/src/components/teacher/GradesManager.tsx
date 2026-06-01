@@ -6,6 +6,10 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import toast from 'react-hot-toast';
+import {
+  ACADEMIC_VALIDATION_WORKFLOW_HINT,
+  gradeModificationSubmittedMessage,
+} from '../../lib/academicValidationMessages';
 import { 
   FiClipboard, 
   FiPlus, 
@@ -411,7 +415,7 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
       queryClient.invalidateQueries({ queryKey: ['teacher-course-grades'] });
       toast.success(
         data?.message ??
-          'Demande soumise au circuit de validation (prof principal, éducateur, directeur des études).'
+          (isEditMode ? gradeModificationSubmittedMessage : 'Note enregistrée avec succès.'),
       );
       onClose();
     },
@@ -578,6 +582,13 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
           />
         </div>
 
+        {isEditMode ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            La modification est soumise au circuit de validation ({ACADEMIC_VALIDATION_WORKFLOW_HINT})
+            avant d&apos;être appliquée.
+          </p>
+        ) : null}
+
         <div className="flex justify-end space-x-3 pt-4">
           <Button
             type="button"
@@ -591,7 +602,7 @@ const AddGradeModal = ({ isOpen, onClose, courseId, courseData, grade }: AddGrad
             variant="primary"
             disabled={createMutation.isPending}
           >
-            {createMutation.isPending ? 'Enregistrement...' : isEditMode ? 'Modifier' : 'Ajouter'}
+            {createMutation.isPending ? 'Enregistrement...' : isEditMode ? 'Soumettre' : 'Ajouter'}
           </Button>
         </div>
       </form>

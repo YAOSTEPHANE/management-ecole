@@ -10,6 +10,10 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import toast from 'react-hot-toast';
+import {
+  ACADEMIC_VALIDATION_WORKFLOW_HINT,
+  gradeModificationSubmittedMessage,
+} from '../../lib/academicValidationMessages';
 import { 
   FiUser, 
   FiBook, 
@@ -137,10 +141,14 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
       }
       return adminApi.createGrade(data);
     },
-    onSuccess: () => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-grades'] });
       queryClient.invalidateQueries({ queryKey: ['grade', gradeId] });
-      toast.success(isEditMode ? 'Note modifiée avec succès !' : 'Note créée avec succès !');
+      toast.success(
+        isEditMode
+          ? (data?.message ?? gradeModificationSubmittedMessage)
+          : (data?.message ?? 'Note créée avec succès !'),
+      );
       handleClose();
     },
     onError: (error: any) => {
@@ -605,6 +613,13 @@ const AddGradeModal: React.FC<AddGradeModalProps> = ({ isOpen, onClose, gradeId 
             </div>
           </div>
         )}
+
+        {isEditMode ? (
+          <p className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+            La modification d&apos;une note est soumise au circuit de validation (
+            {ACADEMIC_VALIDATION_WORKFLOW_HINT}) avant d&apos;être appliquée.
+          </p>
+        ) : null}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80">

@@ -100,9 +100,11 @@ import path from 'node:path';
 import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
 import {
   createGradeChangeRequest,
+  createGradeDirectly,
   createReportCardChangeRequest,
   gradeToPayload,
   workflowStatusLabel,
+  type GradePayload,
   type ReportCardPayload,
 } from '../utils/academic-change-request.util';
 import type { AuthRequest } from '../middleware/auth.middleware';
@@ -1033,31 +1035,24 @@ router.post(
         comments,
       } = req.body;
 
-      const request = await createGradeChangeRequest({
-        kind: 'CREATE',
-        requestedByUserId: req.user!.id,
+      const payload: GradePayload = {
         studentId,
-        payload: {
-          studentId,
-          courseId,
-          teacherId,
-          evaluationType,
-          title,
-          score: parseFloat(score),
-          maxScore: parseFloat(maxScore) || 20,
-          coefficient: parseFloat(coefficient) || 1,
-          date: date ? new Date(date) : new Date(),
-          comments: comments ?? null,
-        },
-      });
+        courseId,
+        teacherId,
+        evaluationType,
+        title,
+        score: parseFloat(score),
+        maxScore: parseFloat(maxScore) || 20,
+        coefficient: parseFloat(coefficient) || 1,
+        date: date ? new Date(date) : new Date(),
+        comments: comments ?? null,
+      };
 
-      res.status(202).json({
-        message:
-          'Demande enregistrée. Validation requise : professeur principal, éducateur, directeur des études.',
-        request: {
-          ...request,
-          statusLabel: workflowStatusLabel(request.status),
-        },
+      const grade = await createGradeDirectly(payload);
+
+      res.status(201).json({
+        message: 'Note créée avec succès.',
+        grade,
       });
     } catch (error: any) {
       const statusCode = error.statusCode ?? 500;

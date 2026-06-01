@@ -94,6 +94,50 @@ export function gradeToPayload(grade: {
   };
 }
 
+/**
+ * Création immédiate d'une note (sans circuit de validation).
+ * Toute modification ou suppression de note, ainsi que toute création ou modification
+ * de moyenne / bulletin, doit passer par createGradeChangeRequest ou createReportCardChangeRequest.
+ */
+export async function createGradeDirectly(payload: GradePayload) {
+  const grade = await prisma.grade.create({
+    data: {
+      studentId: payload.studentId,
+      courseId: payload.courseId,
+      teacherId: payload.teacherId,
+      evaluationType: payload.evaluationType as never,
+      title: payload.title,
+      score: payload.score,
+      maxScore: payload.maxScore,
+      coefficient: payload.coefficient,
+      date: new Date(payload.date),
+      comments: payload.comments ?? null,
+    },
+    include: {
+      student: {
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+      course: { select: { id: true, name: true, code: true } },
+      teacher: {
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  void notifyParentsNewGrade({
+    studentId: payload.studentId,
+    courseName: grade.course?.name ?? 'matière',
+    score: payload.score,
+    maxScore: payload.maxScore,
+  }).catch((err) => console.error('notifyParentsNewGrade:', err));
+
+  return grade;
+}
+
 export async function createGradeChangeRequest(params: {
   kind: AcademicChangeKind;
   requestedByUserId: string;

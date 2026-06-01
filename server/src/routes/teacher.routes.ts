@@ -11,8 +11,10 @@ import { toAttendanceDateKey, upsertTeacherAttendance } from '../utils/teacher-a
 import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
 import {
   createGradeChangeRequest,
+  createGradeDirectly,
   gradeToPayload,
   workflowStatusLabel,
+  type GradePayload,
 } from '../utils/academic-change-request.util';
 
 const router = express.Router();
@@ -298,31 +300,24 @@ router.post(
         return res.status(403).json({ error: 'Vous n\'enseignez pas ce cours' });
       }
 
-      const grade = await createGradeChangeRequest({
-        kind: 'CREATE',
-        requestedByUserId: req.user!.id,
+      const payload: GradePayload = {
         studentId,
-        payload: {
-          studentId,
-          courseId,
-          teacherId,
-          evaluationType,
-          title,
-          score: parseFloat(score),
-          maxScore: parseFloat(maxScore) || 20,
-          coefficient: parseFloat(coefficient) || 1,
-          date: date ? new Date(date) : new Date(),
-          comments: comments ?? null,
-        },
-      });
+        courseId,
+        teacherId,
+        evaluationType,
+        title,
+        score: parseFloat(score),
+        maxScore: parseFloat(maxScore) || 20,
+        coefficient: parseFloat(coefficient) || 1,
+        date: date ? new Date(date) : new Date(),
+        comments: comments ?? null,
+      };
 
-      res.status(202).json({
-        message:
-          'Demande enregistrée. Validation requise : professeur principal, éducateur, directeur des études.',
-        request: {
-          ...grade,
-          statusLabel: workflowStatusLabel(grade.status),
-        },
+      const grade = await createGradeDirectly(payload);
+
+      res.status(201).json({
+        message: 'Note enregistrée avec succès.',
+        grade,
       });
     } catch (error: any) {
       const statusCode = error.statusCode ?? 500;

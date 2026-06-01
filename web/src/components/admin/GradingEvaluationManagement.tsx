@@ -133,6 +133,12 @@ const GradingEvaluationManagement: React.FC = () => {
                 Les <strong>rapports institutionnels</strong> (effectifs, synthèses) complètent les
                 bulletins individuels.
               </li>
+              <li>
+                <strong>Ajout</strong> de note : enregistrement immédiat.{' '}
+                <strong>Modification, suppression</strong> de notes et{' '}
+                <strong>enregistrement des moyennes</strong> (bulletins) : circuit de validation
+                (professeur principal → éducateur → directeur des études).
+              </li>
             </ul>
           </Card>
         </div>
