@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 import {
+  readSchoolIdFromRequest,
+  readSchoolSlugFromRequest,
   resolveActiveSchoolForRequest,
   SchoolPrismaNotReadyError,
   type SchoolContextRequest,
@@ -18,9 +20,12 @@ export async function attachSchoolContext(
   try {
     const ctx = await resolveActiveSchoolForRequest(req);
     if (!ctx) {
-      return res.status(400).json({
-        error:
-          'Établissement introuvable ou accès refusé. Sélectionnez un collège dans le menu ou précisez ?school=slug.',
+      const hasExplicitSchool =
+        Boolean(readSchoolIdFromRequest(req)) || Boolean(readSchoolSlugFromRequest(req));
+      return res.status(hasExplicitSchool ? 403 : 400).json({
+        error: hasExplicitSchool
+          ? 'Établissement introuvable ou accès refusé pour cet identifiant.'
+          : 'Établissement introuvable ou accès refusé. Sélectionnez un collège dans le menu ou précisez ?school=slug.',
       });
     }
     req.schoolId = ctx.schoolId;

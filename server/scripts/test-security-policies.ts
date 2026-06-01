@@ -2,6 +2,8 @@
  * Tests d'intégration API : politique mot de passe + contrôle d'accès établissement / parent.
  * Prérequis : API sur localhost:5000 (npm run dev).
  */
+import { TEST_PASSWORD } from './test-credentials';
+
 const API = (process.env.API_URL ?? 'http://localhost:5000/api').replace(/\/+$/, '');
 
 type Json = Record<string, unknown>;
@@ -70,7 +72,7 @@ async function main() {
     `${weakRegister.status} ${JSON.stringify(weakRegister.body)}`,
   );
 
-  const adminToken = await login('admin@school.com', 'password123');
+  const adminToken = await login('admin@school.com', TEST_PASSWORD);
 
   const schoolsRes = await req('/admin/schools', { token: adminToken });
   assert('GET /admin/schools -> 200', schoolsRes.status === 200, String(schoolsRes.status));
@@ -126,7 +128,7 @@ async function main() {
   });
   assert('GET /admin/payments scoped -> 200', paymentsScoped.status === 200, String(paymentsScoped.status));
 
-  const parentToken = await login('parent1@school.com', 'password123');
+  const parentToken = await login('parent1@school.com', TEST_PASSWORD);
   const childrenRes = await req('/parent/children', { token: parentToken });
   assert('GET /parent/children -> 200', childrenRes.status === 200, String(childrenRes.status));
   const childRows = Array.isArray(childrenRes.body) ? childrenRes.body : [];

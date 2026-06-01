@@ -6,8 +6,10 @@
  *
  * Usage : npx tsx scripts/test-all-spaces-modules.ts
  */
+import { TEST_PASSWORD } from './test-credentials';
+
 const API = (process.env.API_URL ?? 'http://localhost:5000/api').replace(/\/+$/, '');
-const PASSWORD = process.env.TEST_PASSWORD ?? 'password123';
+const PASSWORD = TEST_PASSWORD;
 
 type Json = Record<string, unknown>;
 

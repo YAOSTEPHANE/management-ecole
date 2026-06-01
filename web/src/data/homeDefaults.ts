@@ -1,7 +1,7 @@
 /** Contenu générique de la page d'accueil (sans nom d'établissement codé en dur). */
 
 export const DEFAULT_INTRO =
-  'Une plateforme pour structurer la scolarité, accompagner les élèves et renforcer le lien avec les familles.';
+  'Exigence académique, accompagnement humain et outils numériques au service de la réussite de chaque élève.';
 
 export const DEFAULT_MISSION =
   'Offrir une éducation de qualité, dans un cadre structuré, moderne et orienté vers la réussite.';
@@ -55,4 +55,46 @@ export const HOME_STATS = [
   { n: '07h–17h', l: 'accueil', d: 'lun. – ven. (sauf mer.)' },
   { n: '4', l: 'portails', d: 'familles, élèves, équipes' },
   { n: '1', l: 'plateforme', d: 'suivi centralisé' },
+] as const;
+
+export const HOME_NEWS = [
+  {
+    date: '19 janv. 2026',
+    title: 'En route pour une nouvelle semaine',
+    excerpt:
+      'Une nouvelle semaine porteuse de défis à relever, de savoirs à acquérir et de réussites à construire.',
+  },
+  {
+    date: '1 janv. 2026',
+    title: 'Vœux du Nouvel An',
+    excerpt:
+      'Meilleurs vœux aux parents, élèves, enseignants et partenaires. Poursuivons notre engagement pour une éducation de qualité.',
+  },
+  {
+    date: '18 déc. 2025',
+    title: 'Journée portes ouvertes',
+    excerpt:
+      'Dialogue parents–enseignants et suivi des bulletins. Ensemble, préparons l’avenir de nos élèves.',
+  },
+  {
+    date: '29 nov. 2025',
+    title: 'Notre mission',
+    excerpt:
+      'Former aujourd’hui, bâtir demain : un cadre structuré, moderne et orienté vers la réussite scolaire.',
+  },
+] as const;
+
+export const HOME_TESTIMONIALS = [
+  {
+    quote:
+      'Un établissement qui associe exigence, discipline et accompagnement humain dans une vision claire de la réussite.',
+    author: 'Communauté éducative',
+    role: 'Projet scolaire',
+  },
+  {
+    quote:
+      'Chaque élève doit se sentir attendu, guidé et encouragé à progresser avec sérieux et confiance.',
+    author: 'Vie scolaire',
+    role: 'Encadrement quotidien',
+  },
 ] as const;

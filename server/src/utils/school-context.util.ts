@@ -127,8 +127,11 @@ export async function resolveActiveSchoolForRequest(
   const schools = getSchoolDelegate()!;
   const members = getSchoolMemberDelegate()!;
 
-  let schoolId = readSchoolIdFromRequest(req);
-  const slug = readSchoolSlugFromRequest(req);
+  const explicitSchoolId = readSchoolIdFromRequest(req);
+  const explicitSlug = readSchoolSlugFromRequest(req);
+
+  let schoolId = explicitSchoolId;
+  const slug = explicitSlug;
 
   if (!schoolId && slug) {
     const bySlug = await resolveSchoolBySlug(slug);
@@ -138,6 +141,7 @@ export async function resolveActiveSchoolForRequest(
   const user = req.user;
   if (!user) {
     if (!schoolId) {
+      if (explicitSlug) return null;
       const def = (await schools.findFirst({
         where: { isDefault: true, isActive: true },
         select: { id: true, name: true, slug: true, isDefault: true },
@@ -167,7 +171,10 @@ export async function resolveActiveSchoolForRequest(
       })) as SchoolSummary | null;
       if (school) return { schoolId: school.id, school };
     }
-    // En-tête X-School-Id obsolète (ex. localStorage) — reprendre l'établissement par défaut
+    // X-School-Id ou ?school= explicite mais invalide — ne pas retomber sur l'établissement par défaut
+    if (explicitSchoolId || explicitSlug) {
+      return null;
+    }
   }
 
   const preferred = (await members.findFirst({

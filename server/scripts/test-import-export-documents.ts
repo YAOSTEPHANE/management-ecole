@@ -2,6 +2,7 @@
  * Tests d'intégration : import (upload) et export (téléchargement) de documents et images.
  * Prérequis : API sur localhost:5000 + base seedée.
  */
+import { TEST_PASSWORD } from './test-credentials';
 
 const API = (process.env.API_URL ?? 'http://localhost:5000/api').replace(/\/+$/, '');
 const ORIGIN = API.replace(/\/api\/?$/, '');
@@ -28,7 +29,7 @@ function assert(name: string, ok: boolean, detail?: string): void {
   throw new Error(`FAIL ${name}${detail ? ` -- ${detail}` : ''}`);
 }
 
-async function login(email: string, password = 'password123'): Promise<string> {
+async function login(email: string, password = TEST_PASSWORD): Promise<string> {
   const res = await fetch(`${API}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -247,11 +248,18 @@ async function main() {
   if (identityUrl) {
     const identityPath = publicUploadPathFromUrl(identityUrl.split('?')[0]);
     assert('URL pièce identité résolue', Boolean(identityPath));
-    const blocked = await binaryReq(`${ORIGIN}${identityPath}`, { token: studentToken });
+    const blocked = await binaryReq(`${ORIGIN}${identityPath}`);
     assert(
-      'Pièce identité sans jeton -> refus',
+      'Pièce identité sans authentification -> refus',
       blocked.status === 401 || blocked.status === 403,
       `${blocked.status}`,
+    );
+
+    const studentOwn = await binaryReq(`${ORIGIN}${identityPath}`, { token: studentToken });
+    assert(
+      'Pièce identité élève propriétaire (Bearer) -> 200',
+      studentOwn.status === 200,
+      `${studentOwn.status}`,
     );
 
     const allowed = await binaryReq(identityUrl, { token: adminToken });
