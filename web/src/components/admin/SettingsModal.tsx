@@ -7,6 +7,7 @@ import Input from '../ui/Input';
 import Badge from '../ui/Badge';
 import toast from 'react-hot-toast';
 import HomePageImagesPanel from './HomePageImagesPanel';
+import DatabaseBackupPanel from './DatabaseBackupPanel';
 import { getCurrentAcademicYear } from '@/utils/academicYear';
 import {
   FiBriefcase,
@@ -310,14 +311,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleBackup = () => {
-    toast.success('Sauvegarde de la base de données lancée...');
-  };
-
-  const handleRestore = () => {
-    toast('Fonctionnalité de restauration à venir', { icon: 'ℹ️' });
   };
 
   const handleSetup2FA = async () => {
@@ -1181,33 +1174,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Paramètres système</h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <FiDatabase className="w-6 h-6 text-blue-600" />
-                        <h4 className="font-semibold text-gray-900">Base de données</h4>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-4">Sauvegarder ou restaurer la base de données</p>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={handleBackup}
-                          className="flex-1"
-                        >
-                          <FiDownload className="w-4 h-4 mr-2 inline" />
-                          Sauvegarder
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={handleRestore}
-                          className="flex-1"
-                        >
-                          <FiUpload className="w-4 h-4 mr-2 inline" />
-                          Restaurer
-                        </Button>
-                      </div>
-                    </div>
+                    <DatabaseBackupPanel />
 
                     <div className="p-4 bg-green-50 rounded-xl border border-green-200">
                       <div className="flex items-center space-x-3 mb-2">

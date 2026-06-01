@@ -94,7 +94,13 @@ import {
   notifyTuitionFeeChanged,
   runAutomaticTuitionReminders,
 } from '../utils/tuition-financial-automation.util';
-import { runMongoBackup } from '../utils/mongodb-backup.util';
+import {
+  getMongoBackupDir,
+  listMongoBackups,
+  resolveMongoBackupArchivePath,
+  runMongoBackup,
+  runMongoRestore,
+} from '../utils/mongodb-backup.util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { EVALUATION_TYPE_VALUES } from '../utils/evaluation-type.util';
@@ -4151,16 +4157,7 @@ router.get('/security/data-protection-summary', async (_req, res) => {
       }),
     ]);
 
-    const backupDirRaw = process.env.MONGODB_BACKUP_DIR?.trim();
-    const backupDir = backupDirRaw
-      ? path.isAbsolute(backupDirRaw)
-        ? backupDirRaw
-        : path.resolve(process.cwd(), backupDirRaw)
-      : path.resolve(process.cwd(), 'backups', 'mongodb');
-    const backupFiles = await fs.readdir(backupDir).catch(() => []);
-    const backupArchives = backupFiles.filter(
-      (f) => f.startsWith('mongo-backup-') && f.endsWith('.archive.gz')
-    );
+    const backupArchives = await listMongoBackups();
 
     res.json({
       rgpdEnabled: true,
@@ -4180,6 +4177,8 @@ router.get('/security/data-protection-summary', async (_req, res) => {
       backupCron: process.env.MONGODB_BACKUP_CRON || '0 3 * * *',
       backupRetentionDays: Number(process.env.MONGODB_BACKUP_RETENTION_DAYS || 14),
       backupArchiveCount: backupArchives.length,
+      backupArchives: backupArchives.slice(0, 20),
+      backupDir: getMongoBackupDir(),
       lastBackupEvent,
     });
   } catch (error: any) {
@@ -4303,6 +4302,36 @@ router.get('/security/performance/slow-endpoints', async (req, res) => {
   }
 });
 
+router.get('/security/backups', async (_req, res) => {
+  try {
+    const archives = await listMongoBackups();
+    res.json({
+      backupDir: getMongoBackupDir(),
+      archives,
+    });
+  } catch (error: unknown) {
+    console.error('GET /security/backups:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
+router.get('/security/backups/:filename/download', async (req, res) => {
+  try {
+    const archivePath = resolveMongoBackupArchivePath(req.params.filename);
+    if (!archivePath) {
+      return res.status(400).json({ error: 'Fichier de sauvegarde invalide.' });
+    }
+    await fs.access(archivePath);
+    res.download(archivePath, path.basename(archivePath));
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return res.status(404).json({ error: 'Archive introuvable.' });
+    }
+    console.error('GET /security/backups/:filename/download:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
+  }
+});
+
 router.post('/security/backups/run', async (req, res) => {
   try {
     const result = await runMongoBackup();
@@ -4317,7 +4346,11 @@ router.post('/security/backups/run', async (req, res) => {
           severity: 'info',
         },
       });
-      return res.json(result);
+      return res.json({
+        ok: true,
+        archivePath: result.archivePath,
+        filename: result.filename,
+      });
     }
     await prisma.securityEvent.create({
       data: {
@@ -4333,6 +4366,58 @@ router.post('/security/backups/run', async (req, res) => {
   } catch (error: any) {
     console.error('POST /security/backups/run:', error);
     res.status(500).json({ error: error.message || 'Erreur serveur' });
+  }
+});
+
+router.post('/security/backups/restore', async (req, res) => {
+  try {
+    const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : '';
+    const confirmPhrase =
+      typeof req.body?.confirmPhrase === 'string' ? req.body.confirmPhrase.trim() : '';
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Le fichier de sauvegarde est requis.' });
+    }
+    if (confirmPhrase !== 'RESTAURER') {
+      return res.status(400).json({
+        error: 'Confirmation invalide. Saisissez RESTAURER pour confirmer la restauration.',
+      });
+    }
+
+    const result = await runMongoRestore(filename);
+    if (result.ok) {
+      await prisma.securityEvent.create({
+        data: {
+          userId: req.user?.id || null,
+          type: 'backup_restore_success',
+          description: `Restauration MongoDB depuis ${result.filename}`,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          severity: 'critical',
+        },
+      });
+      return res.json({
+        ok: true,
+        filename: result.filename,
+        message:
+          'Base de données restaurée. Rechargez l’application ; les utilisateurs connectés peuvent devoir se reconnecter.',
+      });
+    }
+
+    await prisma.securityEvent.create({
+      data: {
+        userId: req.user?.id || null,
+        type: 'backup_restore_failure',
+        description: `Échec restauration MongoDB (${filename}): ${result.error}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        severity: 'critical',
+      },
+    });
+    return res.status(500).json(result);
+  } catch (error: unknown) {
+    console.error('POST /security/backups/restore:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur serveur' });
   }
 });
 

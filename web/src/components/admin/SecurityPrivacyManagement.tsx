@@ -10,6 +10,7 @@ import SearchBar from '../ui/SearchBar';
 import FilterDropdown from '../ui/FilterDropdown';
 import toast from 'react-hot-toast';
 import { ADM } from './adminModuleLayout';
+import DatabaseBackupPanel from './DatabaseBackupPanel';
 import {
   FiShield,
   FiLock,
@@ -169,17 +170,6 @@ const SecurityPrivacyManagement = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Erreur lors de la modification du statut');
-    },
-  });
-  const runBackupMutation = useMutation({
-    mutationFn: () => adminApi.runMongoBackupNow(),
-    onSuccess: (resp: any) => {
-      toast.success(resp?.ok ? 'Sauvegarde lancée avec succès' : 'Sauvegarde terminée');
-      queryClient.invalidateQueries({ queryKey: ['admin-data-protection-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-security-events'] });
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Échec de la sauvegarde');
     },
   });
   const disableUser2FAMutation = useMutation({
@@ -1328,41 +1318,18 @@ const SecurityPrivacyManagement = () => {
               </div>
             </Card>
           </div>
-          <Card className="p-3 sm:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className={`${ADM.h2} text-gray-800`}>Sauvegardes & restauration</h3>
-                <p className="text-xs text-gray-600">
-                  Archives MongoDB disponibles: {dataProtection?.backupArchiveCount ?? 0}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => refetchDataProtection()}
-                  disabled={isFetchingDataProtection}
-                >
-                  <FiRefreshCw className="mr-2 h-4 w-4" />
-                  Actualiser
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => runBackupMutation.mutate()}
-                  disabled={runBackupMutation.isPending}
-                >
-                  <FiDownload className="mr-2 h-4 w-4" />
-                  Lancer une sauvegarde
-                </Button>
-              </div>
-            </div>
-            <p className="mt-3 text-xs text-gray-600">
-              Dernier événement sauvegarde:{' '}
+          <div className="space-y-3">
+            <DatabaseBackupPanel compact />
+            <p className="text-xs text-gray-600 px-1">
+              Dernier événement :{' '}
               {dataProtection?.lastBackupEvent
                 ? `${dataProtection.lastBackupEvent.type} (${format(new Date(dataProtection.lastBackupEvent.createdAt), 'dd/MM/yyyy HH:mm', { locale: fr })})`
                 : 'Aucun'}
+              {dataProtection?.scheduledBackupsEnabled
+                ? ` · Planification : ${dataProtection?.backupCron || '0 3 * * *'}`
+                : ''}
             </p>
-          </Card>
+          </div>
           <GdprUserRightsPanel />
           </div>
         )}

@@ -1146,6 +1146,31 @@ export const adminApi = {
     const response = await api.post('/admin/security/backups/run');
     return response.data;
   },
+  listMongoBackups: async () => {
+    const response = await api.get('/admin/security/backups');
+    return response.data as {
+      backupDir: string;
+      archives: Array<{ filename: string; sizeBytes: number; createdAt: string }>;
+    };
+  },
+  downloadMongoBackup: async (filename: string) => {
+    const response = await api.get(`/admin/security/backups/${encodeURIComponent(filename)}/download`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/gzip' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+  restoreMongoBackup: async (data: { filename: string; confirmPhrase: string }) => {
+    const response = await api.post('/admin/security/backups/restore', data);
+    return response.data;
+  },
   changeUserPassword: async (userId: string, newPassword: string) => {
     const response = await api.put(`/admin/security/users/${userId}/password`, { newPassword });
     return response.data;
