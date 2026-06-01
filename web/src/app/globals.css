@@ -1183,6 +1183,32 @@
   box-shadow: 0 0 12px var(--ultra-gold-soft);
 }
 
+/** Badges sur fonds sombres (hero, admissions, plateforme) — évite le fond clair + texte clair illisible */
+.home-ultra-label--on-dark {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(12, 11, 18, 0.62);
+  background-image: none;
+  color: #f5ecd4;
+  box-shadow:
+    0 4px 24px -10px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.home-ultra-label--on-dark::before {
+  background: linear-gradient(135deg, #e0c974, #d4af37);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+}
+
+.home-ultra-label--on-dark .home-ultra-label__eyebrow {
+  color: #ecdea8;
+}
+
+.home-ultra-label--on-dark .home-ultra-label__value {
+  color: #ffffff;
+}
+
 .home-ultra-gradient-text {
   color: #ffffff;
   background: linear-gradient(

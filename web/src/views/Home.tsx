@@ -402,13 +402,13 @@ export default function Home() {
             <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-14">
               <div className="lg:col-span-6 xl:col-span-5">
                 <div className="mb-8 flex flex-wrap items-center gap-3">
-                  <span className="home-ultra-label !border-white/20 !bg-white/10 !text-tran-mustard-100 !shadow-none backdrop-blur-md">
-                    <FiCalendar className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                  <span className="home-ultra-label home-ultra-label--on-dark">
+                    <FiCalendar className="h-3.5 w-3.5 shrink-0 text-tran-mustard-300" aria-hidden />
                     <span className="normal-case tracking-normal">
-                      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
+                      <span className="home-ultra-label__eyebrow block text-[10px] font-bold uppercase tracking-[0.14em]">
                         Année scolaire
                       </span>
-                      <span className="text-sm font-semibold tabular-nums">{year}</span>
+                      <span className="home-ultra-label__value text-sm font-semibold tabular-nums">{year}</span>
                     </span>
                   </span>
                   {hasAddress && (
@@ -744,9 +744,7 @@ export default function Home() {
             <HomeReveal>
               <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
                 <div>
-                  <span className="home-ultra-label !border-white/25 !bg-white/10 !text-tran-mustard-100">
-                    Admissions
-                  </span>
+                  <span className="home-ultra-label home-ultra-label--on-dark">Admissions</span>
                   <h2 className="home-ultra-section-title mt-5 text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">
                     Une inscription claire et rassurante.
                   </h2>
@@ -846,8 +844,8 @@ export default function Home() {
               <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-12">
                 <div className="flex flex-col justify-between gap-10">
                   <div>
-                    <span className="home-ultra-label !border-white/20 !bg-white/10 !text-tran-mustard-100">
-                      <FiCpu className="h-3.5 w-3.5" aria-hidden />
+                    <span className="home-ultra-label home-ultra-label--on-dark">
+                      <FiCpu className="h-3.5 w-3.5 shrink-0 text-tran-mustard-300" aria-hidden />
                       Écosystème digital
                     </span>
                     <h2 className="home-ultra-section-title mt-5 text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">
