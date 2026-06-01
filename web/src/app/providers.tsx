@@ -11,6 +11,7 @@ import PushNotificationsBootstrap from "@/components/PushNotificationsBootstrap"
 import ServiceWorkerDevCleanup from "@/components/ServiceWorkerDevCleanup";
 import OfflineBanner from "@/components/OfflineBanner";
 import OfflinePrefetch from "@/components/OfflinePrefetch";
+import UserPreferencesBootstrap from "@/components/UserPreferencesBootstrap";
 import { ensureStaffPedagogyApiInterceptor } from "@/lib/staffPedagogyApi";
 import "@/utils/debug";
 
@@ -26,6 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <SchoolProvider>
           <ServiceWorkerDevCleanup />
+          <UserPreferencesBootstrap />
           <OfflinePrefetch />
           <OfflineBanner />
           <PushNotificationsBootstrap />

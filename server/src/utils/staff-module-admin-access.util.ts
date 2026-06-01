@@ -1,8 +1,13 @@
+import type { SupportStaffKind } from '@prisma/client';
 import type { StaffModuleId } from './staff-visible-modules.util';
 import {
   staffModuleGrantsWriteAccess,
   staffModuleIsReadOnlyByDesign,
 } from './staff-module-capabilities.util';
+
+export type StaffModuleAdminAccessOptions = {
+  supportKind?: SupportStaffKind | null;
+};
 
 type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -159,6 +164,18 @@ function hasAnyModule(modules: StaffModuleId[], ids: StaffModuleId[]): boolean {
   return ids.some((id) => modules.includes(id));
 }
 
+/** La secrétaire ne peut pas supprimer d’élèves ni de classes (même avec students_mgmt / classes_mgmt). */
+export function staffSecretaryBlocksDelete(
+  supportKind: SupportStaffKind | null | undefined,
+  path: string,
+  method: HttpMethod,
+): boolean {
+  if (supportKind !== 'SECRETARY' || method !== 'DELETE') return false;
+  if (path === '/students' || path.startsWith('/students/')) return true;
+  if (path === '/classes' || path.startsWith('/classes/')) return true;
+  return false;
+}
+
 function methodAllowedForAccess(
   method: HttpMethod,
   access: 'read' | 'write',
@@ -278,11 +295,14 @@ export function staffModuleAdminPathAllowed(
   visibleModules: StaffModuleId[],
   path: string,
   method: string,
+  options?: StaffModuleAdminAccessOptions,
 ): boolean {
   const p = normalizePath(path);
   const m = normalizeMethod(method);
 
   if (isStaffAdminForbidden(p, m, visibleModules)) return false;
+
+  if (staffSecretaryBlocksDelete(options?.supportKind, p, m)) return false;
 
   if (m === 'DELETE' && (p === '/students' || p.startsWith('/students/'))) {
     return staffModuleGrantsWriteAccess('students_mgmt', visibleModules);

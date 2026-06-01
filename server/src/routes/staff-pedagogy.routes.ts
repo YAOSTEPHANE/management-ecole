@@ -136,7 +136,11 @@ async function requireStaffPedagogyPathAccess(
       return res.status(403).json({ error: 'Profil personnel introuvable.' });
     }
     const adminPath = pedagogyPathToAdminPath(req.path || '/');
-    if (!staffModuleAdminPathAllowed(ctx.visibleModules, adminPath, req.method)) {
+    if (
+      !staffModuleAdminPathAllowed(ctx.visibleModules, adminPath, req.method, {
+        supportKind: ctx.staff.supportKind,
+      })
+    ) {
       return res.status(403).json({
         error: 'Ces données ne sont pas activées pour votre métier. Contactez l’administration.',
       });

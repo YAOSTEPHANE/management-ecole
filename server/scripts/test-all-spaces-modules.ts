@@ -396,8 +396,8 @@ async function main() {
       method: 'DELETE',
     });
     assert(
-      'Secrétaire DELETE /admin/students autorisé avec students_mgmt',
-      deleteStudents.status !== 403 && deleteStudents.status !== 401,
+      'Secrétaire DELETE /admin/students refusé',
+      deleteStudents.status === 403,
       String(deleteStudents.status),
     );
   }

@@ -46,7 +46,11 @@ export async function authorizeAdminOrStaffFinance(
       return;
     }
 
-    if (staffModuleAdminPathAllowed(ctx.visibleModules, path, method)) {
+    if (
+      staffModuleAdminPathAllowed(ctx.visibleModules, path, method, {
+        supportKind: ctx.staff.supportKind,
+      })
+    ) {
       next();
       return;
     }

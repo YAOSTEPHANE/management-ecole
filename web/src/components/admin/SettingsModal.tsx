@@ -10,6 +10,12 @@ import HomePageImagesPanel from './HomePageImagesPanel';
 import DatabaseBackupPanel from './DatabaseBackupPanel';
 import { getCurrentAcademicYear } from '@/utils/academicYear';
 import {
+  DEFAULT_USER_PREFERENCES,
+  loadUserPreferences,
+  saveUserPreferences,
+  type UserPreferences,
+} from '@/lib/userPreferences';
+import {
   FiBriefcase,
   FiBook, 
   FiBell,
@@ -117,14 +123,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
     ipWhitelist: false,
   });
 
-  // User settings
-  const [userSettings, setUserSettings] = useState({
-    language: 'fr',
-    theme: 'light',
-    timezone: 'Europe/Paris',
-    dateFormat: 'DD/MM/YYYY',
-    timeFormat: '24h',
-  });
+  // User settings (persistés dans localStorage)
+  const [userSettings, setUserSettings] = useState<UserPreferences>(() =>
+    typeof window !== 'undefined' ? loadUserPreferences() : { ...DEFAULT_USER_PREFERENCES },
+  );
+
+  const patchUserSettings = (patch: Partial<UserPreferences>) => {
+    setUserSettings((prev) => {
+      const next = { ...prev, ...patch };
+      saveUserPreferences(next);
+      return next;
+    });
+  };
 
   // Password change
   const [passwordData, setPasswordData] = useState({
@@ -146,6 +156,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
     if (!isOpen) return;
     setActiveTab(initialTab);
   }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setUserSettings(loadUserPreferences());
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -271,6 +286,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         schoolWebsite: schoolSettings.website.trim() || null,
         schoolPrincipal: schoolSettings.principal.trim() || null,
       });
+      saveUserPreferences(userSettings);
       await refreshBranding();
       await new Promise((resolve) => setTimeout(resolve, 400));
       
@@ -1072,7 +1088,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                       </label>
                       <select
                         value={userSettings.language}
-                        onChange={(e) => setUserSettings({ ...userSettings, language: e.target.value })}
+                        onChange={(e) => patchUserSettings({ language: e.target.value })}
                         aria-label="Langue"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
@@ -1088,7 +1104,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                       </label>
                       <select
                         value={userSettings.theme}
-                        onChange={(e) => setUserSettings({ ...userSettings, theme: e.target.value })}
+                        onChange={(e) =>
+                          patchUserSettings({ theme: e.target.value as UserPreferences['theme'] })
+                        }
                         aria-label="Thème"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
@@ -1106,7 +1124,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                       </label>
                       <select
                         value={userSettings.timezone}
-                        onChange={(e) => setUserSettings({ ...userSettings, timezone: e.target.value })}
+                        onChange={(e) => patchUserSettings({ timezone: e.target.value })}
                         aria-label="Fuseau horaire"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
@@ -1122,7 +1140,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                       </label>
                       <select
                         value={userSettings.dateFormat}
-                        onChange={(e) => setUserSettings({ ...userSettings, dateFormat: e.target.value })}
+                        onChange={(e) => patchUserSettings({ dateFormat: e.target.value })}
                         aria-label="Format de date"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
                       >
@@ -1144,7 +1162,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                           name="timeFormat"
                           value="24h"
                           checked={userSettings.timeFormat === '24h'}
-                          onChange={(e) => setUserSettings({ ...userSettings, timeFormat: e.target.value })}
+                          onChange={(e) =>
+                            patchUserSettings({ timeFormat: e.target.value as UserPreferences['timeFormat'] })
+                          }
                           className="w-4 h-4 text-purple-600"
                         />
                         <span className="text-gray-700">24 heures</span>
@@ -1155,7 +1175,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                           name="timeFormat"
                           value="12h"
                           checked={userSettings.timeFormat === '12h'}
-                          onChange={(e) => setUserSettings({ ...userSettings, timeFormat: e.target.value })}
+                          onChange={(e) =>
+                            patchUserSettings({ timeFormat: e.target.value as UserPreferences['timeFormat'] })
+                          }
                           className="w-4 h-4 text-purple-600"
                         />
                         <span className="text-gray-700">12 heures (AM/PM)</span>
@@ -1186,7 +1208,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                         variant="secondary"
                         size="sm"
                         onClick={() => {
+                          const savedPrefs = loadUserPreferences();
                           localStorage.clear();
+                          saveUserPreferences(savedPrefs);
                           toast.success('Cache vidé avec succès !');
                         }}
                         className="w-full"

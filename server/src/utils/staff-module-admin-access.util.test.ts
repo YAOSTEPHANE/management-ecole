@@ -18,9 +18,26 @@ describe('staff-module-admin-access', () => {
     assert.equal(isStaffModuleAdminPath('/students', 'DELETE'), true);
   });
 
-  it('secrétaire avec students_mgmt peut DELETE /students', () => {
+  it('secrétaire ne peut pas DELETE /students ni /classes', () => {
     assert.equal(
-      staffModuleAdminPathAllowed(secretaryLike, '/students', 'DELETE'),
+      staffModuleAdminPathAllowed(secretaryLike, '/students/abc', 'DELETE', {
+        supportKind: 'SECRETARY',
+      }),
+      false,
+    );
+    assert.equal(
+      staffModuleAdminPathAllowed(secretaryLike, '/classes/abc', 'DELETE', {
+        supportKind: 'SECRETARY',
+      }),
+      false,
+    );
+  });
+
+  it('autre métier avec students_mgmt peut DELETE /students', () => {
+    assert.equal(
+      staffModuleAdminPathAllowed(secretaryLike, '/students', 'DELETE', {
+        supportKind: 'BURSAR',
+      }),
       true,
     );
   });

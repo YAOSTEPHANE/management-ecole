@@ -2,6 +2,7 @@ import type { Viewport } from "next";
 import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import { Providers } from "./providers";
 import { buildRootLayoutMetadata } from "@/lib/appBrandingMetadata";
+import { USER_PREFERENCES_INIT_SCRIPT } from "@/lib/userPreferences";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -33,7 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${jakarta.variable} ${cormorant.variable}`}>
+    <html lang="fr" className={`${jakarta.variable} ${cormorant.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: USER_PREFERENCES_INIT_SCRIPT }} />
+      </head>
       <body className="premium-body min-h-full font-sans antialiased text-base text-stone-900">
         <Providers>{children}</Providers>
       </body>
