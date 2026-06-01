@@ -10,7 +10,7 @@ import HomeReveal from '../components/public/HomeReveal';
 import HomeDirectorSection from '../components/public/HomeDirectorSection';
 import HomePageImage from '../components/public/HomePageImage';
 import PreInscriptionSchoolEntry from '../components/public/PreInscriptionSchoolEntry';
-import { getCurrentAcademicYear } from '../utils/academicYear';
+import { computeCurrentAcademicYear, getCurrentAcademicYear } from '../utils/academicYear';
 import { getRoleDashboardPath } from '../lib/rolePaths';
 import {
   TRANLEFET_MARQUEE,
@@ -242,7 +242,7 @@ const HERO_FLOATING = [
 export default function Home() {
   const { user } = useAuth();
   const { navigationLogoAbsolute, branding } = useAppBranding();
-  const year = getCurrentAcademicYear();
+  const [year, setYear] = useState(() => computeCurrentAcademicYear());
   const [menuOpen, setMenuOpen] = useState(false);
   const schoolDisplayName =
     (branding.schoolDisplayName && branding.schoolDisplayName.trim()) ||
@@ -262,6 +262,10 @@ export default function Home() {
   useEffect(() => {
     document.title = `${headerTitle} · Accueil`;
   }, [headerTitle]);
+
+  useEffect(() => {
+    setYear(getCurrentAcademicYear());
+  }, []);
 
   return (
     <div className="home-page min-h-screen premium-body premium-body-v2 font-sans text-tran-mauve-950 antialiased">

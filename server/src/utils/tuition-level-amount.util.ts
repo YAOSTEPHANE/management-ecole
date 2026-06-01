@@ -32,6 +32,7 @@ function catalogMatchesLevel(catalog: TuitionFeeCatalog, classLevel: string): bo
 export async function findLevelTuitionCatalog(
   academicYear: string,
   classLevel: string,
+  schoolId?: string | null,
 ): Promise<TuitionFeeCatalog | null> {
   const norm = normalizeClassLevel(classLevel);
   if (!norm) return null;
@@ -42,6 +43,7 @@ export async function findLevelTuitionCatalog(
       scope: 'BY_LEVEL',
       isActive: true,
       classLevel: norm,
+      ...(schoolId ? { schoolId } : {}),
       OR: [{ academicYear: String(academicYear) }, { academicYear: null }],
     },
     orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
@@ -52,10 +54,14 @@ export async function findLevelTuitionCatalog(
   return rows.find((r) => !r.academicYear) ?? null;
 }
 
-export async function getLevelTuitionRates(academicYear: string): Promise<TuitionLevelRateRow[]> {
+export async function getLevelTuitionRates(
+  academicYear: string,
+  schoolId?: string | null,
+): Promise<TuitionLevelRateRow[]> {
   const year = String(academicYear);
   const knownLevels = new Set<string>([...TUITION_LEVELS]);
   const extraFromClasses = await prisma.class.findMany({
+    where: schoolId ? { schoolId } : undefined,
     select: { level: true },
     distinct: ['level'],
   });
@@ -65,7 +71,7 @@ export async function getLevelTuitionRates(academicYear: string): Promise<Tuitio
 
   const rows: TuitionLevelRateRow[] = [];
   for (const level of Array.from(knownLevels).sort((a, b) => a.localeCompare(b, 'fr'))) {
-    const catalog = await findLevelTuitionCatalog(year, level);
+    const catalog = await findLevelTuitionCatalog(year, level, schoolId);
     rows.push({
       level,
       amount: catalog ? Number(catalog.defaultAmount) : null,
@@ -78,6 +84,7 @@ export async function getLevelTuitionRates(academicYear: string): Promise<Tuitio
 export async function upsertLevelTuitionRates(
   academicYear: string,
   rates: { level: string; amount: number }[],
+  schoolId?: string | null,
 ): Promise<TuitionFeeCatalog[]> {
   const year = String(academicYear);
   const saved: TuitionFeeCatalog[] = [];
@@ -96,6 +103,7 @@ export async function upsertLevelTuitionRates(
         scope: 'BY_LEVEL',
         classLevel: norm,
         academicYear: year,
+        ...(schoolId ? { schoolId } : {}),
       },
     });
 
@@ -121,6 +129,7 @@ export async function upsertLevelTuitionRates(
           scope: 'BY_LEVEL',
           classLevel: norm,
           feeType: 'TUITION',
+          ...(schoolId ? { schoolId } : {}),
           billingPeriod: 'ANNUAL',
           defaultAmount: value,
           periodLabelHint: 'Scolarité',
@@ -156,6 +165,7 @@ export type ResolvedTuitionForClass = {
 export async function findClassTuitionCatalog(
   academicYear: string,
   classId: string,
+  schoolId?: string | null,
 ): Promise<TuitionFeeCatalog | null> {
   if (!classId.trim()) return null;
 
@@ -165,6 +175,7 @@ export async function findClassTuitionCatalog(
       scope: 'BY_CLASS',
       classId: classId.trim(),
       isActive: true,
+      ...(schoolId ? { schoolId } : {}),
       OR: [{ academicYear: String(academicYear) }, { academicYear: null }],
     },
     orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
@@ -184,16 +195,20 @@ export type ClassTuitionRateRow = {
   catalogId: string | null;
 };
 
-export async function getClassTuitionRates(academicYear: string): Promise<ClassTuitionRateRow[]> {
+export async function getClassTuitionRates(
+  academicYear: string,
+  schoolId?: string | null,
+): Promise<ClassTuitionRateRow[]> {
   const year = String(academicYear);
   const allClasses = await prisma.class.findMany({
+    where: schoolId ? { schoolId } : undefined,
     select: { id: true, name: true, level: true, academicYear: true },
     orderBy: [{ level: 'asc' }, { name: 'asc' }],
   });
 
   const rows: ClassTuitionRateRow[] = [];
   for (const cls of allClasses) {
-    const catalog = await findClassTuitionCatalog(year, cls.id);
+    const catalog = await findClassTuitionCatalog(year, cls.id, schoolId);
     rows.push({
       classId: cls.id,
       className: cls.name,
@@ -209,6 +224,7 @@ export async function getClassTuitionRates(academicYear: string): Promise<ClassT
 export async function upsertClassTuitionRates(
   academicYear: string,
   rates: { classId: string; amount: number }[],
+  schoolId?: string | null,
 ): Promise<TuitionFeeCatalog[]> {
   const year = String(academicYear);
   const saved: TuitionFeeCatalog[] = [];
@@ -222,9 +238,10 @@ export async function upsertClassTuitionRates(
 
     const cls = await prisma.class.findUnique({
       where: { id: classId.trim() },
-      select: { id: true, name: true, level: true },
+      select: { id: true, name: true, level: true, schoolId: true },
     });
     if (!cls) continue;
+    if (schoolId && cls.schoolId !== schoolId) continue;
 
     const existing = await prisma.tuitionFeeCatalog.findFirst({
       where: {
@@ -232,6 +249,7 @@ export async function upsertClassTuitionRates(
         scope: 'BY_CLASS',
         classId: cls.id,
         academicYear: year,
+        ...(schoolId ? { schoolId } : {}),
       },
     });
 
@@ -260,6 +278,7 @@ export async function upsertClassTuitionRates(
           scope: 'BY_CLASS',
           classId: cls.id,
           classLevel: normalizeClassLevel(cls.level),
+          ...(schoolId ? { schoolId } : {}),
           feeType: 'TUITION',
           billingPeriod: 'ANNUAL',
           defaultAmount: value,
@@ -278,17 +297,19 @@ export async function upsertClassTuitionRates(
 export async function resolveTuitionForClass(
   classId: string,
   academicYear: string,
+  schoolId?: string | null,
 ): Promise<ResolvedTuitionForClass | null> {
   const cls = await prisma.class.findUnique({
     where: { id: classId },
-    select: { id: true, name: true, level: true, academicYear: true },
+    select: { id: true, name: true, level: true, academicYear: true, schoolId: true },
   });
   if (!cls) return null;
+  if (schoolId && cls.schoolId !== schoolId) return null;
 
   const year = String(academicYear || cls.academicYear || '').trim();
   if (!year) return null;
 
-  const classCatalog = await findClassTuitionCatalog(year, cls.id);
+  const classCatalog = await findClassTuitionCatalog(year, cls.id, schoolId);
   if (classCatalog) {
     return {
       amount: Math.round(Number(classCatalog.defaultAmount)),
@@ -300,7 +321,7 @@ export async function resolveTuitionForClass(
     };
   }
 
-  const levelCatalog = await findLevelTuitionCatalog(year, cls.level);
+  const levelCatalog = await findLevelTuitionCatalog(year, cls.level, schoolId);
   if (!levelCatalog) return null;
 
   return {
@@ -316,17 +337,19 @@ export async function resolveTuitionForClass(
 export async function resolveTuitionAmountForStudent(
   studentId: string,
   academicYear: string,
+  schoolId?: string | null,
 ): Promise<ResolvedTuitionForStudent | null> {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
-    include: { class: { select: { id: true, level: true, academicYear: true } } },
+    include: { class: { select: { id: true, level: true, academicYear: true, schoolId: true } } },
   });
   if (!student?.classId || !student.class) return null;
+  if (schoolId && student.class.schoolId !== schoolId) return null;
 
   const year = String(academicYear || student.class.academicYear || '').trim();
   if (!year) return null;
 
-  const resolved = await resolveTuitionForClass(student.classId, year);
+  const resolved = await resolveTuitionForClass(student.classId, year, schoolId);
   if (!resolved) return null;
 
   return {

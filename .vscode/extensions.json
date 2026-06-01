@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "snyk-security.snyk-vulnerability-scanner",
+    "dbaeumer.vscode-eslint",
+    "ms-playwright.playwright"
+  ]
+}

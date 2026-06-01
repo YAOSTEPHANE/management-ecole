@@ -2201,6 +2201,7 @@ model TeacherAttendance {
 /// Barème / poste de frais réutilisable (niveau, classe, programme)
 model TuitionFeeCatalog {
   id               String                 @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId         String?                @db.ObjectId
   label            String
   academicYear     String?
   scope            TuitionFeeCatalogScope @default(BY_LEVEL)
@@ -2220,8 +2221,10 @@ model TuitionFeeCatalog {
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
+  school      School?      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   tuitionFees TuitionFee[]
 
+  @@index([schoolId])
   @@index([academicYear, scope, isActive])
   @@map("tuition_fee_catalog")
 }
@@ -2229,6 +2232,7 @@ model TuitionFeeCatalog {
 /// Gabarit d’échéancier (parts en % et décalage en jours depuis la date d’ancrage)
 model TuitionPaymentScheduleTemplate {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String?  @db.ObjectId
   name         String
   description  String?
   academicYear String?
@@ -2238,8 +2242,10 @@ model TuitionPaymentScheduleTemplate {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  school      School?      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   tuitionFees TuitionFee[]
 
+  @@index([schoolId])
   @@map("tuition_payment_schedule_templates")
 }
 
@@ -2502,6 +2508,8 @@ model School {
   admissions      Admission[]
   staffMembers    StaffMember[]
   staffMetiers    SchoolStaffMetier[]
+  tuitionFeeCatalogs TuitionFeeCatalog[]
+  tuitionPaymentScheduleTemplates TuitionPaymentScheduleTemplate[]
   healthCampaigns HealthCampaign[]
   workspaces      AdminWorkspace[]
   branding        AppBranding?

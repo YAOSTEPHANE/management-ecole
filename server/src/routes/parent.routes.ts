@@ -1,5 +1,5 @@
 import express from 'express';
-import type { Prisma } from '@prisma/client';
+import type { PaymentMethod, Prisma } from '@prisma/client';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma';
 import { findSchedulesWithRelations } from '../utils/safe-schedule-query.util';
@@ -35,6 +35,17 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth.middlew
 import { guardParentOwnsStudentParam } from '../middleware/parent-student-guard.middleware';
 
 const router = express.Router();
+
+const ONLINE_PAYMENT_METHODS = new Set(['CARD', 'MOBILE_MONEY', 'BANK_TRANSFER']);
+
+function requireWebhookForOnlinePayments(paymentMethod: string): string | null {
+  if (!ONLINE_PAYMENT_METHODS.has(paymentMethod)) return null;
+  const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    return 'Paiements en ligne indisponibles : le flux webhook sécurisé du prestataire n’est pas configuré.';
+  }
+  return null;
+}
 
 router.use(authenticate);
 router.use(authorize('PARENT'));
@@ -1062,14 +1073,23 @@ router.get('/children/:studentId/tuition-fees', async (req: AuthRequest, res) =>
 router.post('/children/:studentId/payments', async (req: AuthRequest, res) => {
   try {
     const { studentId } = req.params;
-    const { tuitionFeeId, paymentMethod, amount, phoneNumber, operator, transactionCode } = req.body;
+    const { tuitionFeeId, paymentMethod, amount, phoneNumber, operator } = req.body;
 
     if (!tuitionFeeId || !paymentMethod || !amount) {
       return res.status(400).json({ error: 'tuitionFeeId, paymentMethod et amount sont requis' });
     }
 
+    const normalizedMethod = String(paymentMethod).toUpperCase();
+    if (!['CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CASH'].includes(normalizedMethod)) {
+      return res.status(400).json({ error: 'paymentMethod invalide.' });
+    }
+    const webhookFlowError = requireWebhookForOnlinePayments(normalizedMethod);
+    if (webhookFlowError) {
+      return res.status(503).json({ error: webhookFlowError });
+    }
+
     // Validation spécifique pour Mobile Money
-    if (paymentMethod === 'MOBILE_MONEY') {
+    if (normalizedMethod === 'MOBILE_MONEY') {
       if (!phoneNumber) {
         return res.status(400).json({ error: 'Le numéro de téléphone est requis pour Mobile Money' });
       }
@@ -1141,11 +1161,14 @@ router.post('/children/:studentId/payments', async (req: AuthRequest, res) => {
 
     // Préparer les notes pour Mobile Money
     let paymentNotes = '';
-    if (paymentMethod === 'MOBILE_MONEY') {
-      paymentNotes = `Mobile Money - Téléphone: ${phoneNumber}${operator ? `, Opérateur: ${operator}` : ''}${transactionCode ? `, Code: ${transactionCode}` : ''}`;
-    } else if (paymentMethod === 'CASH') {
+    if (normalizedMethod === 'MOBILE_MONEY') {
+      paymentNotes = `Mobile Money - Téléphone: ${phoneNumber}${operator ? `, Opérateur: ${operator}` : ''}`;
+    } else if (normalizedMethod === 'CASH') {
       paymentNotes =
         "Espèces — déclaration en ligne en attente de validation par l'économe après dépôt à l'administration";
+    } else {
+      paymentNotes =
+        'Paiement en ligne initié — en attente de confirmation du prestataire via webhook sécurisé.';
     }
 
     // Créer le paiement
@@ -1156,7 +1179,7 @@ router.post('/children/:studentId/payments', async (req: AuthRequest, res) => {
         payerId: req.user!.id,
         payerRole: 'PARENT',
         amount: paymentAmount,
-        paymentMethod,
+        paymentMethod: normalizedMethod as PaymentMethod,
         status: 'PENDING',
         paymentReference,
         notes: paymentNotes || undefined,
@@ -1177,7 +1200,7 @@ router.post('/children/:studentId/payments', async (req: AuthRequest, res) => {
       },
     });
 
-    if (paymentMethod === 'CASH') {
+    if (normalizedMethod === 'CASH') {
       await notifyStaffOfPendingCashPayment({
         paymentId: payment.id,
         amount: payment.amount,
@@ -1195,8 +1218,10 @@ router.post('/children/:studentId/payments', async (req: AuthRequest, res) => {
 
     res.status(201).json({
       payment,
-      paymentUrl: `/payment/process/${payment.id}`,
-      message: 'Paiement initié avec succès',
+      message:
+        normalizedMethod === 'CASH'
+          ? 'Déclaration enregistrée en attente de validation de l’économe.'
+          : 'Paiement en ligne initié : confirmation en attente du webhook prestataire.',
     });
   } catch (error: any) {
     console.error('Erreur lors de la création du paiement:', error);

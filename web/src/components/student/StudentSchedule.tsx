@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { studentApi } from '../../services/api';
 import StudentScheduleCalendar from './StudentScheduleCalendar';
 import Card from '../ui/Card';
-import { FiSearch } from 'react-icons/fi';
+import { FiAlertCircle, FiSearch } from 'react-icons/fi';
 
 const StudentSchedule = ({ searchQuery = '' }: { searchQuery?: string }) => {
-  const { data: schedule, isLoading } = useQuery({
+  const { data: schedule, isLoading, isError, error } = useQuery({
     queryKey: ['student-schedule'],
     queryFn: studentApi.getSchedule,
   });
@@ -29,6 +29,25 @@ const StudentSchedule = ({ searchQuery = '' }: { searchQuery?: string }) => {
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Chargement de l'emploi du temps...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    const apiError = error as
+      | { response?: { data?: { error?: string } } }
+      | undefined;
+    const message =
+      apiError?.response?.data?.error ||
+      "Impossible de charger l'emploi du temps. Vérifiez que vous êtes bien affecté à une classe.";
+
+    return (
+      <Card>
+        <div className="text-center py-12 text-red-700">
+          <FiAlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <p className="text-lg mb-2 font-semibold">Erreur de chargement</p>
+          <p className="text-sm">{message}</p>
         </div>
       </Card>
     );

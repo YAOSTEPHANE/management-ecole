@@ -4,7 +4,20 @@ import { generateDigitalCardPublicId } from '../src/utils/digital-card.util';
 
 const prisma = new PrismaClient();
 
+function assertDestructiveSeedExplicitlyAllowed(): void {
+  if (process.env.ALLOW_DESTRUCTIVE_SEED === 'true') return;
+  throw new Error(
+    [
+      'Seed destructif bloqué par sécurité.',
+      'Utilisez uniquement en développement :',
+      '  npm run prisma:seed:dev',
+      'ou définissez ALLOW_DESTRUCTIVE_SEED=true explicitement.',
+    ].join('\n'),
+  );
+}
+
 async function main() {
+  assertDestructiveSeedExplicitlyAllowed();
   console.log('🌱 Début du seed de la base de données...');
 
   // Nettoyer la base de données

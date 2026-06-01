@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { parentApi } from '../../services/api';
 import Card from '../ui/Card';
-import { FiSearch, FiDownload, FiCalendar } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiCalendar, FiAlertCircle } from 'react-icons/fi';
 import StudentScheduleCalendar from '../student/StudentScheduleCalendar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -27,7 +27,7 @@ const DAYS = [
 ];
 
 const ChildSchedule = ({ studentId, searchQuery = '' }: ChildScheduleProps) => {
-  const { data: schedule, isLoading } = useQuery({
+  const { data: schedule, isLoading, isError, error } = useQuery({
     queryKey: ['parent-child-schedule', studentId],
     queryFn: () => parentApi.getChildSchedule(studentId),
     enabled: !!studentId,
@@ -161,6 +161,25 @@ const ChildSchedule = ({ studentId, searchQuery = '' }: ChildScheduleProps) => {
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Chargement de l'emploi du temps...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    const apiError = error as
+      | { response?: { data?: { error?: string } } }
+      | undefined;
+    const message =
+      apiError?.response?.data?.error ||
+      "Impossible de charger l'emploi du temps. Vérifiez que l'enfant est bien lié à une classe.";
+
+    return (
+      <Card>
+        <div className="text-center py-12 text-red-700">
+          <FiAlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <p className="text-lg mb-2 font-semibold">Erreur de chargement</p>
+          <p className="text-sm">{message}</p>
         </div>
       </Card>
     );

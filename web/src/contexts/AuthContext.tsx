@@ -6,6 +6,7 @@ import {
   clearAllOfflineCaches,
   loadUserSnapshot,
   saveUserSnapshot,
+  setOfflineCacheContext,
 } from '../lib/offline-storage';
 import toast from 'react-hot-toast';
 
@@ -72,6 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = await authApi.getMe();
       if (userData) {
         setUser(userData as User);
+        setOfflineCacheContext({
+          userId: (userData as User).id,
+          role: (userData as User).role,
+        });
         await saveUserSnapshot(userData);
       }
     } catch (error: any) {
@@ -81,9 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error.code === 'ECONNREFUSED' ||
         error.message === 'Network Error';
       if (network) {
+        setOfflineCacheContext({});
         const offlineUser = await loadUserSnapshot<User>();
         if (offlineUser?.id) {
           setUser(offlineUser);
+          setOfflineCacheContext({ userId: offlineUser.id, role: offlineUser.role });
           return;
         }
       }
@@ -100,6 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = await authApi.getMe();
       if (userData) {
         setUser(userData as User);
+        setOfflineCacheContext({
+          userId: (userData as User).id,
+          role: (userData as User).role,
+        });
         await saveUserSnapshot(userData);
       }
     } catch (error: any) {
@@ -133,6 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response && response.token && response.user) {
         setToken(response.token);
         setUser(response.user as User);
+        setOfflineCacheContext({
+          userId: (response.user as User).id,
+          role: (response.user as User).role,
+        });
         localStorage.setItem('token', response.token);
         await saveUserSnapshot(response.user);
         toast.success('Connexion réussie');
@@ -192,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('token');
     void clearAllOfflineCaches();
+    setOfflineCacheContext({ userId: null, role: null, schoolId: null });
     toast.success('Déconnexion réussie');
     // Rediriger vers la page d'accueil
     window.location.href = '/home';

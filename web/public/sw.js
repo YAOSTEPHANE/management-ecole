@@ -1,12 +1,17 @@
 /* Service worker — Web Push + mise en cache légère pour usage hors ligne du shell */
-const STATIC_CACHE = 'gs-shell-v3';
+const STATIC_CACHE_PREFIX = 'gs-shell-v4';
 const PRECACHE_URLS = ['/', '/favicon.ico'];
 /** Chemins laissés au navigateur (pas d’interception — évite Failed to fetch en dev). */
 const BYPASS_SW_PATHS = ['/inscription', '/pre-inscription', '/_next'];
+let OFFLINE_SCOPE = 'u:anon|r:anon|s:none';
+
+function staticCacheName() {
+  return `${STATIC_CACHE_PREFIX}::${OFFLINE_SCOPE}`;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+    caches.open(staticCacheName()).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
   );
 });
 
@@ -14,7 +19,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== STATIC_CACHE).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k.startsWith(`${STATIC_CACHE_PREFIX}::`) && k !== staticCacheName()).map((k) => caches.delete(k)))
+      )
       .then(() => self.clients.claim())
   );
 });
@@ -31,9 +38,17 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     fetch(req).catch(() =>
-      caches.match(req).then((cached) => cached || caches.match('/'))
+      caches
+        .open(staticCacheName())
+        .then((cache) => cache.match(req).then((cached) => cached || cache.match('/')))
     )
   );
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type !== 'OFFLINE_SCOPE' || typeof data.scope !== 'string' || !data.scope.trim()) return;
+  OFFLINE_SCOPE = data.scope.trim();
 });
 
 self.addEventListener('push', (event) => {

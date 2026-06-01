@@ -14,15 +14,36 @@
     "db:seed": "npm run prisma:seed",
     "prisma:generate": "cd server && npm run prisma:generate",
     "prisma:push": "cd server && npm run prisma:push",
-    "test": "cd server && npm run test:all && cd ../web && npm run test:exports",
-    "test:unit": "cd server && npm run test",
-    "test:exports": "cd server && npm run test:import-export"
+    "test": "npm run test:vitest && npm run test:integration",
+    "test:vitest": "vitest run",
+    "test:vitest:watch": "vitest",
+    "test:unit": "vitest run --project server",
+    "test:web": "vitest run --project web",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:integration": "cd server && npm run test:integration && npm run test:spaces && npm run test:import-export",
+    "test:all": "npm run test:vitest && npm run test:integration && npm run test:e2e",
+    "test:exports": "cd server && npm run test:import-export",
+    "lint:security": "npm run lint:security:server && npm run lint:security:web",
+    "lint:security:server": "cd server && npm run lint",
+    "lint:security:web": "cd web && npm run lint",
+    "security:audit": "npm audit --audit-level=moderate && cd server && npm audit --audit-level=moderate && cd ../web && npm audit --audit-level=moderate",
+    "security:snyk": "snyk test --all-projects"
   },
-  "keywords": ["school", "management", "education"],
+  "keywords": [
+    "school",
+    "management",
+    "education"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@playwright/test": "^1.58.2",
+    "concurrently": "^8.2.2",
+    "eslint-plugin-no-secrets": "^2.2.1",
+    "eslint-plugin-security": "^3.0.1",
+    "jsdom": "^26.1.0",
+    "snyk": "^1.1301.2",
+    "vitest": "^3.2.4"
   }
 }
-

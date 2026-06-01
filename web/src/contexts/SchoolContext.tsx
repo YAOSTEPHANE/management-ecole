@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/services/api';
 import api from '@/services/api/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { setOfflineCacheContext } from '@/lib/offline-storage';
 
 export type SchoolSummary = {
   id: string;
@@ -78,6 +79,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
       lastResolvedSchoolRef.current = next;
       localStorage.setItem(STORAGE_KEY, next);
       setActiveSchoolIdState(next);
+      setOfflineCacheContext({ schoolId: next });
       queryClient.invalidateQueries();
     }
   }, [enabled, schools, queryClient]);
@@ -88,6 +90,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, id);
       lastResolvedSchoolRef.current = id;
       setActiveSchoolIdState(id);
+      setOfflineCacheContext({ schoolId: id });
       try {
         if (user?.role === 'STAFF') {
           await api.put('/staff/schools/active', { schoolId: id });

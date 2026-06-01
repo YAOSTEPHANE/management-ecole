@@ -1,30 +1,23 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import {
-  signUploadAccessToken,
-  verifyUploadAccessToken,
-  withUploadAccessQuery,
+  resolveStoredFileAccessUrl,
 } from './upload-access-token.util';
 
 describe('upload access tokens', () => {
-  const rel = '/uploads/identity-documents/test-doc.pdf';
-
-  it('signe et vérifie un jeton valide', () => {
-    const token = signUploadAccessToken(rel);
-    assert.match(token, /^\d+\.[A-Za-z0-9_-]+$/);
-    assert.equal(verifyUploadAccessToken(rel, token), true);
-  });
-
-  it('refuse un jeton sur un autre chemin', () => {
-    const token = signUploadAccessToken(rel);
-    assert.equal(verifyUploadAccessToken('/uploads/other/file.pdf', token), false);
-  });
-
-  it('ajoute ?access= sur les fichiers sensibles', () => {
+  it("laisse l'url locale inchangée pour un fichier sensible", () => {
     const url = 'http://localhost:5000/uploads/identity-documents/a.pdf';
-    const signed = withUploadAccessQuery(url);
-    assert.match(signed, /access=/);
+    assert.equal(resolveStoredFileAccessUrl(url), url);
+  });
+
+  it('proxifie le blob sensible vers /uploads', () => {
+    const blob = 'https://abc.public.blob.vercel-storage.com/identity-documents/a.pdf';
+    const proxied = resolveStoredFileAccessUrl(blob);
+    assert.match(proxied, /\/uploads\/identity-documents\/a\.pdf$/);
+  });
+
+  it("laisse inchangé un fichier non sensible", () => {
     const avatarUrl = 'http://localhost:5000/uploads/avatars/a.png';
-    assert.equal(withUploadAccessQuery(avatarUrl), avatarUrl);
+    assert.equal(resolveStoredFileAccessUrl(avatarUrl), avatarUrl);
   });
 });

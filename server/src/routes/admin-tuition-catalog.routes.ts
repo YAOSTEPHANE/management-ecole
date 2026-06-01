@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Prisma } from '@prisma/client';
 import prisma from '../utils/prisma';
+import type { SchoolContextRequest } from '../utils/school-context.util';
 import {
   addDays,
   parseScheduleLines,
@@ -20,27 +21,27 @@ const router = express.Router();
 
 // --- Montants fixes de scolarité par niveau ---
 
-router.get('/tuition-level-rates', async (req, res) => {
+router.get('/tuition-level-rates', async (req: SchoolContextRequest, res) => {
   try {
     const academicYear = String(req.query.academicYear ?? '').trim();
     if (!academicYear) {
       return res.status(400).json({ error: 'academicYear est requis' });
     }
-    const rates = await getLevelTuitionRates(academicYear);
+    const rates = await getLevelTuitionRates(academicYear, req.schoolId);
     res.json({ academicYear, levels: TUITION_LEVELS, rates });
   } catch (e: unknown) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
   }
 });
 
-router.get('/tuition-level-rates/resolve', async (req, res) => {
+router.get('/tuition-level-rates/resolve', async (req: SchoolContextRequest, res) => {
   try {
     const studentId = String(req.query.studentId ?? '').trim();
     const academicYear = String(req.query.academicYear ?? '').trim();
     if (!studentId || !academicYear) {
       return res.status(400).json({ error: 'studentId et academicYear sont requis' });
     }
-    const resolved = await resolveTuitionAmountForStudent(studentId, academicYear);
+    const resolved = await resolveTuitionAmountForStudent(studentId, academicYear, req.schoolId);
     if (!resolved) {
       return res.status(404).json({
         error: 'Aucun montant de scolarité défini pour la classe ou le niveau de cet élève.',
@@ -52,20 +53,20 @@ router.get('/tuition-level-rates/resolve', async (req, res) => {
   }
 });
 
-router.get('/tuition-class-rates', async (req, res) => {
+router.get('/tuition-class-rates', async (req: SchoolContextRequest, res) => {
   try {
     const academicYear = String(req.query.academicYear ?? '').trim();
     if (!academicYear) {
       return res.status(400).json({ error: 'academicYear est requis' });
     }
-    const rates = await getClassTuitionRates(academicYear);
+    const rates = await getClassTuitionRates(academicYear, req.schoolId);
     res.json({ academicYear, rates });
   } catch (e: unknown) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
   }
 });
 
-router.put('/tuition-class-rates', async (req, res) => {
+router.put('/tuition-class-rates', async (req: SchoolContextRequest, res) => {
   try {
     const { academicYear, rates } = req.body as {
       academicYear?: string;
@@ -74,8 +75,8 @@ router.put('/tuition-class-rates', async (req, res) => {
     if (!academicYear || !Array.isArray(rates)) {
       return res.status(400).json({ error: 'academicYear et rates[] sont requis' });
     }
-    const saved = await upsertClassTuitionRates(String(academicYear), rates);
-    const updated = await getClassTuitionRates(String(academicYear));
+    const saved = await upsertClassTuitionRates(String(academicYear), rates, req.schoolId);
+    const updated = await getClassTuitionRates(String(academicYear), req.schoolId);
     res.json({
       message: 'Montants par classe enregistrés',
       saved: saved.length,
@@ -87,14 +88,14 @@ router.put('/tuition-class-rates', async (req, res) => {
   }
 });
 
-router.get('/tuition-level-rates/resolve-for-class', async (req, res) => {
+router.get('/tuition-level-rates/resolve-for-class', async (req: SchoolContextRequest, res) => {
   try {
     const classId = String(req.query.classId ?? '').trim();
     const academicYear = String(req.query.academicYear ?? '').trim();
     if (!classId || !academicYear) {
       return res.status(400).json({ error: 'classId et academicYear sont requis' });
     }
-    const resolved = await resolveTuitionForClass(classId, academicYear);
+    const resolved = await resolveTuitionForClass(classId, academicYear, req.schoolId);
     if (!resolved) {
       return res.status(404).json({
         error:
@@ -107,7 +108,7 @@ router.get('/tuition-level-rates/resolve-for-class', async (req, res) => {
   }
 });
 
-router.put('/tuition-level-rates', async (req, res) => {
+router.put('/tuition-level-rates', async (req: SchoolContextRequest, res) => {
   try {
     const { academicYear, rates } = req.body as {
       academicYear?: string;
@@ -116,8 +117,8 @@ router.put('/tuition-level-rates', async (req, res) => {
     if (!academicYear || !Array.isArray(rates)) {
       return res.status(400).json({ error: 'academicYear et rates[] sont requis' });
     }
-    const saved = await upsertLevelTuitionRates(String(academicYear), rates);
-    const updated = await getLevelTuitionRates(String(academicYear));
+    const saved = await upsertLevelTuitionRates(String(academicYear), rates, req.schoolId);
+    const updated = await getLevelTuitionRates(String(academicYear), req.schoolId);
     res.json({
       message: 'Montants par niveau enregistrés',
       saved: saved.length,
@@ -131,9 +132,10 @@ router.put('/tuition-level-rates', async (req, res) => {
 
 // --- Catalogue de frais ---
 
-router.get('/tuition-fee-catalog', async (_req, res) => {
+router.get('/tuition-fee-catalog', async (req: SchoolContextRequest, res) => {
   try {
     const rows = await prisma.tuitionFeeCatalog.findMany({
+      where: (req.schoolId ? ({ schoolId: req.schoolId } as any) : undefined) as any,
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
       include: {
         class: { select: { id: true, name: true, level: true, academicYear: true } },
@@ -145,7 +147,7 @@ router.get('/tuition-fee-catalog', async (_req, res) => {
   }
 });
 
-router.post('/tuition-fee-catalog', async (req, res) => {
+router.post('/tuition-fee-catalog', async (req: SchoolContextRequest, res) => {
   try {
     const {
       label,
@@ -166,6 +168,7 @@ router.post('/tuition-fee-catalog', async (req, res) => {
     }
     const row = await prisma.tuitionFeeCatalog.create({
       data: {
+        schoolId: req.schoolId || null,
         label: String(label).trim(),
         academicYear: academicYear ? String(academicYear) : null,
         scope: scope || 'BY_LEVEL',
@@ -178,7 +181,7 @@ router.post('/tuition-fee-catalog', async (req, res) => {
         periodLabelHint: periodLabelHint ? String(periodLabelHint) : null,
         sortOrder: sortOrder != null ? Number(sortOrder) : 0,
         isActive: isActive !== false,
-      },
+      } as any,
       include: {
         class: { select: { id: true, name: true, level: true } },
       },
@@ -189,7 +192,7 @@ router.post('/tuition-fee-catalog', async (req, res) => {
   }
 });
 
-router.put('/tuition-fee-catalog/:id', async (req, res) => {
+router.put('/tuition-fee-catalog/:id', async (req: SchoolContextRequest, res) => {
   try {
     const {
       label,
@@ -205,8 +208,13 @@ router.put('/tuition-fee-catalog/:id', async (req, res) => {
       sortOrder,
       isActive,
     } = req.body;
+    const existing = await prisma.tuitionFeeCatalog.findFirst({
+      where: { id: req.params.id, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Barème introuvable' });
     const row = await prisma.tuitionFeeCatalog.update({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       data: {
         ...(label !== undefined && { label: String(label).trim() }),
         ...(academicYear !== undefined && { academicYear: academicYear ? String(academicYear) : null }),
@@ -233,9 +241,14 @@ router.put('/tuition-fee-catalog/:id', async (req, res) => {
   }
 });
 
-router.delete('/tuition-fee-catalog/:id', async (req, res) => {
+router.delete('/tuition-fee-catalog/:id', async (req: SchoolContextRequest, res) => {
   try {
-    await prisma.tuitionFeeCatalog.delete({ where: { id: req.params.id } });
+    const existing = await prisma.tuitionFeeCatalog.findFirst({
+      where: { id: req.params.id, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Barème introuvable' });
+    await prisma.tuitionFeeCatalog.delete({ where: { id: existing.id } });
     res.json({ message: 'Supprimé' });
   } catch (e: unknown) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
@@ -244,9 +257,10 @@ router.delete('/tuition-fee-catalog/:id', async (req, res) => {
 
 // --- Gabarits d’échéancier ---
 
-router.get('/tuition-payment-schedule-templates', async (_req, res) => {
+router.get('/tuition-payment-schedule-templates', async (req: SchoolContextRequest, res) => {
   try {
     const rows = await prisma.tuitionPaymentScheduleTemplate.findMany({
+      where: (req.schoolId ? ({ schoolId: req.schoolId } as any) : undefined) as any,
       orderBy: { name: 'asc' },
     });
     res.json(rows);
@@ -255,19 +269,20 @@ router.get('/tuition-payment-schedule-templates', async (_req, res) => {
   }
 });
 
-router.post('/tuition-payment-schedule-templates', async (req, res) => {
+router.post('/tuition-payment-schedule-templates', async (req: SchoolContextRequest, res) => {
   try {
     const { name, description, academicYear, lines, isActive } = req.body;
     if (!name) return res.status(400).json({ error: 'name est requis' });
     const parsed = parseScheduleLines(lines);
     const row = await prisma.tuitionPaymentScheduleTemplate.create({
       data: {
+        schoolId: req.schoolId || null,
         name: String(name).trim(),
         description: description ? String(description) : null,
         academicYear: academicYear ? String(academicYear) : null,
         lines: parsed as unknown as Prisma.InputJsonValue,
         isActive: isActive !== false,
-      },
+      } as any,
     });
     res.status(201).json(row);
   } catch (e: unknown) {
@@ -276,7 +291,7 @@ router.post('/tuition-payment-schedule-templates', async (req, res) => {
   }
 });
 
-router.put('/tuition-payment-schedule-templates/:id', async (req, res) => {
+router.put('/tuition-payment-schedule-templates/:id', async (req: SchoolContextRequest, res) => {
   try {
     const { name, description, academicYear, lines, isActive } = req.body;
     const data: Prisma.TuitionPaymentScheduleTemplateUpdateInput = {};
@@ -287,8 +302,13 @@ router.put('/tuition-payment-schedule-templates/:id', async (req, res) => {
       data.lines = parseScheduleLines(lines) as unknown as Prisma.InputJsonValue;
     }
     if (isActive !== undefined) data.isActive = Boolean(isActive);
+    const existing = await prisma.tuitionPaymentScheduleTemplate.findFirst({
+      where: { id: req.params.id, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Gabarit introuvable' });
     const row = await prisma.tuitionPaymentScheduleTemplate.update({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       data,
     });
     res.json(row);
@@ -298,9 +318,14 @@ router.put('/tuition-payment-schedule-templates/:id', async (req, res) => {
   }
 });
 
-router.delete('/tuition-payment-schedule-templates/:id', async (req, res) => {
+router.delete('/tuition-payment-schedule-templates/:id', async (req: SchoolContextRequest, res) => {
   try {
-    await prisma.tuitionPaymentScheduleTemplate.delete({ where: { id: req.params.id } });
+    const existing = await prisma.tuitionPaymentScheduleTemplate.findFirst({
+      where: { id: req.params.id, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Gabarit introuvable' });
+    await prisma.tuitionPaymentScheduleTemplate.delete({ where: { id: existing.id } });
     res.json({ message: 'Supprimé' });
   } catch (e: unknown) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erreur serveur' });
@@ -308,7 +333,7 @@ router.delete('/tuition-payment-schedule-templates/:id', async (req, res) => {
 });
 
 /** Applique un poste du catalogue : une ligne de frais par élève (montant net après remise éventuelle). */
-router.post('/tuition-fee-catalog/apply-to-students', async (req, res) => {
+router.post('/tuition-fee-catalog/apply-to-students', async (req: SchoolContextRequest, res) => {
   try {
     const {
       catalogId,
@@ -327,7 +352,9 @@ router.post('/tuition-fee-catalog/apply-to-students', async (req, res) => {
     if (!catalogId || !academicYear || !anchorDueDate) {
       return res.status(400).json({ error: 'Barème, année scolaire et date d’échéance sont requis' });
     }
-    const catalog = await prisma.tuitionFeeCatalog.findUnique({ where: { id: catalogId } });
+    const catalog = await prisma.tuitionFeeCatalog.findFirst({
+      where: { id: catalogId, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+    });
     if (!catalog || !catalog.isActive) {
       return res.status(404).json({ error: 'Barème introuvable ou inactif' });
     }
@@ -350,6 +377,7 @@ router.post('/tuition-fee-catalog/apply-to-students', async (req, res) => {
     let students = await prisma.student.findMany({
       where: {
         isActive: true,
+        ...(req.schoolId ? { schoolId: req.schoolId } : {}),
         ...(classIdVal && { classId: classIdVal }),
         ...(classLevelVal && { class: { level: classLevelVal } }),
       },
@@ -421,7 +449,7 @@ router.post('/tuition-fee-catalog/apply-to-students', async (req, res) => {
 });
 
 /** Applique un gabarit d’échéancier : plusieurs lignes de frais pour un élève. */
-router.post('/tuition-payment-schedule-templates/apply-to-student', async (req, res) => {
+router.post('/tuition-payment-schedule-templates/apply-to-student', async (req: SchoolContextRequest, res) => {
   try {
     const {
       scheduleTemplateId,
@@ -441,10 +469,12 @@ router.post('/tuition-payment-schedule-templates/apply-to-student', async (req, 
     const tpl = await prisma.tuitionPaymentScheduleTemplate.findUnique({
       where: { id: scheduleTemplateId },
     });
-    if (!tpl || !tpl.isActive) {
+    if (!tpl || !tpl.isActive || (req.schoolId && (tpl as any).schoolId !== req.schoolId)) {
       return res.status(404).json({ error: 'Gabarit introuvable ou inactif' });
     }
-    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, ...(req.schoolId ? { schoolId: req.schoolId } : {}) },
+    });
     if (!student) return res.status(404).json({ error: 'Élève introuvable' });
 
     const lines = parseScheduleLines(tpl.lines);

@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:exports": "cd ../server && npm run test:web-exports"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:exports": "vitest run src/lib/document-exports.test.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.1",
@@ -34,6 +36,10 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "eslint-plugin-no-secrets": "^2.2.1",
+    "eslint-plugin-security": "^3.0.1",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.16",

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { Readable } from 'stream';
 import authRoutes from '../routes/auth.routes';
 import adminRoutes from '../routes/admin.routes';
 import teacherRoutes from '../routes/teacher.routes';
@@ -18,6 +19,7 @@ import academicValidationRoutes from '../routes/academic-validation.routes';
 import digitalLibraryRoutes from '../routes/digital-library.routes';
 import healthRoutes from '../routes/health.routes';
 import elearningRoutes from '../routes/elearning.routes';
+import paymentWebhookRoutes from '../routes/payment-webhook.routes';
 import { getUploadsRootDir } from '../utils/uploads-path';
 import { getAllowedCorsOrigins } from '../utils/cors-origins.util';
 import { recordRequestMetric } from '../utils/performance-metrics.util';
@@ -127,6 +129,28 @@ export function createApp(): express.Express {
 
   const serveUploads: express.RequestHandler = (req, res, next) => {
     void protectSensitiveUploads(req, res, () => {
+      const sensitiveBlobUrl =
+        typeof res.locals?.sensitiveBlobUrl === 'string' ? (res.locals.sensitiveBlobUrl as string) : null;
+      if (sensitiveBlobUrl) {
+        void (async () => {
+          try {
+            const upstream = await fetch(sensitiveBlobUrl);
+            if (!upstream.ok || !upstream.body) {
+              if (!res.headersSent) res.status(404).end();
+              return;
+            }
+            const contentType = upstream.headers.get('content-type');
+            if (contentType) res.setHeader('Content-Type', contentType);
+            const contentLength = upstream.headers.get('content-length');
+            if (contentLength) res.setHeader('Content-Length', contentLength);
+            res.setHeader('Cache-Control', 'private, no-store, no-cache');
+            Readable.fromWeb(upstream.body as globalThis.ReadableStream<Uint8Array>).pipe(res);
+          } catch (err) {
+            next(err);
+          }
+        })();
+        return;
+      }
       uploadsStatic(req, res, (err: unknown) => {
         const code =
           err && typeof err === 'object' && 'code' in err
@@ -168,6 +192,7 @@ export function createApp(): express.Express {
   app.use(`${apiPrefix}/public`, publicRoutes);
   app.use(`${apiPrefix}/academic-validation`, academicValidationRoutes);
   app.use(`${apiPrefix}/digital-library`, digitalLibraryRoutes);
+  app.use(`${apiPrefix}/payments/webhook`, paymentWebhookRoutes);
 
   app.get(`${apiPrefix}/health`, (req, res) => res.json(healthJson));
   if (apiPrefix === '/api') {
