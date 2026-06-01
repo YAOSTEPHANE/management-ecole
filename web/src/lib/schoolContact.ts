@@ -1,10 +1,6 @@
 import type { AppBrandingPayload } from '@/contexts/AppBrandingContext';
-import {
-  TRANLEFET_OPENING_HOURS,
-  TRANLEFET_SCHOOL,
-  getGoogleMapsSearchUrl,
-  getTranlefetSchoolMapsQuery,
-} from '@/data/tranlefetSchool';
+import { HOME_OPENING_HOURS } from '@/data/homeDefaults';
+import { getGoogleMapsSearchUrl, getSchoolMapsQuery } from '@/lib/schoolMaps';
 
 export type SchoolContactInfo = {
   name: string;
@@ -36,8 +32,8 @@ function normalizeWebsiteHref(website: string): string {
 }
 
 function buildOpeningHoursSummary(): string {
-  const wednesday = TRANLEFET_OPENING_HOURS.find((row) => row.day === 'Mercredi');
-  const weekday = TRANLEFET_OPENING_HOURS.find((row) => row.day === 'Lundi');
+  const wednesday = HOME_OPENING_HOURS.find((row) => row.day === 'Mercredi');
+  const weekday = HOME_OPENING_HOURS.find((row) => row.day === 'Lundi');
   if (weekday && wednesday) {
     return `Lun. – ven. : ${weekday.hours} (mer. : ${wednesday.hours})`;
   }
@@ -45,14 +41,13 @@ function buildOpeningHoursSummary(): string {
 }
 
 export function resolveSchoolContactInfo(branding: AppBrandingPayload): SchoolContactInfo {
-  const name = branding.schoolDisplayName?.trim() || TRANLEFET_SCHOOL.fullName;
-  const address =
-    branding.schoolAddress?.trim() ||
-    `${TRANLEFET_SCHOOL.city}, ${TRANLEFET_SCHOOL.country}`;
-  const phone = branding.schoolPhone?.trim() || TRANLEFET_SCHOOL.phoneDisplay;
-  const phoneTel = branding.schoolPhone?.trim()
-    ? toTelHref(branding.schoolPhone)
-    : TRANLEFET_SCHOOL.phoneTel;
+  const name =
+    branding.schoolDisplayName?.trim() ||
+    branding.appTitle?.trim() ||
+    'Gestion scolaire';
+  const address = branding.schoolAddress?.trim() || '';
+  const phone = branding.schoolPhone?.trim() || '';
+  const phoneTel = phone ? toTelHref(phone) : '';
   const email = branding.schoolEmail?.trim() || null;
   const websiteRaw = branding.schoolWebsite?.trim() || null;
   const websiteHref = websiteRaw ? normalizeWebsiteHref(websiteRaw) : null;
@@ -67,7 +62,9 @@ export function resolveSchoolContactInfo(branding: AppBrandingPayload): SchoolCo
     website: websiteRaw,
     websiteHref,
     principal,
-    mapsUrl: getGoogleMapsSearchUrl(getTranlefetSchoolMapsQuery(branding.schoolAddress)),
+    mapsUrl: getGoogleMapsSearchUrl(
+      getSchoolMapsQuery(branding.schoolAddress, name),
+    ),
     openingHoursSummary: buildOpeningHoursSummary(),
   };
 }

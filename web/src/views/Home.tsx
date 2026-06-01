@@ -1,27 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppBranding } from '../contexts/AppBrandingContext';
 import Button from '../components/ui/Button';
 import Footer from '../components/Footer';
 import HomeReveal from '../components/public/HomeReveal';
-import HomeDirectorSection from '../components/public/HomeDirectorSection';
 import HomePageImage from '../components/public/HomePageImage';
 import PreInscriptionSchoolEntry from '../components/public/PreInscriptionSchoolEntry';
 import { computeCurrentAcademicYear, getCurrentAcademicYear } from '../utils/academicYear';
 import { getRoleDashboardPath } from '../lib/rolePaths';
 import {
-  TRANLEFET_MARQUEE,
-  TRANLEFET_NEWS,
-  TRANLEFET_OPENING_HOURS,
-  TRANLEFET_SCHOOL,
-  TRANLEFET_STATS,
-  TRANLEFET_VALUES,
-  getGoogleMapsSearchUrl,
-  getTranlefetSchoolMapsQuery,
-} from '../data/tranlefetSchool';
+  DEFAULT_INTRO,
+  DEFAULT_MISSION,
+  DEFAULT_MOTTO,
+  DEFAULT_MOTTO_SHORT,
+  HOME_MARQUEE,
+  HOME_OPENING_HOURS,
+  HOME_STATS,
+  HOME_VALUES,
+} from '../data/homeDefaults';
+import { resolveSchoolContactInfo } from '../lib/schoolContact';
 import {
   FiArrowRight,
   FiAward,
@@ -52,11 +52,10 @@ import {
 const NAV_LINKS = [
   { href: '#etablissement', label: 'Établissement' },
   { href: '#parcours', label: 'Admissions' },
-  { href: '#actualites', label: 'Actualités' },
   { href: '/contact', label: 'Contact' },
 ];
 
-const MARQUEE_ITEMS = [...TRANLEFET_MARQUEE];
+const MARQUEE_ITEMS = [...HOME_MARQUEE];
 
 const TRUST_PILLS = [
   { icon: FiAward, text: 'Excellence éducative' },
@@ -67,13 +66,13 @@ const TRUST_PILLS = [
 const PILLARS = [
   {
     title: 'Formation de qualité',
-    text: TRANLEFET_SCHOOL.mission,
+    text: DEFAULT_MISSION,
     icon: FiBook,
     accent: 'from-tran-mauve-600 to-tran-mauve-800',
     span: 'md:col-span-2',
     imageSlot: 'homePillarPedagogy' as const,
     image: '/home/pillar-pedagogy.jpg',
-    imageAlt: 'Salle de classe au Collège Privé Tranlefet de Bouaké',
+    imageAlt: 'Salle de classe — apprentissage',
   },
   {
     title: 'Innovation pédagogique',
@@ -116,7 +115,7 @@ const ROLES = [
     icon: FiBarChart2,
     imageSlot: 'homeRoleAdmin' as const,
     image: '/home/role-admin.jpg',
-    imageAlt: 'Direction du Collège Privé Tranlefet',
+    imageAlt: 'Direction de l’établissement',
   },
   {
     label: 'Enseignant',
@@ -126,7 +125,7 @@ const ROLES = [
     icon: FiBook,
     imageSlot: 'homeRoleTeacher' as const,
     image: '/home/role-teacher.jpg',
-    imageAlt: 'Corps enseignant du CPTB',
+    imageAlt: 'Corps enseignant',
   },
   {
     label: 'Élève',
@@ -136,7 +135,7 @@ const ROLES = [
     icon: FiAward,
     imageSlot: 'homeRoleStudent' as const,
     image: '/home/role-student.jpg',
-    imageAlt: 'Élèves du Collège Privé Tranlefet de Bouaké',
+    imageAlt: 'Élèves en activité',
   },
   {
     label: 'Parent',
@@ -157,7 +156,7 @@ const VALUE_ICONS = {
   users: FiUsers,
 } as const;
 
-const HIGHLIGHTS = TRANLEFET_VALUES.map((v) => ({
+const HIGHLIGHTS = HOME_VALUES.map((v) => ({
   title: v.title,
   text: v.text,
   icon: VALUE_ICONS[v.icon],
@@ -223,7 +222,7 @@ const TESTIMONIALS = [
     quote:
       'Un établissement qui associe exigence, discipline et accompagnement humain dans une vision claire de la réussite.',
     author: 'Communauté éducative',
-    role: 'Projet scolaire CPTB',
+    role: 'Projet scolaire',
   },
   {
     quote:
@@ -242,22 +241,21 @@ const HERO_FLOATING = [
 export default function Home() {
   const { user } = useAuth();
   const { navigationLogoAbsolute, branding } = useAppBranding();
+  const contact = useMemo(() => resolveSchoolContactInfo(branding), [branding]);
   const [year, setYear] = useState(() => computeCurrentAcademicYear());
   const [menuOpen, setMenuOpen] = useState(false);
-  const schoolDisplayName =
-    (branding.schoolDisplayName && branding.schoolDisplayName.trim()) ||
-    (branding.appTitle && branding.appTitle.trim()) ||
-    TRANLEFET_SCHOOL.fullName;
+  const schoolDisplayName = contact.name;
   const schoolShortName =
-    (branding.appTitle && branding.appTitle.trim() && branding.appTitle.trim() !== schoolDisplayName)
+    branding.appTitle?.trim() && branding.appTitle.trim() !== schoolDisplayName
       ? branding.appTitle.trim()
-      : TRANLEFET_SCHOOL.shortName;
+      : schoolDisplayName;
   const headerTitle = schoolDisplayName;
   const headerTagline =
-    (branding.appTagline && branding.appTagline.trim()) || TRANLEFET_SCHOOL.tagline;
-  const schoolMapsUrl = getGoogleMapsSearchUrl(
-    getTranlefetSchoolMapsQuery(branding.schoolAddress)
-  );
+    branding.appTagline?.trim() || 'Gestion scolaire moderne';
+  const schoolIntro = DEFAULT_INTRO;
+  const schoolMapsUrl = contact.mapsUrl;
+  const hasPhone = Boolean(contact.phone && contact.phoneTel);
+  const hasAddress = Boolean(contact.address.trim());
 
   useEffect(() => {
     document.title = `${headerTitle} · Accueil`;
@@ -404,13 +402,12 @@ export default function Home() {
                       <span className="text-xs font-semibold tabular-nums text-tran-mustard-50">{year}</span>
                     </span>
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-tran-mauve-400/35 bg-tran-mauve-500/10 px-3 py-1.5 text-xs font-semibold text-tran-mauve-100 backdrop-blur-sm">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tran-mauve-400 opacity-75 motion-reduce:animate-none" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-tran-mauve-400" />
+                  {hasAddress && (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-tran-mauve-400/35 bg-tran-mauve-500/10 px-3 py-1.5 text-xs font-semibold text-tran-mauve-100 backdrop-blur-sm">
+                      <FiMapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span className="max-w-[14rem] truncate sm:max-w-xs">{contact.address}</span>
                     </span>
-                    {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
-                  </span>
+                  )}
                 </div>
 
                 <h1 className="home-hero-h1 home-hero-title-line font-display text-[2.1rem] font-black leading-[1.08] tracking-tight text-white sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem] lg:leading-[1.04]">
@@ -420,7 +417,7 @@ export default function Home() {
                   {schoolDisplayName}
                 </h1>
                 <p className="home-hero-sub-line mt-7 max-w-xl text-lg leading-relaxed text-stone-400 sm:text-xl">
-                  {TRANLEFET_SCHOOL.intro}
+                  {schoolIntro}
                 </p>
 
                 <ul className="mt-9 flex flex-wrap gap-3">
@@ -493,7 +490,7 @@ export default function Home() {
                 )}
 
                 <div className="mt-14 grid grid-cols-3 gap-3 sm:max-w-lg sm:gap-4">
-                  {TRANLEFET_STATS.map((s) => (
+                  {HOME_STATS.map((s) => (
                     <div
                       key={s.l}
                       className="home-stat-tile rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-center shadow-inner backdrop-blur-sm sm:px-4 sm:text-left"
@@ -521,14 +518,14 @@ export default function Home() {
                           <span className="h-3 w-3 rounded-full bg-tran-mauve-400/90 shadow-sm" />
                         </div>
                         <span className="rounded-lg border border-white/10 bg-stone-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
-                          CPTB · Bouaké
+                          {schoolShortName}
                         </span>
                       </div>
                       <div className="relative aspect-[4/3] min-h-[280px] sm:min-h-[320px] lg:min-h-[380px]">
                         <HomePageImage
                           slot="homeHeroPlatform"
                           defaultPath="/home/hero-platform.jpg"
-                          alt="Collège Privé Tranlefet de Bouaké — vie scolaire et apprentissage"
+                          alt={`${schoolDisplayName} — vie scolaire et apprentissage`}
                           fill
                           className="object-cover"
                           sizes="(max-width: 1024px) 100vw, 50vw"
@@ -611,8 +608,6 @@ export default function Home() {
           </div>
         </section>
 
-        <HomeDirectorSection />
-
         {/* Expérience premium */}
         <section id="experience" className="relative z-10 px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
           <HomeReveal>
@@ -669,11 +664,11 @@ export default function Home() {
                   Notre projet éducatif
                 </span>
                 <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl lg:tracking-tight">
-                  {TRANLEFET_SCHOOL.mottoShort}
+                  {DEFAULT_MOTTO_SHORT}
                 </h2>
                 <div className="home-section-accent home-section-accent--glow" aria-hidden />
                 <p className="mx-auto max-w-2xl text-lg leading-relaxed text-stone-600">
-                  {TRANLEFET_SCHOOL.mission}
+                  {DEFAULT_MISSION}
                 </p>
               </div>
               <div className="grid gap-5 md:grid-cols-3 md:gap-6">
@@ -734,10 +729,14 @@ export default function Home() {
                 aria-hidden
               />
               <div className="absolute bottom-6 left-6 right-6 z-10 rounded-2xl border border-white/15 bg-stone-950/50 p-4 backdrop-blur-md lg:max-w-xs">
-                <p className="text-sm font-semibold text-white">{TRANLEFET_SCHOOL.city}</p>
-                <p className="mt-1 text-xs text-stone-300">
-                  Collège privé au cœur de la ville, ouvert du lundi au vendredi.
-                </p>
+                {hasAddress && (
+                  <>
+                    <p className="text-sm font-semibold text-white">{contact.address}</p>
+                    <p className="mt-1 text-xs text-stone-300">
+                      Établissement scolaire — accueil du lundi au vendredi.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-14">
@@ -749,7 +748,7 @@ export default function Home() {
               </h2>
               <div className="home-section-accent mx-0 mt-3" aria-hidden />
               <p className="mt-5 text-lg leading-relaxed text-stone-600">
-                {TRANLEFET_SCHOOL.intro}
+                {schoolIntro}
               </p>
               <ul className="mt-8 space-y-3 text-stone-700">
                 {[
@@ -764,13 +763,15 @@ export default function Home() {
                 ))}
               </ul>
               <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <a
-                  href={TRANLEFET_SCHOOL.phoneTel}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-tran-mauve-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-tran-mauve-900/25 transition-all hover:bg-tran-mauve-800"
-                >
-                  <FiPhone className="h-4 w-4" aria-hidden />
-                  {TRANLEFET_SCHOOL.phoneDisplay}
-                </a>
+                {hasPhone && (
+                  <a
+                    href={contact.phoneTel}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-tran-mauve-900 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-tran-mauve-900/25 transition-all hover:bg-tran-mauve-800"
+                  >
+                    <FiPhone className="h-4 w-4" aria-hidden />
+                    {contact.phone}
+                  </a>
+                )}
                 <PreInscriptionSchoolEntry
                   variant="button"
                   buttonVariant="secondary"
@@ -843,7 +844,7 @@ export default function Home() {
           <HomeReveal>
           <div className="text-center">
             <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
-              La communauté CPTB
+              La communauté éducative
             </h2>
             <div className="home-section-accent mt-4" aria-hidden />
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
@@ -962,32 +963,6 @@ export default function Home() {
           </HomeReveal>
         </section>
 
-        {/* Actualités */}
-        <section id="actualites" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-20">
-          <HomeReveal>
-            <div className="text-center mb-12">
-              <span className="inline-flex w-fit items-center rounded-full border border-tran-mustard-200/80 bg-tran-mustard-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-tran-mustard-950">
-                Vie de l&apos;établissement
-              </span>
-              <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                Actualités du CPTB
-              </h2>
-              <div className="home-section-accent mt-4" aria-hidden />
-            </div>
-            <div className="grid gap-5 md:grid-cols-2">
-              {TRANLEFET_NEWS.map((item, idx) => (
-                <HomeReveal key={item.title} delayMs={idx * 60}>
-                  <article className="h-full rounded-3xl border border-stone-200/90 bg-white p-6 shadow-lg shadow-stone-900/[0.04] transition-all hover:-translate-y-1 hover:border-tran-mustard-200 hover:shadow-xl">
-                    <p className="text-xs font-bold uppercase tracking-wider text-tran-mustard-800">{item.date}</p>
-                    <h3 className="mt-2 font-display text-xl font-semibold text-stone-900">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-stone-600">{item.excerpt}</p>
-                  </article>
-                </HomeReveal>
-              ))}
-            </div>
-          </HomeReveal>
-        </section>
-
         {/* Infos pratiques */}
         <section className="border-y border-stone-200/80 bg-gradient-to-b from-tran-mustard-50/40 via-white to-stone-50/80 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -1007,20 +982,23 @@ export default function Home() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-semibold text-stone-900 hover:text-tran-mustard-800 underline-offset-2 hover:underline"
-                          aria-label={`Voir ${TRANLEFET_SCHOOL.fullName} sur Google Maps`}
+                          aria-label={`Voir ${schoolDisplayName} sur Google Maps`}
                         >
-                          {TRANLEFET_SCHOOL.fullName}
+                          {hasAddress ? contact.address : schoolDisplayName}
                         </a>
-                        <br />
-                        {TRANLEFET_SCHOOL.city}, {TRANLEFET_SCHOOL.country}
                       </span>
                     </p>
-                    <p className="flex items-center gap-3 text-stone-700">
-                      <FiPhone className="h-5 w-5 shrink-0 text-tran-mustard-700" aria-hidden />
-                      <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-stone-900 hover:text-tran-mustard-800">
-                        {TRANLEFET_SCHOOL.phoneDisplay}
-                      </a>
-                    </p>
+                    {hasPhone && (
+                      <p className="flex items-center gap-3 text-stone-700">
+                        <FiPhone className="h-5 w-5 shrink-0 text-tran-mustard-700" aria-hidden />
+                        <a
+                          href={contact.phoneTel}
+                          className="font-semibold text-stone-900 hover:text-tran-mustard-800"
+                        >
+                          {contact.phone}
+                        </a>
+                      </p>
+                    )}
                   </div>
                   <Link href="/contact" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-tran-mustard-900 hover:text-tran-mustard-700">
                     <FiMessageSquare className="h-4 w-4" />
@@ -1034,7 +1012,7 @@ export default function Home() {
                   </h3>
                   <table className="mt-5 w-full text-sm">
                     <tbody>
-                      {TRANLEFET_OPENING_HOURS.map((row) => (
+                      {HOME_OPENING_HOURS.map((row) => (
                         <tr key={row.day} className="border-b border-stone-100 last:border-0">
                           <td className="py-2.5 font-medium text-stone-800">{row.day}</td>
                           <td className="py-2.5 text-right tabular-nums text-stone-600">{row.hours}</td>
@@ -1054,7 +1032,7 @@ export default function Home() {
             <HomeReveal>
             <div className="text-center">
               <h2 className="font-display text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                Pourquoi choisir Tranlefet ?
+                Pourquoi nous choisir ?
               </h2>
               <div className="home-section-accent mt-4" aria-hidden />
               <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
@@ -1142,10 +1120,10 @@ export default function Home() {
             </span>
             <FiMessageSquare className="relative z-10 mx-auto h-11 w-11 text-tran-mustard-800 drop-shadow-sm" aria-hidden />
             <blockquote className="relative z-10 mx-auto mt-8 max-w-3xl font-display text-2xl font-medium leading-snug text-stone-900 sm:text-3xl sm:leading-snug">
-              {TRANLEFET_SCHOOL.motto}
+              {DEFAULT_MOTTO}
             </blockquote>
             <p className="relative z-10 mt-8 text-sm font-semibold uppercase tracking-wider text-stone-500">
-              {TRANLEFET_SCHOOL.fullName}
+              {schoolDisplayName}
             </p>
             <div className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-2">
               {[...Array(5)].map((_, i) => (
@@ -1170,11 +1148,20 @@ export default function Home() {
                 Rejoignez {schoolDisplayName}
               </h2>
               <p className="mt-5 text-lg text-stone-400">
-                Inscription en ligne, espace sécurisé pour les familles et l’équipe pédagogique. Pour toute question :{' '}
-                <a href={TRANLEFET_SCHOOL.phoneTel} className="font-semibold text-tran-mustard-200 hover:text-white">
-                  {TRANLEFET_SCHOOL.phoneDisplay}
-                </a>
-                .
+                Inscription en ligne, espace sécurisé pour les familles et l’équipe pédagogique.
+                {hasPhone && (
+                  <>
+                    {' '}
+                    Pour toute question :{' '}
+                    <a
+                      href={contact.phoneTel}
+                      className="font-semibold text-tran-mustard-200 hover:text-white"
+                    >
+                      {contact.phone}
+                    </a>
+                    .
+                  </>
+                )}
               </p>
               <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 {!user ? (
