@@ -1,4 +1,8 @@
 import prisma from './prisma';
+import {
+  courseGradingCoefficientMap,
+  computeOverallAverageFromCourseAverages,
+} from './course-grading-coefficient.util';
 
 export type CourseAverageEntry = { total: number; count: number; average: number };
 
@@ -90,10 +94,11 @@ export async function computeStudentBulletinAverage(
     }),
     prisma.course.findMany({
       where: { classId },
-      select: { id: true },
+      select: { id: true, gradingCoefficient: true },
     }),
   ]);
 
+  const courseCoeffs = courseGradingCoefficientMap(classCourses);
   const courseAverages: Record<string, { total: number; count: number; average: number }> = {};
 
   grades.forEach((grade) => {
@@ -117,17 +122,7 @@ export async function computeStudentBulletinAverage(
     }
   });
 
-  let totalWeightedAverage = 0;
-  let totalCoefficient = 0;
-  Object.entries(courseAverages).forEach(([courseId, course]) => {
-    const hasGrades = grades.some((g) => g.courseId === courseId);
-    if (hasGrades && course.count > 0) {
-      totalWeightedAverage += course.average * course.count;
-      totalCoefficient += course.count;
-    }
-  });
-
-  return totalCoefficient > 0 ? totalWeightedAverage / totalCoefficient : 0;
+  return computeOverallAverageFromCourseAverages(courseAverages, grades, courseCoeffs);
 }
 
 export type ClassRankRow = { studentId: string; average: number; rank: number };
@@ -190,22 +185,6 @@ function computeCourseAveragesFromGrades(
   });
 
   return courseAverages;
-}
-
-function computeOverallFromCourseAverages(
-  courseAverages: Record<string, CourseAverageEntry>,
-  grades: Array<{ courseId: string }>,
-): number {
-  let totalWeightedAverage = 0;
-  let totalCoefficient = 0;
-  Object.entries(courseAverages).forEach(([courseId, course]) => {
-    const hasGrades = grades.some((g) => g.courseId === courseId);
-    if (hasGrades && course.count > 0) {
-      totalWeightedAverage += course.average * course.count;
-      totalCoefficient += course.count;
-    }
-  });
-  return totalCoefficient > 0 ? totalWeightedAverage / totalCoefficient : 0;
 }
 
 function rankByAverage(values: Array<{ id: string; average: number }>): Map<string, number> {
@@ -275,9 +254,10 @@ export async function enrichReportCardsWithTermHistory(
 
   const classCourses = await prisma.course.findMany({
     where: { classId },
-    select: { id: true },
+    select: { id: true, gradingCoefficient: true },
   });
   const courseIds = classCourses.map((c) => c.id);
+  const courseCoeffs = courseGradingCoefficientMap(classCourses);
   const studentIds = reportCards.map((r) => r.studentId);
 
   type Snapshot = {
@@ -313,7 +293,11 @@ export async function enrichReportCardsWithTermHistory(
       snapshots.push({
         studentId,
         courseAverages,
-        overallAverage: computeOverallFromCourseAverages(courseAverages, grades),
+        overallAverage: computeOverallAverageFromCourseAverages(
+          courseAverages,
+          grades,
+          courseCoeffs,
+        ),
       });
     }
 

@@ -10,6 +10,11 @@ import { optionalPasswordPolicyValidator, PASSWORD_POLICY_HINT } from '../utils/
 import prisma from '../utils/prisma';
 import { deleteStoredUploadUrl } from '../utils/upload-persist.util';
 import { resolveStoredFileAccessUrl } from '../utils/upload-access-token.util';
+import {
+  parseGradingCoefficient,
+  courseGradingCoefficientMap,
+  computeOverallAverageFromCourseAverages,
+} from '../utils/course-grading-coefficient.util';
 import { computeClassBulletinRanks, enrichReportCardsWithTermHistory } from '../utils/report-card.util';
 import {
   assertScheduleConstraints,
@@ -534,7 +539,8 @@ router.post(
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
-      const { name, code, description, classId, teacherId, weeklyHours } = req.body;
+      const { name, code, description, classId, teacherId, weeklyHours, gradingCoefficient } =
+        req.body;
 
       const [cls, teacher, codeTaken] = await Promise.all([
         prisma.class.findUnique({ where: { id: classId } }),
@@ -545,6 +551,14 @@ router.post(
       if (!teacher) return res.status(400).json({ error: 'Enseignant introuvable' });
       if (codeTaken) return res.status(400).json({ error: 'Ce code matière existe déjà' });
 
+      let parsedGradingCoefficient = 1;
+      try {
+        parsedGradingCoefficient = parseGradingCoefficient(gradingCoefficient, 1);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Coefficient invalide';
+        return res.status(400).json({ error: msg });
+      }
+
       const course = await prisma.course.create({
         data: {
           name: String(name).trim(),
@@ -554,6 +568,7 @@ router.post(
             weeklyHours !== undefined && weeklyHours !== null && weeklyHours !== ''
               ? Number(weeklyHours)
               : undefined,
+          gradingCoefficient: parsedGradingCoefficient,
           classId,
           teacherId,
         },
@@ -589,7 +604,8 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
       const { courseId } = req.params;
-      const { name, code, description, classId, teacherId, weeklyHours } = req.body;
+      const { name, code, description, classId, teacherId, weeklyHours, gradingCoefficient } =
+        req.body;
 
       const existing = await prisma.course.findUnique({ where: { id: courseId } });
       if (!existing) return res.status(404).json({ error: 'Cours non trouvé' });
@@ -607,6 +623,16 @@ router.put(
         if (!teacher) return res.status(400).json({ error: 'Enseignant introuvable' });
       }
 
+      let parsedGradingCoefficient: number | undefined;
+      if (gradingCoefficient !== undefined) {
+        try {
+          parsedGradingCoefficient = parseGradingCoefficient(gradingCoefficient, 1);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Coefficient invalide';
+          return res.status(400).json({ error: msg });
+        }
+      }
+
       const course = await prisma.course.update({
         where: { id: courseId },
         data: {
@@ -622,6 +648,9 @@ router.put(
               weeklyHours === null || weeklyHours === ''
                 ? null
                 : Number(weeklyHours),
+          }),
+          ...(parsedGradingCoefficient !== undefined && {
+            gradingCoefficient: parsedGradingCoefficient,
           }),
         },
         include: {
@@ -4582,6 +4611,7 @@ router.get('/report-cards/generate-data', async (req, res) => {
         id: true,
         name: true,
         code: true,
+        gradingCoefficient: true,
         teacher: {
           select: {
             user: { select: { firstName: true, lastName: true } },
@@ -4589,6 +4619,7 @@ router.get('/report-cards/generate-data', async (req, res) => {
         },
       },
     });
+    const courseCoeffs = courseGradingCoefficientMap(classCourses);
 
     // Pour chaque élève, calculer les moyennes par matière
     const reportCardData = await Promise.all(
@@ -4639,18 +4670,11 @@ router.get('/report-cards/generate-data', async (req, res) => {
           }
         });
 
-        // Calculer la moyenne générale (seulement pour les cours avec notes)
-        let totalWeightedAverage = 0;
-        let totalCoefficient = 0;
-        Object.entries(courseAverages).forEach(([courseId, course]) => {
-          // Vérifier si ce cours a des notes
-          const hasGrades = grades.some(g => g.courseId === courseId);
-          if (hasGrades && course.count > 0) {
-            totalWeightedAverage += course.average * course.count;
-            totalCoefficient += course.count;
-          }
-        });
-        const overallAverage = totalCoefficient > 0 ? totalWeightedAverage / totalCoefficient : 0;
+        const overallAverage = computeOverallAverageFromCourseAverages(
+          courseAverages,
+          grades,
+          courseCoeffs,
+        );
 
         const periodAbsences = await prisma.absence.findMany({
           where: {
@@ -4737,6 +4761,12 @@ router.post('/report-cards/save', async (req: AuthRequest, res) => {
     const changeRequests: Awaited<ReturnType<typeof createReportCardChangeRequest>>[] = [];
     let skippedUnchanged = 0;
 
+    const classCoursesForCoeffs = await prisma.course.findMany({
+      where: { classId },
+      select: { id: true, gradingCoefficient: true },
+    });
+    const courseCoeffs = courseGradingCoefficientMap(classCoursesForCoeffs);
+
     await Promise.all(
       students.map(async (student) => {
         const grades = await prisma.grade.findMany({
@@ -4749,28 +4779,29 @@ router.post('/report-cards/save', async (req: AuthRequest, res) => {
           },
         });
 
-        // Calculer la moyenne
-        let totalWeightedAverage = 0;
-        let totalCoefficient = 0;
-        const courseAverages: Record<string, { total: number; count: number }> = {};
+        const courseAverages: Record<string, { total: number; count: number; average: number }> =
+          {};
 
         grades.forEach((grade) => {
           const courseId = grade.courseId;
           if (!courseAverages[courseId]) {
-            courseAverages[courseId] = { total: 0, count: 0 };
+            courseAverages[courseId] = { total: 0, count: 0, average: 0 };
           }
           const gradeOn20 = (grade.score / grade.maxScore) * 20;
           courseAverages[courseId].total += gradeOn20 * grade.coefficient;
           courseAverages[courseId].count += grade.coefficient;
         });
 
-        Object.values(courseAverages).forEach((course) => {
-          const courseAverage = course.count > 0 ? course.total / course.count : 0;
-          totalWeightedAverage += courseAverage * course.count;
-          totalCoefficient += course.count;
+        Object.keys(courseAverages).forEach((courseId) => {
+          const course = courseAverages[courseId];
+          course.average = course.count > 0 ? course.total / course.count : 0;
         });
 
-        const average = totalCoefficient > 0 ? totalWeightedAverage / totalCoefficient : 0;
+        const average = computeOverallAverageFromCourseAverages(
+          courseAverages,
+          grades,
+          courseCoeffs,
+        );
 
         // Calculer le rang (simplifié, peut être amélioré)
         const allAverages = await Promise.all(
@@ -4784,21 +4815,19 @@ router.post('/report-cards/save', async (req: AuthRequest, res) => {
                 },
               },
             });
-            let sTotal = 0;
-            let sCoeff = 0;
-            const sCourseAvg: Record<string, { total: number; count: number }> = {};
+            const sCourseAvg: Record<string, { total: number; count: number; average: number }> =
+              {};
             sGrades.forEach((g) => {
-              if (!sCourseAvg[g.courseId]) sCourseAvg[g.courseId] = { total: 0, count: 0 };
+              if (!sCourseAvg[g.courseId]) sCourseAvg[g.courseId] = { total: 0, count: 0, average: 0 };
               const gOn20 = (g.score / g.maxScore) * 20;
               sCourseAvg[g.courseId].total += gOn20 * g.coefficient;
               sCourseAvg[g.courseId].count += g.coefficient;
             });
-            Object.values(sCourseAvg).forEach((c) => {
-              const cAvg = c.count > 0 ? c.total / c.count : 0;
-              sTotal += cAvg * c.count;
-              sCoeff += c.count;
+            Object.keys(sCourseAvg).forEach((courseId) => {
+              const c = sCourseAvg[courseId];
+              c.average = c.count > 0 ? c.total / c.count : 0;
             });
-            return sCoeff > 0 ? sTotal / sCoeff : 0;
+            return computeOverallAverageFromCourseAverages(sCourseAvg, sGrades, courseCoeffs);
           })
         );
 
